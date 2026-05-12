@@ -1,0 +1,324 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, useScroll, useTransform } from 'motion/react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock } from 'lucide-react';
+import { Button } from '@/src/components/ui/button';
+import { Input } from '@/src/components/ui/input';
+import { Footer } from '@/src/components/Footer';
+import { PricingCard } from '@/src/components/PricingCard';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/src/components/ui/accordion';
+
+export const LandingPage: React.FC = () => {
+  const [url, setUrl] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (location.hash) {
+      const element = document.getElementById(location.hash.substring(1));
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location]);
+  
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"]
+  });
+  
+  const yHero = useTransform(scrollYProgress, [0, 1], [0, 200]);
+  const opacityHero = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+
+  const handleAnalyze = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (url) {
+      // Navigeer naar het laadscherm (analyseer/laden of analyseer)
+      navigate('/analyseer/laden');
+    }
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15, delayChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30, filter: 'blur(10px)' },
+    show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: "spring", stiffness: 50, damping: 15 } }
+  };
+
+  return (
+      <div className="relative overflow-hidden min-h-screen scroll-smooth" ref={containerRef}>
+      
+      {/* Hero Section */}
+      <motion.div 
+        style={{ y: yHero, opacity: opacityHero }}
+        className="container mx-auto px-6 py-32 md:py-48 relative z-10 flex flex-col items-center text-center"
+      >
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="max-w-4xl w-full flex flex-col items-center"
+        >
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass border border-white/10 mb-8 shadow-sm bg-black/40 backdrop-blur-xl">
+            <Search className="w-4 h-4 text-accent-green" />
+            <span className="text-sm font-medium text-white">AI-gedreven autoanalyse</span>
+          </motion.div>
+          
+          <motion.h1 variants={itemVariants} className="text-4xl md:text-6xl lg:text-7xl font-heading font-extrabold tracking-tight mb-8 leading-tight text-white flex flex-col items-center">
+            <span>AI die jou beschermt</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">
+               tegen slechte auto's.
+            </span>
+          </motion.h1>
+          
+          <motion.p variants={itemVariants} className="text-gray-300 text-lg md:text-xl mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+            Plak een Marktplaats-link. Ontvang binnen 60 seconden een AI-rapport met DealScore, rode vlaggen en een onderhandelingsscript.
+          </motion.p>
+          
+          <motion.form variants={itemVariants} onSubmit={handleAnalyze} className="flex flex-col gap-4 items-center w-full max-w-2xl mx-auto relative z-20">
+            <div className="relative w-full group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-dark/50 to-accent-green/30 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
+              <div className="relative flex items-center bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl focus-within:border-accent-green/50 transition-colors duration-300">
+                <Search className="absolute left-6 h-6 w-6 text-gray-400" />
+                <Input 
+                  type="url" 
+                  placeholder="https://www.marktplaats.nl/v/..." 
+                  className="pl-16 pr-6 h-20 w-full bg-transparent border-0 text-lg text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <Button type="submit" size="xl" className="w-full md:w-auto h-16 px-10 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all duration-300 group">
+              Analyseer deze auto
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            
+            <p className="text-sm text-gray-500 flex items-center gap-2 mt-2">
+              <CheckCircle2 className="w-4 h-4 text-accent-green" /> Eerste analyse gratis · Geen account nodig
+            </p>
+          </motion.form>
+        </motion.div>
+      </motion.div>
+
+      {/* Trust bar */}
+      <div className="border-y border-white/5 bg-black/20 backdrop-blur-md relative z-10">
+        <div className="container mx-auto px-6 py-6 font-medium text-gray-400">
+          <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16 text-sm">
+             <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-lg">4.200+</span> analyses uitgevoerd
+             </div>
+             <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/10"></div>
+             <div className="flex items-center gap-2">
+                Gemiddeld <span className="text-accent-green font-bold text-lg">€1.800</span> bespaard
+             </div>
+             <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/10"></div>
+             <div className="flex items-center gap-2 text-yellow-500">
+                ⭐ <span className="text-white font-bold text-lg ml-1">4.8/5</span> beoordeling
+             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hoe het werkt Section */}
+      <div id="hoe-het-werkt" className="container mx-auto px-6 relative z-10 py-32">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-20"
+        >
+          <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Zo simpel werkt het</h2>
+        </motion.div>
+
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto relative">
+          {/* Connector line (Desktop) */}
+          <div className="hidden md:block absolute top-[4rem] left-[16%] right-[16%] h-px bg-white/10"></div>
+
+          {[
+            { 
+              step: '1', 
+              icon: LinkIcon, 
+              title: "Plak de Marktplaats-link", 
+              desc: "Kopieer de URL van de advertentie die je op het oog hebt."
+            },
+            { 
+              step: '2', 
+              icon: Cpu, 
+              title: "AI analyseert alles", 
+              desc: "Onze modellen scannen de prijs, foto's, beschrijving en historie binnen seconden."
+            },
+            { 
+              step: '3', 
+              icon: FileText, 
+              title: "Ontvang je rapport", 
+              desc: "Krijg direct inzicht of je een slimme aankoop doet of beter weg kunt lopen."
+            }
+          ].map((item, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.2 }}
+                className="relative flex flex-col items-center text-center group transition-all"
+              >
+                <div className="w-20 h-20 rounded-full glass-panel border border-white/10 mb-6 flex items-center justify-center relative shadow-lg z-10 group-hover:border-accent-green/30 group-hover:scale-105 transition-all">
+                  <div className="absolute inset-0 bg-accent-green/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-md"></div>
+                  <item.icon className="w-8 h-8 text-white group-hover:text-accent-green transition-colors" />
+                  <div className="absolute top-0 -right-2 w-6 h-6 rounded-full bg-accent-green text-black font-bold text-xs flex items-center justify-center">{item.step}</div>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                <p className="text-gray-400 leading-relaxed font-light text-sm">{item.desc}</p>
+             </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Voorbeeld Rapport Sectie */}
+      <div className="container mx-auto px-6 relative z-10 py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+         <div className="max-w-5xl mx-auto flex flex-col lg:flex-row gap-16 items-center">
+            <div className="flex-1 w-full relative">
+               <div className="absolute inset-0 bg-accent-green/10 blur-[100px] rounded-full"></div>
+               <div className="glass-panel border-white/10 rounded-3xl p-6 relative z-10 shadow-2xl bg-black/80 overflow-hidden">
+                  <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+                     <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full border-4 border-[#10B981] flex items-center justify-center">
+                           <span className="text-[#10B981] font-bold text-sm">72</span>
+                        </div>
+                        <div>
+                           <div className="font-bold text-white">DealScore</div>
+                           <div className="text-xs text-[#10B981]">Redelijke deal</div>
+                        </div>
+                     </div>
+                  </div>
+                  
+                  <div className="space-y-3 mb-6">
+                     <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                           <div className="text-white text-sm font-semibold">Geen proefrit mogelijk</div>
+                           <div className="text-xs text-gray-400 mt-1">Serieuze verkopers staan altijd een proefrit toe...</div>
+                        </div>
+                     </div>
+                     <div className="bg-white/5 p-3 rounded-xl blur-sm flex items-start gap-3 select-none">
+                        <div className="w-4 h-4 bg-gray-500 rounded-full shrink-0" />
+                        <div className="space-y-2 w-full">
+                           <div className="h-4 bg-gray-600 rounded w-2/3"></div>
+                           <div className="h-3 bg-gray-700 rounded w-full"></div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col items-center justify-end pb-6 z-20">
+                     <div className="flex items-center gap-2 mb-3">
+                        <Lock className="w-4 h-4 text-accent-green" />
+                        <span className="text-white font-medium text-sm">Ontgrendel volledig rapport</span>
+                     </div>
+                     <Button className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg">Bekijk voor €9,99</Button>
+                  </div>
+               </div>
+            </div>
+
+            <div className="flex-1 w-full text-center lg:text-left">
+               <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Wat je krijgt</h2>
+               <p className="text-gray-400 text-lg mb-8 leading-relaxed font-light">
+                  Ons rapport gaat veel verder dan een simpele prijsschattings-tool. We ontleden de advertentie alsof je een expert meeneemt naar de bezichtiging.
+               </p>
+               <ul className="space-y-4 mb-8 text-left max-w-md mx-auto lg:mx-0">
+                  <li className="flex items-center gap-3 text-gray-300"><CheckCircle2 className="w-5 h-5 text-accent-green" /> Unieke <strong>DealScore (0-100)</strong></li>
+                  <li className="flex items-center gap-3 text-gray-300"><CheckCircle2 className="w-5 h-5 text-accent-green" /> AI-gedetecteerde <strong>Rode Vlaggen</strong></li>
+                  <li className="flex items-center gap-3 text-gray-300"><CheckCircle2 className="w-5 h-5 text-accent-green" /> AI <strong>Foto-analyse</strong> op roest en slijtage</li>
+                  <li className="flex items-center gap-3 text-gray-300"><CheckCircle2 className="w-5 h-5 text-accent-green" /> Persoonlijk <strong>Onderhandelingsscript</strong></li>
+               </ul>
+            </div>
+         </div>
+      </div>
+
+      {/* Pricing Section */}
+      <div className="container mx-auto px-6 relative z-10 py-32" id="prijzen">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-16"
+        >
+          <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Kies de zekerheid die <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">bij je past</span></h2>
+        </motion.div>
+        
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {/* Basis */}
+          <PricingCard 
+             title="Basis" 
+             price="€14,99" 
+             period="/ maand"
+             description="Voor de gerichte koper die een paar specifieke auto's op het oog heeft."
+             features={[
+               { text: "5 Premium rapporten per maand", included: true },
+               { text: "RDW-data, historie & kilometer check", included: true },
+               { text: "Rode vlaggen & verborgen gebreken", included: true },
+               { text: "Slimme DealScore™ & waardebepaling", included: true },
+               { text: "Geavanceerde AI Foto-scan & Onderhandeling", included: false },
+             ]}
+             btnText="Kies Basis"
+             variant="ghost"
+          />
+
+          {/* Premium */}
+          <PricingCard 
+             title="Premium" 
+             price="€24,99" 
+             period="/ maand"
+             description="De meest gekozen optie voor volledige zekerheid en de beste deal."
+             features={[
+               { text: "Onbeperkt Premium rapporten", included: true },
+               { text: "RDW-data, historie & kilometer check", included: true },
+               { text: "Rode vlaggen & verborgen gebreken", included: true },
+               { text: "Geavanceerde AI Foto-scan (Schade)", included: true },
+               { text: "Persoonlijk onderhandelingsscript", included: true },
+             ]}
+             btnText="Kies Premium"
+             variant="premium"
+             featured={true}
+          />
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div className="container mx-auto px-6 py-32 relative z-10 max-w-4xl">
+         <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-12 text-center">Veelgestelde vragen</h2>
+         <Accordion type="single" collapsible className="w-full space-y-4">
+           {[
+             { q: "Werkt het alleen voor Marktplaats?", a: "Momenteel ondersteunen we Marktplaats volledig. AutoTrack en Autoscout volgen binnenkort." },
+             { q: "Hoe nauwkeurig is de prijsanalyse?", a: "We vergelijken met 10–20 actuele vergelijkbare advertenties in heel Nederland op het moment van analyse." },
+             { q: "Is mijn data veilig?", a: "We slaan alleen de analyseresultaten op, niet je persoonlijke gegevens. Je hoeft zelfs geen account te maken voor je eerste rapport." },
+             { q: "Kan ik het rapport delen?", a: "Ja, elk rapport heeft een unieke deelbare link die je via WhatsApp of e-mail kunt sturen." },
+             { q: "Hoe werkt de foto-analyse?", a: "Onze AI (Visual Intelligence) scant de foto's op kleurverschillen, spuitwerk, verborgen schades, deuken en slijtage aan het interieur." }
+           ].map((faq, i) => (
+             <AccordionItem value={`item-${i}`} key={i} className="bg-white/[0.02] border border-white/10 rounded-2xl px-6 data-[state=open]:bg-white/[0.05] transition-colors">
+               <AccordionTrigger className="text-white hover:text-accent-green hover:no-underline font-semibold text-left py-6">{faq.q}</AccordionTrigger>
+               <AccordionContent className="text-gray-400 font-light text-base leading-relaxed pb-6">
+                 {faq.a}
+               </AccordionContent>
+             </AccordionItem>
+           ))}
+         </Accordion>
+      </div>
+
+      <Footer />
+    </div>
+  );
+};
