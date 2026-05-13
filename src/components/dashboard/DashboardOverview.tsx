@@ -1,26 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search, ArrowRight, Loader2 } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
+import { useStore } from '@/src/store/useStore';
+import { db } from '../../lib/firebase';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+
+interface Analyse {
+  id: string;
+  title: string;
+  price: string;
+  score: number;
+  date: string;
+  img?: string;
+}
 
 export const DashboardOverview: React.FC = () => {
   const [url, setUrl] = useState('');
+  const [recentCars, setRecentCars] = useState<Analyse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
   const navigate = useNavigate();
+  const { user } = useStore();
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function fetchAnalyses() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const q = query(
+          collection(db, 'analyses'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(3)
+        );
+        const snapshot = await getDocs(q);
+        const cars = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: data.title || 'Onbekende auto',
+            price: data.price || 'Prijs op aanvraag',
+            score: data.score || 0,
+            date: data.createdAt ? new Date(data.createdAt.toMillis()).toLocaleDateString('nl-NL') : 'Onbekend',
+            img: data.img || 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=100&h=100&fit=crop',
+          };
+        });
+        setRecentCars(cars);
+      } catch (error) {
+        console.error("Error fetching analyses:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAnalyses();
+  }, [user]);
+
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (url) {
-      navigate('/rapport/m123456');
+    if (!url || !user) return;
+
+    setAnalyzing(true);
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          userId: user.uid
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Analyse mislukt');
+      }
+
+      const data = await response.json();
+      if (data.rapportId) {
+        navigate(`/rapport/${data.rapportId}`);
+      }
+    } catch (error) {
+      console.error("Error analyzing car:", error);
+      alert("Er is iets misgegaan bij het opstarten van de analyse.");
+    } finally {
+      setAnalyzing(false);
     }
   };
-
-  const recentCars = [
-    { id: '1', title: 'Volkswagen Golf 1.4 TSI R-Line', price: '€ 18.500', score: 82, date: 'Vandaag', img: 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=100&h=100&fit=crop' },
-    { id: '2', title: 'BMW 3 Serie 320i High Executive', price: '€ 24.950', score: 65, date: 'Gisteren', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=100&h=100&fit=crop' },
-    { id: '3', title: 'Audi A3 Sportback 35 TFSI', price: '€ 21.000', score: 45, date: '2 dagen geleden', img: 'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?w=100&h=100&fit=crop' },
-  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -50,12 +121,27 @@ export const DashboardOverview: React.FC = () => {
                 className="pl-12 pr-4 h-14 w-full bg-transparent border-0 text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                disabled={analyzing}
               />
             </div>
           </div>
-          <Button type="submit" size="lg" className="h-14 px-8 rounded-xl shrink-0 group shadow-lg font-semibold">
-            Analyseren
-            <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <Button 
+            type="submit" 
+            size="lg" 
+            className="h-14 px-8 rounded-xl shrink-0 group shadow-lg font-semibold"
+            disabled={analyzing}
+          >
+            {analyzing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starten...
+              </>
+            ) : (
+              <>
+                Analyseren
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </Button>
         </form>
       </div>
@@ -63,45 +149,56 @@ export const DashboardOverview: React.FC = () => {
       <div className="p-6 md:p-10 flex-1 overflow-y-auto min-h-0">
         <div className="flex justify-between items-end mb-8">
           <h2 className="text-3xl font-heading font-bold text-white tracking-tight">Recente Analyses</h2>
-          <Button variant="link" className="text-gray-400 hover:text-white pr-0">Bekijk alles</Button>
+          <Button variant="link" className="text-gray-400 hover:text-white pr-0" onClick={() => navigate('/dashboard/history')}>Bekijk alles</Button>
         </div>
         
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4"
-        >
-          {recentCars.map((car) => (
-            <motion.div 
-              key={car.id}
-              variants={itemVariants}
-              whileHover={{ scale: 1.01, x: 5 }}
-              className="glass rounded-2xl p-4 flex flex-col justify-between sm:items-center hover:bg-white/10 transition-all group cursor-pointer border-white/5 hover:border-accent-green/30 relative overflow-hidden"
-              onClick={() => navigate(`/rapport/${car.id}`)}
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent-green to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="flex gap-6 items-center w-full">
-                <div className="hidden sm:block w-20 h-16 bg-black/60 rounded-xl overflow-hidden border border-white/10 shrink-0">
-                  <img src={car.img} alt={car.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white text-lg group-hover:text-accent-green transition-colors leading-tight">{car.title}</h3>
-                  <div className="flex items-center gap-3 text-sm text-gray-400 mt-1.5 font-medium">
-                    <span className="text-gray-200">{car.price}</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-                    <span>{car.date}</span>
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="w-8 h-8 text-accent-green animate-spin" />
+          </div>
+        ) : recentCars.length === 0 ? (
+          <div className="text-center py-12 glass rounded-2xl border-white/5">
+            <h3 className="text-xl font-bold text-white mb-2">Nog geen analyses</h3>
+            <p className="text-gray-400">Plak een link hierboven om je eerste auto te analyseren.</p>
+          </div>
+        ) : (
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid gap-4"
+          >
+            {recentCars.map((car) => (
+              <motion.div 
+                key={car.id}
+                variants={itemVariants}
+                whileHover={{ scale: 1.01, x: 5 }}
+                className="glass rounded-2xl p-4 flex flex-col justify-between sm:items-center hover:bg-white/10 transition-all group cursor-pointer border-white/5 hover:border-accent-green/30 relative overflow-hidden"
+                onClick={() => navigate(`/rapport/${car.id}`)}
+              >
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent-green to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="flex gap-6 items-center w-full">
+                  <div className="hidden sm:block w-20 h-16 bg-black/60 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                    <img src={car.img} alt={car.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white text-lg group-hover:text-accent-green transition-colors leading-tight">{car.title}</h3>
+                    <div className="flex items-center gap-3 text-sm text-gray-400 mt-1.5 font-medium">
+                      <span className="text-gray-200">{car.price}</span>
+                      <span className="w-1 h-1 rounded-full bg-gray-600"></span>
+                      <span>{car.date}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center justify-center shrink-0 w-16 h-16 rounded-xl bg-black/40 border border-white/5 group-hover:border-accent-green/20 transition-colors">
+                    <div className={`text-2xl font-heading font-bold ${car.score >= 70 ? 'text-accent-green drop-shadow-[0_0_10px_rgba(0,200,83,0.3)]' : car.score >= 50 ? 'text-accent-orange' : 'text-destructive'}`}>
+                      {car.score}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-center justify-center shrink-0 w-16 h-16 rounded-xl bg-black/40 border border-white/5 group-hover:border-accent-green/20 transition-colors">
-                  <div className={`text-2xl font-heading font-bold ${car.score >= 70 ? 'text-accent-green drop-shadow-[0_0_10px_rgba(0,200,83,0.3)]' : car.score >= 50 ? 'text-accent-orange' : 'text-destructive'}`}>
-                    {car.score}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
       </div>
     </div>
   );

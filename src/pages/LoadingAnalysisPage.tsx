@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, Loader2, Circle, AlertCircle } from 'lucide-react';
+import { useStore } from '@/src/store/useStore';
+
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/src/lib/firebase';
 
 const stappen = [
   "Advertentie ophalen...",
@@ -21,10 +25,14 @@ const hints = [
 
 export const LoadingAnalysisPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useStore();
   const [huidigeStap, setHuidigeStap] = useState(0);
   const [hintIndex, setHintIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [autoData, setAutoData] = useState<{naam: string, prijs: string, img: string} | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     // Roteer hints elke 4 seconden
@@ -36,55 +44,133 @@ export const LoadingAnalysisPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Voor demoredenen, simuleer de laadstappen over een periode van ~8 seconden
-    let step = 0;
-    const interval = setInterval(() => {
-      step += 1;
-      setHuidigeStap(step);
-      setProgress(Math.min((step / stappen.length) * 100, 100));
-      
-      // Simuleer dat we data hebben gestraapt na stap 1
-      if (step === 1) {
-        setAutoData({
-          naam: "Volkswagen Golf 1.4 TSI Highline (2018)",
-          prijs: "€ 8.500",
-          img: "https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=600"
-        });
-      }
+    const url = location.state?.url;
+    if (!url) {
+      navigate('/');
+      return;
+    }
 
-      if (step >= stappen.length + 1) {
-        clearInterval(interval);
-        // Navigate to the demo report
-        navigate('/rapport/demo-001');
+    let isSubscribed = true;
+
+    // Start API en polling
+    const startAnalysis = async () => {
+      try {
+        // Simuleer stappen voortgang terwijl we wachten (max 15s)
+        const stepInterval = setInterval(() => {
+           if (isSubscribed) {
+              setHuidigeStap(prev => Math.min(prev + 1, stappen.length - 2));
+           }
+        }, 4000);
+
+        const analyzeRes = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, userId: auth.currentUser?.uid })
+        });
+        
+        if (!analyzeRes.ok) {
+           const errData = await analyzeRes.json();
+           throw new Error(errData.error || "API call failed");
+        }
+        const analysisData = await analyzeRes.json();
+        
+        clearInterval(stepInterval);
+
+        if (isSubscribed && analysisData.success) {
+           setHuidigeStap(stappen.length - 1); // Laatste step "Rapport genereren..."
+           setAutoData({
+              naam: analysisData.data.titel || analysisData.data.title || "Gevonden voertuig",
+              prijs: analysisData.data.prijs ? `€ ${analysisData.data.prijs}` : "Prijs onbekend",
+              img: analysisData.photoUrls?.[0] || ""
+           });
+
+           // Opgeslagen in Firestore
+           const rapportRef = await addDoc(collection(db, 'rapporten'), {
+              userId: auth.currentUser?.uid || "anonymous",
+              url: url,
+              status: "compleet",
+              data: analysisData.data,
+              photoUrls: analysisData.photoUrls || [],
+              comparables: analysisData.comparables || [],
+              analyse: analysisData.analyse || {},
+              fotoAnalyse: analysisData.fotoAnalyse || { fotos: [], ontbrekendeFootos: [] },
+              rdwData: analysisData.rdwData || null,
+              kenteken: analysisData.kenteken || "",
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+           });
+
+           setHuidigeStap(stappen.length);
+           setProgress(100);
+           setTimeout(() => {
+              if (isSubscribed) navigate(`/rapport/${rapportRef.id}`);
+           }, 500);
+        } else {
+           setHasError(true);
+           setErrorMessage(analysisData.error || "Onbekende fout");
+        }
+
+        return () => {
+           clearInterval(stepInterval);
+        };
+      } catch (err: any) {
+        console.error(err);
+        setHasError(true);
+        setErrorMessage(err.message || "Er is een fout opgetreden.");
       }
-    }, 1500);
+    };
+
+    startAnalysis();
 
     // Vloeiende progress balk update
     const smoothProgress = setInterval(() => {
        setProgress(prev => {
-          if (prev >= 100) return 100;
-          return prev + 0.5;
+          if (prev >= 98 || hasError) return prev;
+          return prev + 0.1;
        });
     }, 50);
 
     return () => {
-      clearInterval(interval);
+      isSubscribed = false;
       clearInterval(smoothProgress);
     };
-  }, [navigate]);
+  }, [location, navigate, user?.uid, hasError]);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center pt-32 pb-12 px-6">
+        <AlertCircle className="w-16 h-16 text-red-500 mb-6" />
+        <h2 className="text-2xl text-white font-bold mb-2">Er ging iets mis</h2>
+        <p className="text-gray-400 mb-2 text-center max-w-sm">
+          {errorMessage ? errorMessage : "We konden deze Marktplaats advertentie niet verwerken. Mogelijk is de URL ongeldig of is de advertentie verwijderd."}
+        </p>
+        {errorMessage?.includes("Actor was not found") && (
+          <p className="text-yellow-400 mb-4 text-center max-w-sm text-sm">
+            Check of de Apify Actor ID klopt.
+          </p>
+        )}
+        {errorMessage?.includes("usage hard limit") && (
+          <p className="text-yellow-400 mb-4 text-center max-w-sm text-sm">
+            De Apify API limiet (Monthly usage hard limit) is bereikt. Probeer het later of upgrade je plan.
+          </p>
+        )}
+        <button onClick={() => navigate('/')} className="bg-white/10 hover:bg-white/20 text-white mt-4 px-6 py-2 rounded-xl transition-colors">
+          Probeer het opnieuw
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center pt-32 pb-12 px-6 relative overflow-hidden">
-      
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-green/10 blur-[150px] rounded-full pointer-events-none"></div>
 
       <div className="max-w-md w-full relative z-10 glass-panel border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl bg-black/60 backdrop-blur-2xl">
-        
         {/* Thumbnail Sectie */}
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-white/10 overflow-hidden mb-4 bg-white/5 relative flex-shrink-0">
-             {autoData ? (
+             {autoData && autoData.img ? (
                <img src={autoData.img} alt="Voertuig" className="w-full h-full object-cover animate-in fade-in zoom-in duration-500" />
              ) : (
                <div className="absolute inset-0 flex items-center justify-center">

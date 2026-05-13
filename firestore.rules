@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Definition
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Notice: For users, we may allow unverified creation to bootstrap the auth flow or standard OAuth
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidGebruiker(data) {
+      return data.keys().hasAll(['email', 'uid', 'aanmaakdatum']) 
+        && data.keys().size() == 3
+        && data.email is string && data.email.size() <= 100
+        && data.uid is string && data.uid.size() <= 128 && data.uid == request.auth.uid;
+    }
+
+    function isValidAnalyse(data) {
+      return data.keys().hasAll(['userId', 'url', 'title', 'price', 'score', 'createdAt'])
+        && data.userId is string && data.userId == request.auth.uid
+        && data.url is string && data.url.size() <= 1000
+        && data.title is string && data.title.size() <= 500
+        && data.price is string && data.price.size() <= 100
+        && data.score is number
+        && data.createdAt is timestamp
+        && (!('status' in data) || (data.status is string && data.status.size() <= 100))
+        && (!('statusColor' in data) || (data.statusColor is string && data.statusColor.size() <= 100))
+        && (!('img' in data) || (data.img is string && data.img.size() <= 1000));
+    }
+
+    // 1. Gebruikers
+    match /gebruikers/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+      // Allow creation when user is logged in
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidGebruiker(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidGebruiker(incoming()) 
+        && incoming().uid == existing().uid
+        && incoming().aanmaakdatum == existing().aanmaakdatum
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email']); 
+      allow delete: if isSignedIn() && userId == request.auth.uid;
+    }
+
+    // 2. Analyses
+    match /analyses/{analyseId} {
+      // Users can only read their own analyses
+      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Users can only create analyses for themselves
+      allow create: if isSignedIn() && isValidId(analyseId) && isValidAnalyse(incoming()) && incoming().createdAt == request.time;
+      // Users can only delete their own analyses
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // 3. Rapporten
+    match /rapporten/{rapportId} {
+      // Anyone with the ID can read a report (for sharing)
+      allow get: if true;
+      // Users can only list their own reports
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Let authenticated users write to their own reports, or allow anonymous writes
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

@@ -50,8 +50,6 @@ export const AnalysisInputPage: React.FC = () => {
            <div className="flex items-center justify-center gap-6 mb-8 text-sm font-bold text-gray-500 uppercase tracking-wider">
               <span className="text-white">Ondersteunde platforms:</span>
               <span className="flex items-center gap-1.5 text-orange-400"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
-              <span className="flex items-center gap-1.5 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-400"></span> AutoTrack</span>
-              <span className="flex items-center gap-1.5 text-yellow-400"><span className="w-2 h-2 rounded-full bg-yellow-400"></span> AutoScout24</span>
            </div>
 
            {!isManual ? (

@@ -37,7 +37,7 @@ export const HowItWorksPage: React.FC = () => {
           >
             <div className="flex-1 order-2 md:order-1">
               <div className="text-accent-green font-bold text-lg mb-2">Stap 01</div>
-              <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-4">Plak de Marktplaats of AutoTrack link</h2>
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-4">Plak de Marktplaats link</h2>
               <p className="text-gray-400 text-lg leading-relaxed mb-6">
                 Zodra je een interessante auto ziet staan, plak je simpelweg de URL van de advertentie in onze zoekbalk. Je hoeft niks te downloaden en geen account aan te maken om te beginnen.
               </p>

@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "Gebruiker": {
+      "title": "Gebruiker",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "User's email"
+        },
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "aanmaakdatum": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account creation timestamp"
+        }
+      },
+      "required": ["email", "uid", "aanmaakdatum"]
+    },
+    "Analyse": {
+      "title": "Analyse",
+      "description": "Car analysis report",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User who created the analysis"
+        },
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "price": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string"
+        },
+        "statusColor": {
+          "type": "string"
+        },
+        "img": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "url", "title", "price", "score", "createdAt"]
+    },
+    "Rapport": {
+      "title": "Rapport",
+      "description": "Scraped car report",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "comparables": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "url", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/gebruikers/{userId}": {
+      "schema": {
+        "$ref": "#/entities/Gebruiker"
+      },
+      "description": "Stores user profiles"
+    },
+    "/analyses/{analyseId}": {
+      "schema": {
+        "$ref": "#/entities/Analyse"
+      },
+      "description": "Stores car analyses"
+    },
+    "/rapporten/{rapportId}": {
+      "schema": {
+        "$ref": "#/entities/Rapport"
+      },
+      "description": "Stores scraped reports"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock } from 'lucide-react';
+import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock, RotateCcw } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Footer } from '@/src/components/Footer';
@@ -38,8 +38,7 @@ export const LandingPage: React.FC = () => {
   const handleAnalyze = (e: React.FormEvent) => {
     e.preventDefault();
     if (url) {
-      // Navigeer naar het laadscherm (analyseer/laden of analyseer)
-      navigate('/analyseer/laden');
+      navigate('/analyseer/laden', { state: { url } });
     }
   };
 
@@ -228,7 +227,7 @@ export const LandingPage: React.FC = () => {
                         <Lock className="w-4 h-4 text-accent-green" />
                         <span className="text-white font-medium text-sm">Ontgrendel volledig rapport</span>
                      </div>
-                     <Button className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg">Bekijk voor €9,99</Button>
+                     <Button className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg">Bekijk voor €4,99</Button>
                   </div>
                </div>
             </div>
@@ -259,41 +258,80 @@ export const LandingPage: React.FC = () => {
           <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Kies de zekerheid die <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">bij je past</span></h2>
         </motion.div>
         
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {/* Basis */}
+        <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16 items-center">
+          {/* Plan 1: Losse Scan */}
           <PricingCard 
-             title="Basis" 
-             price="€14,99" 
-             period="/ maand"
-             description="Voor de gerichte koper die een paar specifieke auto's op het oog heeft."
+             title="Losse Scan" 
+             price="€4,99" 
+             period=""
+             description="Ideaal als je precies weet welke auto je gaat kopen."
              features={[
-               { text: "5 Premium rapporten per maand", included: true },
-               { text: "RDW-data, historie & kilometer check", included: true },
-               { text: "Rode vlaggen & verborgen gebreken", included: true },
-               { text: "Slimme DealScore™ & waardebepaling", included: true },
-               { text: "Geavanceerde AI Foto-scan & Onderhandeling", included: false },
+               { text: "1 volledig rapport", included: true },
+               { text: "DealScore & waardebepaling", included: true },
+               { text: "Rode vlaggen analyse", included: true },
+               { text: "RDW & kilometercheck", included: true },
+               { text: "Geavanceerde AI Foto-scan", included: false },
+               { text: "Persoonlijk onderhandelingsscript", included: false },
              ]}
-             btnText="Kies Basis"
-             variant="ghost"
+             btnText="Koop scan — €4,99"
+             buttonStyle="outline"
           />
 
-          {/* Premium */}
+          {/* Plan 2: Slimme Koper */}
           <PricingCard 
-             title="Premium" 
-             price="€24,99" 
-             period="/ maand"
-             description="De meest gekozen optie voor volledige zekerheid en de beste deal."
+             title="Slimme Koper" 
+             price="€9,99" 
+             period=""
+             description="De favoriete keuze voor wie meerdere auto's vergelijkt."
+             badgeText="Meest Gekozen"
              features={[
-               { text: "Onbeperkt Premium rapporten", included: true },
-               { text: "RDW-data, historie & kilometer check", included: true },
-               { text: "Rode vlaggen & verborgen gebreken", included: true },
-               { text: "Geavanceerde AI Foto-scan (Schade)", included: true },
+               { text: "3 volledige rapporten", included: true },
+               { text: "DealScore & waardebepaling", included: true },
+               { text: "Rode vlaggen analyse", included: true },
+               { text: "RDW & kilometercheck", included: true },
+               { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
              ]}
-             btnText="Kies Premium"
-             variant="premium"
+             btnText="Start nu — €9,99"
              featured={true}
+             buttonStyle="primary"
           />
+
+          {/* Plan 3: Autohandelaar */}
+          <PricingCard 
+             title="Autohandelaar" 
+             price="€19" 
+             period="/ maand"
+             description="Voor wie wekelijks auto's beoordeelt en koopt."
+             badgeText="Voor professionals"
+             features={[
+               { text: "Onbeperkt rapporten", included: true },
+               { text: "Alles van Slimme Koper", included: true },
+               { text: "Prioriteitsverwerking", included: true },
+               { text: "Rapportgeschiedenis & export", included: true },
+               { text: "Bulk analyse (meerdere URL's)", included: true },
+             ]}
+             btnText="Start abonnement"
+             buttonStyle="outline-green"
+          />
+        </div>
+
+        {/* Vertrouwensbalk */}
+        <div className="max-w-4xl mx-auto border border-white/5 bg-white/5 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 text-sm text-gray-400 mb-10">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-accent-green" />
+            Veilig betalen via Stripe
+          </div>
+          <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-accent-green" />
+            Geen abonnement voor losse scans
+          </div>
+          <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
+          <div className="flex items-center gap-2">
+            <RotateCcw className="w-5 h-5 text-accent-green" />
+            Niet tevreden? Geld terug garantie
+          </div>
         </div>
       </div>
 
@@ -302,7 +340,7 @@ export const LandingPage: React.FC = () => {
          <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-12 text-center">Veelgestelde vragen</h2>
          <Accordion type="single" collapsible className="w-full space-y-4">
            {[
-             { q: "Werkt het alleen voor Marktplaats?", a: "Momenteel ondersteunen we Marktplaats volledig. AutoTrack en Autoscout volgen binnenkort." },
+             { q: "Werkt het alleen voor Marktplaats?", a: "Ja, momenteel ondersteunen we Marktplaats volledig." },
              { q: "Hoe nauwkeurig is de prijsanalyse?", a: "We vergelijken met 10–20 actuele vergelijkbare advertenties in heel Nederland op het moment van analyse." },
              { q: "Is mijn data veilig?", a: "We slaan alleen de analyseresultaten op, niet je persoonlijke gegevens. Je hoeft zelfs geen account te maken voor je eerste rapport." },
              { q: "Kan ik het rapport delen?", a: "Ja, elk rapport heeft een unieke deelbare link die je via WhatsApp of e-mail kunt sturen." },

@@ -1,0 +1,67 @@
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:52.137Z ACTOR: Pulling container image of build c2peV3cka76MxTEJy from registry.
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:52.139Z ACTOR: Creating container.
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:52.182Z ACTOR: Starting container.
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:52.183Z ACTOR: Running under "LIMITED_PERMISSIONS".
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.497Z [INIT] Marktplaats Scraper v0.1.0 starting...
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.504Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.2","apifyClientVersion":"2.21.0","crawleeVersion":"3.15.3","osType":"Linux","nodeVersion":"v22.21.1"}[39m
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.624Z [PROXY SETUP] No country specified by user. Enforcing target country: NL
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.625Z [PROXY SETUP] Groups detected: RESIDENTIAL.
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.625Z [PROXY CONFIG] Creating proxy with options: {
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.625Z   "useApifyProxy": true,
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.626Z   "apifyProxyGroups": [
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.626Z     "RESIDENTIAL"
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.626Z   ],
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.627Z   "groups": [
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.627Z     "RESIDENTIAL"
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.627Z   ],
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.627Z   "countryCode": "NL"
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:53.627Z }
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:54.080Z [MODE] Direct URL Scraping selected. Enqueuing 1 URLs...
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:54.283Z [32mINFO[39m [33m CheerioCrawler:[39m Starting the crawler.
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:57.543Z [32mINFO[39m [33m CheerioCrawler:[39m [DETAIL] Processing: https://www.marktplaats.nl/v/auto-s/volkswagen/m2398861096-volkswagen-golf-1-2-tsi-63kw-5d-2013-zwart
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:57.630Z [32mINFO[39m [33m CheerioCrawler:[39m [DETAIL] Extracted data for: Volkswagen Golf 1.2 TSI 63KW 5D 2013 Zwart
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:58.297Z [32mINFO[39m [33m CheerioCrawler:[39m All requests from the queue have been processed, the crawler will shut down.
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:58.455Z [32mINFO[39m [33m CheerioCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":3787,"requestsFinishedPerMinute":14,"requestsFailedPerMinute":0,"requestTotalDurationMillis":3787,"requestsTotal":1,"crawlerRuntimeMillis":4375}[39m
+[36mmarktplaats-scraper runId:3wIuI91iNcVkS6Vjq -> [39m2026-05-13T07:52:58.456Z [32mINFO[39m [33m CheerioCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+Found items: 1
+First item: {
+  type: 'detail_result',
+  id: 2398861096,
+  url: 'https://www.marktplaats.nl/v/auto-s/volkswagen/m2398861096-volkswagen-golf-1-2-tsi-63kw-5d-2013-zwart',
+  title: 'Volkswagen Golf 1.2 TSI 63KW 5D 2013 Zwart',
+  description: 'De auto is in goede staat, ik wil hem verkopen omdat ik een andere auto heb gekocht.',
+  condition: null,
+  price: { amount: 5000, currency: 'EUR', display: '€ 5000' },
+  location: { city: 'Sliedrecht', region: 'NL' },
+  mainPhoto: 'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/b7439c3e-65a5-46b3-9ca7-bc67fe40b42a?rule=ecg_mp_eps$_86.jpg',
+  photos: [
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/b7439c3e-65a5-46b3-9ca7-bc67fe40b42a?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/62245b77-3858-4133-97e5-2004ffd46eca?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/ba9a49d9-85fb-4737-89b7-54ffce1a3e40?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/41f52ef9-d174-42b6-a8e3-11a34f275448?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/225aeb69-d323-406c-88b1-48c1f97dbddc?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/818118b6-8ad9-4977-b3d9-031ade0b88b1?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/b4687981-0177-4726-8b89-6a6c74647a86?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/4fd9f36f-f311-4858-a479-6af1f1976694?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/2ac4606b-db14-4621-83b5-2f9bfde4f45e?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/79f8c3c0-a373-4e22-bb01-60f219e41642?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/d96fb909-e9ec-4e13-af2b-d6bb9a3abba6?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/76054b2f-bee8-4de1-946d-9b7289e87d3f?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/6d29797b-ada6-4bed-872e-98d0faf1b055?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/7a6c59da-2e50-4c26-a35e-df3952ce92a5?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/e8411101-5bc9-4fea-82ac-760438cd3818?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/80c5e90f-5d72-4748-a1ef-ee15f26a2251?rule=ecg_mp_eps$_86.jpg',
+    'https://images.marktplaats.com/api/v1/hz-mp-pro-listing/images/e53c72c9-32b2-4fd7-857d-80bcdb3a896a?rule=ecg_mp_eps$_86.jpg'
+  ],
+  postedAt: null,
+  lastRefresh: '2026-05-13T07:52:57.621Z',
+  isPromoted: true,
+  isBusiness: false,
+  seller: {
+    id: 45739718,
+    name: 'Macouri Abdel',
+    created: '4 jaar',
+    isOnline: false,
+    companyName: null
+  }
+}

@@ -1,14 +1,66 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, CreditCard, Shield, Moon, Trash2, LogOut } from 'lucide-react';
+import { User, Bell, CreditCard, Shield, Moon, Trash2, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useStore } from '@/src/store/useStore';
+import { auth, db } from '../../lib/firebase';
+import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
+import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const DashboardSettings: React.FC = () => {
-  const { isPremium } = useStore();
+  const { isPremium, user } = useStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
+
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    try {
+      setPasswordError('');
+      await sendPasswordResetEmail(auth, user.email);
+      setPasswordResetSent(true);
+      setTimeout(() => setPasswordResetSent(false), 5000);
+    } catch (error: any) {
+      console.error("Error sending password reset:", error);
+      setPasswordError(error.message);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setDeleteLoading(true);
+    try {
+      // 1. Delete all user analyses
+      const analysesQuery = query(collection(db, 'analyses'), where('userId', '==', user.uid));
+      const analysesSnapshot = await getDocs(analysesQuery);
+      const deletePromises = analysesSnapshot.docs.map(d => deleteDoc(doc(db, 'analyses', d.id)));
+      await Promise.all(deletePromises);
+      
+      // 2. Delete user document from firestore
+      await deleteDoc(doc(db, 'gebruikers', user.uid));
+
+      // 3. Delete auth user
+      await deleteUser(user);
+      
+      // Navigate to home, zustand handles the state implicitly through onAuthStateChanged
+      navigate('/');
+    } catch (error: any) {
+      console.error("Error deleting account", error);
+      if (error.code === 'auth/requires-recent-login') {
+        alert("Melding: Je moet recent ingelogd zijn om je account te verwijderen. Log alsjeblieft uit en opnieuw in om dit te voltooien.");
+      } else {
+        alert("Er is iets misgegaan bij het verwijderen. (" + error.message + ")");
+      }
+    } finally {
+      setDeleteLoading(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const tabs = [
     { id: 'profile', label: 'Profiel', icon: User },
@@ -53,7 +105,7 @@ export const DashboardSettings: React.FC = () => {
               
               <div className="flex items-center gap-6 mb-8">
                 <div className="w-20 h-20 rounded-full bg-primary-dark/40 border-2 border-accent-green flex items-center justify-center text-3xl font-bold text-white shadow-[0_0_15px_rgba(0,200,83,0.2)]">
-                  JD
+                  {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div className="space-y-2">
                   <Button variant="outline" className="h-10 px-4 rounded-xl border-white/10 text-white bg-white/5 hover:bg-white/10">Nieuwe foto uploaden</Button>
@@ -63,16 +115,12 @@ export const DashboardSettings: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-400">Voornaam</label>
-                  <Input defaultValue="Jan" className="h-12 bg-black/50 border-white/10 text-white rounded-xl focus-visible:ring-accent-green" />
+                  <label className="text-sm font-medium text-gray-400">Naam</label>
+                  <Input defaultValue={user?.displayName || ''} placeholder="Je naam" className="h-12 bg-black/50 border-white/10 text-white rounded-xl focus-visible:ring-accent-green" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-400">Achternaam</label>
-                  <Input defaultValue="Directeur" className="h-12 bg-black/50 border-white/10 text-white rounded-xl focus-visible:ring-accent-green" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-400">Email adres</label>
-                  <Input defaultValue="jan.directeur@voorbeeld.nl" type="email" className="h-12 bg-black/50 border-white/10 text-white rounded-xl focus-visible:ring-accent-green" />
+                  <Input defaultValue={user?.email || ''} type="email" disabled className="h-12 bg-black/50 border-white/10 text-gray-400 rounded-xl focus-visible:ring-transparent cursor-not-allowed" />
                 </div>
               </div>
               
@@ -95,12 +143,18 @@ export const DashboardSettings: React.FC = () => {
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-green/10 border border-accent-green/20 text-accent-green text-sm font-medium mb-3">
                       Huidig Plan
                     </div>
-                    <h4 className="text-2xl font-bold text-white mb-1">{isPremium ? 'SlimKoop Unlimited' : 'Gratis Account'}</h4>
-                    <p className="text-gray-400">{isPremium ? 'Je account verloopt op 11 Mei 2027.' : 'Beperkte toegang. Upgrade voor volledige inzichten.'}</p>
+                    <h4 className="text-2xl font-bold text-white mb-1">
+                      {user?.email === 'ibrahimdiscord675@gmail.com' ? 'Autohandelaar Licentie' : (isPremium ? 'SlimKoop Unlimited' : 'Gratis Account')}
+                    </h4>
+                    <p className="text-gray-400">
+                      {user?.email === 'ibrahimdiscord675@gmail.com' ? 'Speciale toegang verleend door beheerder.' : (isPremium ? 'Actief abonnement via Stripe.' : 'Beperkte toegang. Upgrade voor volledige inzichten.')}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-3xl font-heading font-bold text-white">{isPremium ? '€19' : '€0'}</div>
-                    <div className="text-gray-500 text-sm">per maand</div>
+                    <div className="text-3xl font-heading font-bold text-white">
+                      {user?.email === 'ibrahimdiscord675@gmail.com' ? 'Verleend' : (isPremium ? '€19' : '€0')}
+                    </div>
+                    <div className="text-gray-500 text-sm">{user?.email === 'ibrahimdiscord675@gmail.com' ? '' : 'per maand'}</div>
                   </div>
                 </div>
                 
@@ -109,7 +163,7 @@ export const DashboardSettings: React.FC = () => {
                     className="bg-white text-black hover:bg-gray-200 font-semibold rounded-xl flex-1"
                     onClick={() => !isPremium && navigate('/prijzen')}
                   >
-                    {isPremium ? 'Details bekijken' : 'Upgrade nu'}
+                    {isPremium ? 'Lidmaatschap Beheren' : 'Upgrade nu'}
                   </Button>
                   {isPremium && (
                     <Button variant="outline" className="border-white/10 text-gray-300 hover:text-white bg-white/5 rounded-xl flex-1">
@@ -119,21 +173,22 @@ export const DashboardSettings: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
-                <h4 className="text-lg font-semibold text-white mb-4">Betaalmethode</h4>
-                <div className="flex items-center justify-between p-4 bg-black/40 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-8 bg-white rounded-md flex items-center justify-center">
-                       <span className="text-blue-900 font-bold text-xs italic">VISA</span>
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">•••• •••• •••• 4242</p>
-                      <p className="text-xs text-gray-500">Verloopt 12/28</p>
+              {isPremium && (
+                <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <h4 className="text-lg font-semibold text-white mb-4">Betaalmethode</h4>
+                  <div className="flex items-center justify-between p-4 bg-black/40 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/10">
+                         <CreditCard className="w-5 h-5 text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Betaling via Stripe</p>
+                        <p className="text-xs text-gray-500">Beheer via het portaal</p>
+                      </div>
                     </div>
                   </div>
-                  <Button variant="ghost" className="text-accent-green hover:text-accent-green/80 hover:bg-accent-green/10">Aanpassen</Button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -181,18 +236,62 @@ export const DashboardSettings: React.FC = () => {
               <div className="space-y-4 pb-8 border-b border-white/5">
                 <h4 className="text-lg font-semibold text-white">Wachtwoord & Beveiliging</h4>
                 <p className="text-sm text-gray-400 mb-4">Zorg dat je account goed beveiligd is door een sterk wachtwoord te gebruiken.</p>
-                <Button variant="outline" className="border-white/10 text-white bg-white/5 hover:bg-white/10 rounded-xl h-11 px-6">
-                  Wachtwoord Wijzigen
-                </Button>
+                
+                {passwordResetSent ? (
+                  <div className="p-4 bg-accent-green/10 text-accent-green border border-accent-green/20 rounded-xl">
+                    Er is een e-mail verzonden naar <strong>{user?.email}</strong> met instructies om je wachtwoord te wijzigen.
+                  </div>
+                ) : (
+                  <div>
+                    <Button 
+                      onClick={handlePasswordReset}
+                      variant="outline" 
+                      className="border-white/10 text-white bg-white/5 hover:bg-white/10 rounded-xl h-11 px-6"
+                    >
+                      Stuur Wachtwoord Wijzigen E-mail
+                    </Button>
+                    {passwordError && <p className="text-red-400 text-sm mt-3">{passwordError}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
                 <h4 className="text-lg font-semibold text-red-500">Gevarenzone</h4>
                 <p className="text-sm text-gray-400 mb-4">Verwijder je account en alle bijbehorende autogegevens permanent. Dit proces is onomkeerbaar.</p>
-                <Button variant="ghost" className="text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300 rounded-xl h-11 px-6 gap-2 border border-red-500/20">
-                  <Trash2 className="w-4 h-4" />
-                  Account Volledig Verwijderen
-                </Button>
+                
+                {showDeleteConfirm ? (
+                  <div className="p-5 border border-red-500/30 bg-red-500/10 rounded-2xl space-y-4">
+                    <h5 className="font-bold text-white">Weet je het heel zeker?</h5>
+                    <p className="text-sm text-red-200">Al je opgeslagen rapportages en gegevens worden permanent verwijderd. Dit is niet ongedaan te maken.</p>
+                    <div className="flex items-center gap-3 pt-2">
+                       <Button 
+                         onClick={handleDeleteAccount}
+                         disabled={deleteLoading}
+                         className="bg-red-500 hover:bg-red-600 text-white border-none rounded-xl"
+                       >
+                         {deleteLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto mr-2" /> : null}
+                         Ja, verwijder mijn account permanent
+                       </Button>
+                       <Button
+                         onClick={() => setShowDeleteConfirm(false)}
+                         disabled={deleteLoading}
+                         variant="ghost" 
+                         className="text-gray-300 hover:text-white"
+                       >
+                         Annuleren
+                       </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    variant="ghost" 
+                    className="text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300 rounded-xl h-11 px-6 gap-2 border border-red-500/20"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Account Volledig Verwijderen
+                  </Button>
+                )}
               </div>
             </div>
           )}
