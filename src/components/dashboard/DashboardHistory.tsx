@@ -42,11 +42,16 @@ export const DashboardHistory: React.FC = () => {
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map(doc => {
           const d = doc.data();
-          const createdAt = d.createdAt ? new Date(d.createdAt.toMillis()) : new Date();
+          let dateObj = new Date();
+          if (d.createdAt) {
+            try {
+              dateObj = typeof d.createdAt.toMillis === 'function' ? new Date(d.createdAt.toMillis()) : new Date(d.createdAt);
+            } catch(e) { console.error(e); }
+          }
           return {
             id: doc.id,
-            date: createdAt.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' }),
-            time: createdAt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
+            date: dateObj.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' }),
+            time: dateObj.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
             title: d.title || 'Onbekende auto',
             score: d.score || 0,
             status: d.status || 'Onbekende status',

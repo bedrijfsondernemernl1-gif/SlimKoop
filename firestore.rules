@@ -2,11 +2,6 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // Primitive Definition
     function isValidId(id) { 
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
@@ -39,14 +34,7 @@ service cloud.firestore {
 
     // 1. Gebruikers
     match /gebruikers/{userId} {
-      allow get: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
-      // Allow creation when user is logged in
-      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidGebruiker(incoming());
-      allow update: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidGebruiker(incoming()) 
-        && incoming().uid == existing().uid
-        && incoming().aanmaakdatum == existing().aanmaakdatum
-        && incoming().diff(existing()).affectedKeys().hasOnly(['email']); 
-      allow delete: if isSignedIn() && userId == request.auth.uid;
+      allow get, list, create, update, delete: if isSignedIn() && (userId == request.auth.uid || isAdmin());
     }
 
     // 2. Analyses
@@ -70,6 +58,11 @@ service cloud.firestore {
       allow create: if true;
       allow update: if true;
       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

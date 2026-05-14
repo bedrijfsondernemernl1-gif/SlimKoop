@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from './ui/button';
 
-export const PricingCard = ({ title, price, period, description, features, btnText, featured = false, badgeText, buttonStyle = 'outline' }: any) => {
+export const PricingCard = ({ title, price, period, description, features, btnText, featured = false, badgeText, buttonStyle = 'outline', onClick }: any) => {
   const isFeatured = featured;
   
   let btnClasses = "bg-transparent text-white border-white/20 hover:border-white/40 hover:bg-white/10";
@@ -61,6 +61,7 @@ export const PricingCard = ({ title, price, period, description, features, btnTe
         size="lg" 
         variant={buttonStyle === 'primary' ? "default" : "outline"}
         className={`w-full h-14 rounded-xl text-md font-semibold transition-all duration-300 ${btnClasses}`}
+        onClick={onClick}
       >
         {btnText}
       </Button>

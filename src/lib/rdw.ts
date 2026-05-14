@@ -1,67 +1,57 @@
-export interface RDWResult {
-  apkVervaldatum: string;
-  eersteToelating: string;
-  aantalEigenaren: number;
-  isGestolen: boolean;
-  succes: boolean;
-}
-
-export async function checkRDW(kenteken: string): Promise<RDWResult> {
-  const defaultResult: RDWResult = {
-    apkVervaldatum: "",
-    eersteToelating: "",
-    aantalEigenaren: 0,
-    isGestolen: false,
-    succes: false,
-  };
-
+export async function checkRDW(kenteken: string) {
+  if (!kenteken) return null;
+  
+  // Kenteken opschonen voor de API call
+  const schoonKenteken = kenteken
+    .replace(/-/g, '')
+    .replace(/\s/g, '')
+    .toUpperCase();
+  
+  console.log(`[RDW] Kenteken voor opschonen: ${kenteken}`);
+  console.log(`[RDW] Kenteken na opschonen: ${schoonKenteken}`);
+  
   try {
-    const kentekenStr = kenteken.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    if (!kentekenStr) return defaultResult;
-
-    const [voertuigRes, gestolenRes] = await Promise.all([
-      fetch(`https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${kentekenStr}`),
-      fetch(`https://opendata.rdw.nl/resource/a34c-vvps.json?kenteken=${kentekenStr}`)
-    ]);
-
-    if (!voertuigRes.ok || !gestolenRes.ok) {
-      return defaultResult;
-    }
-
-    const voertuigData = await voertuigRes.json();
-    const gestolenData = await gestolenRes.json();
-
-    if (!voertuigData || voertuigData.length === 0) {
-      return defaultResult;
-    }
-
-    const auto = voertuigData[0];
+    const response = await fetch(
+      `https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${schoonKenteken}`
+    );
+    const data = await response.json();
     
-    // Check if the car is stored in the stolen vehicles database
-    let isGestolen = false;
-    if (gestolenData && gestolenData.length > 0) {
-      // In the RDW stolen vehicles database, if a record exists for a license plate,
-      // and it specifies it's stolen, we set it true. (Usually just existing means it's registered as stolen/missing).
-      const status = gestolenData[0].verificatieTijdstip; // Any field to verify existence
-      if (status || gestolenData.length > 0) {
-        isGestolen = true;
+    console.log('[RDW] Volledige API response:', JSON.stringify(data, null, 2));
+    
+    if (!data || data.length === 0) {
+      console.log(`[RDW] Geen gegevens gevonden voor kenteken: ${schoonKenteken}`);
+      return null;
+    }
+    
+    const voertuig = data[0];
+    
+    // Formatteren van vervaldatum_apk naar DD-MM-YYYY
+    let apkVervaldatum = "onbekend";
+    if (voertuig.vervaldatum_apk) {
+      const v = voertuig.vervaldatum_apk.toString();
+      if (v.length === 8) {
+        apkVervaldatum = `${v.substring(6, 8)}-${v.substring(4, 6)}-${v.substring(0, 4)}`;
       }
     }
 
-    // Aantal eigenaren berekenen (zakelijk + prive)
-    const prive = parseInt(auto.aantal_eigenaren_prive) || 0;
-    const zakelijk = parseInt(auto.aantal_eigenaren_zakelijk) || 0;
-    const eigenaren = prive + zakelijk;
-
+    // Formatteren van datum_eerste_toelating naar jaar
+    let bouwjaar = "onbekend";
+    if (voertuig.datum_eerste_toelating) {
+      bouwjaar = voertuig.datum_eerste_toelating.toString().substring(0, 4);
+    }
+    
     return {
-      apkVervaldatum: auto.vervaldatum_apk || "",
-      eersteToelating: auto.datum_eerste_toelating || "",
-      aantalEigenaren: eigenaren,
-      isGestolen: isGestolen,
+      kenteken: schoonKenteken,
+      apkVervaldatum,
+      eersteToelating: bouwjaar,
+      aantalEigenaren: voertuig.aantal_eigenaren || 'onbekend',
+      handelsbenaming: voertuig.handelsbenaming || voertuig.merk || 'onbekend',
+      merk: voertuig.merk,
+      isGestolen: voertuig.gestolen_indicator === 'Ja',
       succes: true
     };
-  } catch (error) {
-    console.error("Fout tijdens RDW open data ophalen:", error);
-    return defaultResult;
+  } catch (fout) {
+    console.error('[RDW] Fout bij ophalen gegevens:', fout);
+    return { succes: false };
   }
 }

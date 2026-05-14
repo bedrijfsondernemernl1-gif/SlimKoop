@@ -7,9 +7,8 @@ import { useStore } from '@/src/store/useStore';
 import { AuthModal } from './AuthModal';
 
 export const Navbar: React.FC = () => {
-  const { isLoggedIn, logout } = useStore();
+  const { isLoggedIn, logout, isAuthModalOpen, openAuthModal, closeAuthModal } = useStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -100,7 +99,7 @@ export const Navbar: React.FC = () => {
               ) : (
                 <Button 
                   variant="ghost" 
-                  onClick={() => setIsAuthModalOpen(true)}
+                  onClick={openAuthModal}
                   className="font-semibold text-gray-300 hover:text-white hover:bg-white/10 rounded-xl h-11 px-5 transition-all cursor-pointer"
                 >
                   Inloggen
@@ -196,7 +195,7 @@ export const Navbar: React.FC = () => {
                     <Button 
                       onClick={() => {
                         setIsMobileMenuOpen(false);
-                        setIsAuthModalOpen(true);
+                        openAuthModal();
                       }}
                       variant="ghost" 
                       className="w-full h-14 text-lg font-medium bg-white/5 border border-white/10 text-white rounded-2xl cursor-pointer" 
@@ -214,7 +213,7 @@ export const Navbar: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
     </>
   );
 };

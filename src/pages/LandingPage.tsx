@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock, RotateCcw } from 'lucide-react';
+import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Footer } from '@/src/components/Footer';
@@ -35,10 +35,29 @@ export const LandingPage: React.FC = () => {
   const yHero = useTransform(scrollYProgress, [0, 1], [0, 200]);
   const opacityHero = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (url) {
-      navigate('/analyseer/laden', { state: { url } });
+      setIsLoading(true);
+      try {
+        const { auth } = await import('@/src/lib/firebase');
+        const res = await fetch('/api/analyseer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, userId: auth.currentUser?.uid })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          navigate(`/rapport/${data.rapportId}`);
+        } else {
+          alert('Fout bij analyseren: ' + (data.error || 'Onbekende fout'));
+        }
+      } catch (err) {
+        alert('Fout bij verbinden met de server.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -101,9 +120,13 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
             
-            <Button type="submit" size="xl" className="w-full md:w-auto h-16 px-10 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all duration-300 group">
-              Analyseer deze auto
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            <Button disabled={isLoading} type="submit" size="xl" className="w-full md:w-auto h-16 px-10 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all duration-300 group">
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : 
+                <>
+                  Analyseer deze auto
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              }
             </Button>
             
             <p className="text-sm text-gray-500 flex items-center gap-2 mt-2">
@@ -227,7 +250,7 @@ export const LandingPage: React.FC = () => {
                         <Lock className="w-4 h-4 text-accent-green" />
                         <span className="text-white font-medium text-sm">Ontgrendel volledig rapport</span>
                      </div>
-                     <Button className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg">Bekijk voor €4,99</Button>
+                     <Button className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg">Bekijk voor €9,99</Button>
                   </div>
                </div>
             </div>
@@ -262,7 +285,7 @@ export const LandingPage: React.FC = () => {
           {/* Plan 1: Losse Scan */}
           <PricingCard 
              title="Losse Scan" 
-             price="€4,99" 
+             price="€9,99" 
              period=""
              description="Ideaal als je precies weet welke auto je gaat kopen."
              features={[
@@ -273,14 +296,14 @@ export const LandingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
              ]}
-             btnText="Koop scan — €4,99"
+             btnText="Koop scan — €9,99"
              buttonStyle="outline"
           />
 
           {/* Plan 2: Slimme Koper */}
           <PricingCard 
              title="Slimme Koper" 
-             price="€9,99" 
+             price="€19.99" 
              period=""
              description="De favoriete keuze voor wie meerdere auto's vergelijkt."
              badgeText="Meest Gekozen"
@@ -292,7 +315,7 @@ export const LandingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
              ]}
-             btnText="Start nu — €9,99"
+             btnText="Start nu — €19.99"
              featured={true}
              buttonStyle="primary"
           />
@@ -300,7 +323,7 @@ export const LandingPage: React.FC = () => {
           {/* Plan 3: Autohandelaar */}
           <PricingCard 
              title="Autohandelaar" 
-             price="€19" 
+             price="€29.99" 
              period="/ maand"
              description="Voor wie wekelijks auto's beoordeelt en koopt."
              badgeText="Voor professionals"

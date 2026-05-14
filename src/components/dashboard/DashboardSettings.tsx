@@ -189,6 +189,9 @@ export const DashboardSettings: React.FC = () => {
                   </div>
                 </div>
               )}
+              <p className="text-sm text-gray-500 mt-8">
+                Wil je je lidmaatschap annuleren? Neem dan contact met ons op via de <a href="/contact" className="text-accent-green hover:underline">contactpagina</a>.
+              </p>
             </div>
           )}
 

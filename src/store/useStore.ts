@@ -53,11 +53,14 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 interface StoreState {
   isLoggedIn: boolean;
   isPremium: boolean;
+  isAuthModalOpen: boolean;
   user: User | null;
   authLoading: boolean;
   login: () => void;
   logout: () => void;
   upgrade: () => void;
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
 }
 
 export const useStore = create<StoreState>((set) => {
@@ -103,6 +106,7 @@ export const useStore = create<StoreState>((set) => {
   return {
     isLoggedIn: false, // Default freemium user not logged in
     isPremium: false,
+    isAuthModalOpen: false,
     user: null,
     authLoading: true,
     login: () => set({ isLoggedIn: true }), // Keeping this for manual overrides if needed
@@ -111,5 +115,7 @@ export const useStore = create<StoreState>((set) => {
       set({ isLoggedIn: false, isPremium: false, user: null });
     },
     upgrade: () => set({ isPremium: true, isLoggedIn: true }),
+    openAuthModal: () => set({ isAuthModalOpen: true }),
+    closeAuthModal: () => set({ isAuthModalOpen: false }),
   };
 });

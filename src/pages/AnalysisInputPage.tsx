@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Car, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Search, Car, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { Footer } from '@/src/components/Footer';
@@ -9,12 +9,35 @@ import { Footer } from '@/src/components/Footer';
 export const AnalysisInputPage: React.FC = () => {
   const [url, setUrl] = useState('');
   const [isManual, setIsManual] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (url || isManual) {
-      navigate('/analyseer/laden');
+      if (isManual) {
+        alert("Handmatige analyse is nog niet beschikbaar.");
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const { auth } = await import('@/src/lib/firebase');
+        const res = await fetch('/api/analyseer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, userId: auth.currentUser?.uid })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          navigate(`/rapport/${data.rapportId}`);
+        } else {
+          alert('Fout bij analyseren: ' + (data.error || 'Onbekende fout'));
+        }
+      } catch (err) {
+        alert('Fout bij verbinden met de server.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -69,8 +92,8 @@ export const AnalysisInputPage: React.FC = () => {
                    </div>
                 </div>
                 
-                <Button type="submit" size="xl" className="w-full h-16 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all">
-                   Start Analyse <ArrowRight className="w-5 h-5 ml-2" />
+                <Button disabled={isLoading} type="submit" size="xl" className="w-full h-16 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all">
+                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : <>Start Analyse <ArrowRight className="w-5 h-5 ml-2" /></>}
                 </Button>
                 
                 <div className="text-center pt-2">

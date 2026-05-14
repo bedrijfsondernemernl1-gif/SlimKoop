@@ -7,97 +7,7 @@ import { Card, CardContent } from '@/src/components/ui/card';
 import { AuthModal } from '@/src/components/AuthModal';
 import { useStore } from '@/src/store/useStore';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
-
-const RAPPORT_DATA = {
-  id: "demo-002",
-  autoNaam: "Volkswagen Golf 1.4 TSI R-Line",
-  jaar: 2018,
-  kilometerstand: 85000,
-  brandstof: "Benzine",
-  transmissie: "Automaat",
-  carrosserie: "Hatchback",
-  vraagprijs: 18500,
-  eerlijkePrijs: 19200,
-  dealScore: 82,
-  verdict: "Uitstekende Deal",
-  advertentieId: "m201594832",
-  
-  rdw: {
-    apk: "03-2026",
-    gestolen: false,
-    eigenaren: 2,
-    eersteToelating: 2018
-  },
-
-  overzicht: {
-    positief: [
-      "Prijs ligt 4% onder marktgemiddelde",
-      "Kilometerstand logisch voor bouwjaar (85.000 km in 6 jaar = normaal ✓)",
-      "Onderhoudshistorie aanwezig",
-      "Populaire uitvoering — goede restwaarde"
-    ],
-    aandachtspunten: [
-      "Geen proefrit aangeboden",
-      "Kleine kras zonder foto vermeld",
-      "Advertentie staat al 47 dagen online",
-      "Distributieriem nog niet vervangen"
-    ],
-    verkoper: {
-      type: "Particulier verkoper",
-      lidSinds: "2019",
-      actieveAdvertenties: 3
-    }
-  },
-
-  vergelijkbareAutos: [
-    { naam: "VW Golf 1.4 TSI R-Line", jaar: 2018, km: 88000, prijs: 19100, bron: "AutoTrack", isCurrent: false, link: "#" },
-    { naam: "VW Golf 1.4 TSI R-Line", jaar: 2018, km: 85000, prijs: 18500, bron: "Marktplaats", isCurrent: true, link: "#" },
-    { naam: "VW Golf 1.5 TSI R-Line", jaar: 2018, km: 92000, prijs: 18800, bron: "Marktplaats", isCurrent: false, link: "#" },
-    { naam: "VW Golf 1.4 TSI R-Line", jaar: 2019, km: 76000, prijs: 19600, bron: "Marktplaats", isCurrent: false, link: "#" }
-  ],
-
-  rodeVlaggen: [
-    { ernst: "hoog", titel: "Geen proefrit mogelijk", uitleg: "Serieuze verkopers staan altijd een proefrit toe." },
-    { ernst: "middel", titel: "Kras zonder foto", uitleg: "Vraag om extra foto's voordat je gaat kijken." },
-    { ernst: "laag", titel: "Onderhoudshistorie aanwezig", uitleg: "Positief signaal." }
-  ],
-
-  advertentieAnalyse: {
-    onlineSinds: "47 dagen",
-    onlineSindsKleur: "text-amber-500",
-    beschrijving: "312 woorden",
-    beschrijvingKleur: "text-accent-green",
-    prijsWijziging: "2x verlaagd",
-    prijsWijzigingKleur: "text-accent-green",
-    taalgebruik: "geen drukverkooptactieken gedetecteerd ✓",
-    taalgebruikKleur: "text-accent-green"
-  },
-
-  fotos: [
-    { label: "Carrosserie Voor", finding: "Lak in goede staat.", status: "ok" },
-    { label: "Interieur Bestuurder", finding: "Instapschade wang stoel.", status: "waarschuwing" },
-    { label: "Velg Rechtsachter", finding: "Lichte stoeprandschade.", status: "waarschuwing" },
-    { label: "Dashboard", finding: "Geen storingen zichtbaar.", status: "ok" }
-  ],
-
-  ontbrekendeFotos: [
-    "Onderstelsfoto ontbreekt",
-    "Bandenprofiel niet zichtbaar",
-    "Motorruimtefoto ontbreekt"
-  ],
-
-  onderhandeling: {
-    aanbevolenBod: 17500,
-    verschilVraagprijs: 1000,
-    script: "Ik heb vergelijkbare Golfs bekeken die gemiddeld voor €19.200 gaan. Gezien de kilometerstand en het ontbreken van een onderstelsfoto wil ik beginnen op €17.500. Is daar ruimte voor?",
-    tips: [
-      "Noem altijd de ontbrekende foto's als argument",
-      "Verwijs naar de 47 dagen dat de auto al te koop staat",
-      "Bied eerst €17.000 zodat je kunt \"toegeven\" naar €17.500"
-    ]
-  }
-};
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 const TABS = [
   { id: 'overzicht', label: 'Overzicht', locked: false },
@@ -110,7 +20,7 @@ const TABS = [
 export const ReportPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPremium, user } = useStore();
+  const { isPremium } = useStore();
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['id']>('overzicht');
   
   const [reportData, setReportData] = useState<any>(null);
@@ -127,57 +37,55 @@ export const ReportPage: React.FC = () => {
   useEffect(() => {
     if (!id) return;
 
-    if (id === 'demo-001' || id === 'demo-002') {
-      setReportData(RAPPORT_DATA);
-      setLoading(false);
-      return;
-    }
-
     let isPolling = true;
 
-    const unsubscribe = onSnapshot(doc(db, 'rapporten', id), (docSnap) => {
-      if (!docSnap.exists()) {
-        setError("Rapport niet gevonden");
-        setLoading(false);
-        isPolling = false;
-        return;
-      }
-      
-      const data = docSnap.data();
-      setReportData(data);
-      setError(null);
-      setLoading(false);
+    const fetchReport = async () => {
+      try {
+        const res = await fetch(`/api/rapport/${id}?isBetaald=${hasAccess}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || "Fout bij ophalen rapport");
+        }
 
-      if (data.status === 'compleet' || data.status === 'fout') {
-        isPolling = false;
+        if (isPolling) {
+          setReportData(data);
+          setError(null);
+          setLoading(false);
+
+          if (['verwerking', 'scraping', 'vergelijken', 'analyseren', 'afronden', 'ai_analyseren'].includes(data.status)) {
+            setTimeout(fetchReport, 3000);
+          } else {
+            isPolling = false;
+          }
+        }
+      } catch (err: any) {
+        if (isPolling) {
+          console.error("Error fetching report:", err);
+          setError(err?.message || "Fout bij het ophalen van rapport");
+          setLoading(false);
+          isPolling = false;
+        }
       }
-    }, (err) => {
-      console.error("Error fetching report:", err);
-      setError(err?.message || "Fout bij het ophalen van rapport");
-      setLoading(false);
-      isPolling = false;
-    });
+    };
+
+    fetchReport();
 
     return () => {
       isPolling = false;
-      unsubscribe();
     };
   }, [id, hasAccess]);
 
   useEffect(() => {
-    if (reportData?.dealScore || reportData?.data?.score) {
+    if (reportData?.dealScore) {
       controls.start("show");
-      const score = reportData.dealScore || reportData.data?.score || 0;
+      const score = reportData.dealScore || 0;
       const timeout = setTimeout(() => {
         setGaugeValue(score);
       }, 400);
       return () => clearTimeout(timeout);
     }
   }, [reportData, controls]);
-
-  const scrapedData = reportData?.data || reportData || {};
-  const aiAnalysis = reportData?.analyse || {};
-  const aiPhotos = reportData?.fotoAnalyse?.fotos || [];
 
   const mapErnstToStatus = (ernst: string) => {
     if (ernst === 'hoog' || ernst === 'probleem') return 'gevaar';
@@ -191,63 +99,8 @@ export const ReportPage: React.FC = () => {
       case 'voorzichtig': return 'Let goed op';
       case 'redelijk': return 'Gezonde deal';
       case 'koopje': return 'Uitstekende deal';
-      default: return verdict || 'Gezonde deal';
+      default: return verdict || 'Wordt bepaald...';
     }
-  };
-
-  const data = {
-    ...RAPPORT_DATA,
-    ...scrapedData,
-    photoUrls: reportData?.photoUrls || [],
-    autoNaam: scrapedData?.titel || scrapedData?.title || RAPPORT_DATA.autoNaam,
-    jaar: scrapedData?.bouwjaar || scrapedData?.year || RAPPORT_DATA.jaar,
-    kilometerstand: scrapedData?.kilometerstand || scrapedData?.mileage || RAPPORT_DATA.kilometerstand,
-    vraagprijs: scrapedData?.prijs || (scrapedData?.price ? parseInt(String(scrapedData.price).replace(/[^0-9]/g, '')) : RAPPORT_DATA.vraagprijs) || RAPPORT_DATA.vraagprijs,
-    brandstof: scrapedData?.brandstof || scrapedData?.fuelType || RAPPORT_DATA.brandstof,
-    transmissie: scrapedData?.transmissie || scrapedData?.transmission || RAPPORT_DATA.transmissie,
-    carrosserie: scrapedData?.carrosserie || scrapedData?.bodyType || RAPPORT_DATA.carrosserie,
-    dealScore: aiAnalysis.dealScore || scrapedData?.score || RAPPORT_DATA.dealScore,
-    eerlijkePrijs: aiAnalysis.marktGemiddelde || RAPPORT_DATA.eerlijkePrijs,
-    rodeVlaggen: aiAnalysis.rodeVlaggen?.map((v: any) => ({
-      ernst: v.ernst,
-      titel: v.titel,
-      uitleg: v.uitleg
-    })) || RAPPORT_DATA.rodeVlaggen,
-    vergelijkbareAutos: reportData?.comparables?.length > 0 ? reportData.comparables.map((c: any) => ({
-      naam: c.titel || c.title || "",
-      jaar: c.jaar || parseInt(String(c.year).replace(/[^0-9]/g, '')) || 0,
-      km: c.km || (c.mileage ? parseInt(String(c.mileage).replace(/[^0-9]/g, '')) : 0),
-      prijs: c.prijs || (c.price ? parseInt(String(c.price).replace(/[^0-9]/g, '')) : 0),
-      bron: "Marktplaats",
-      isCurrent: false,
-      link: c.url
-    })) : RAPPORT_DATA.vergelijkbareAutos,
-    overzicht: {
-      ...RAPPORT_DATA.overzicht,
-      huidigePrijsLabel: mapVerdictToLabel(aiAnalysis.verdict),
-      aandachtspunten: aiAnalysis.samenvatting || RAPPORT_DATA.overzicht.aandachtspunten,
-    },
-    fotos: aiPhotos.length > 0 ? aiPhotos.map((f: any) => ({
-      label: f.label,
-      finding: f.bevinding,
-      status: mapErnstToStatus(f.ernst)
-    })) : RAPPORT_DATA.fotos,
-    onderhandeling: {
-      ...RAPPORT_DATA.onderhandeling,
-      script: aiAnalysis.onderhandelingsScript || RAPPORT_DATA.onderhandeling.script,
-      aanbevolenBod: aiAnalysis.openingsBod || RAPPORT_DATA.onderhandeling.aanbevolenBod
-    },
-    rdw: reportData?.rdwData ? {
-      apk: reportData.rdwData.vervaldatum_apk 
-           ? `${reportData.rdwData.vervaldatum_apk.substring(6,8)}-${reportData.rdwData.vervaldatum_apk.substring(4,6)}-${reportData.rdwData.vervaldatum_apk.substring(0,4)}` 
-           : "Onbekend",
-      gestolen: reportData.rdwData.export_indicator === "Ja" || reportData.rdwData.wacht_op_keuren === "Ja", // Approximating issues
-      eigenaren: parseInt(reportData.rdwData.aantal_eigenaren_prive || reportData.rdwData.aantal_eigenaren_zakelijk || "0") || RAPPORT_DATA.rdw.eigenaren,
-      eersteToelating: reportData.rdwData.datum_eerste_toelating 
-           ? `${reportData.rdwData.datum_eerste_toelating.substring(0,4)}` 
-           : RAPPORT_DATA.rdw.eersteToelating,
-      kenteken: reportData.kenteken || ""
-    } : RAPPORT_DATA.rdw
   };
 
   if (loading) {
@@ -261,7 +114,61 @@ export const ReportPage: React.FC = () => {
     );
   }
 
-  if (reportData?.status === 'verwerking') {
+  // Mileage Check Logic
+  const kilometerstand = reportData?.kilometerstand || 0;
+  const bouwjaar = reportData?.bouwjaar || 2024;
+  const huidigJaar = new Date().getFullYear();
+  const aantalJaren = Math.max(huidigJaar - bouwjaar, 1);
+  const gemiddeldePerJaar = Math.round(kilometerstand / aantalJaren);
+  const isNormaal = gemiddeldePerJaar >= 10000 && gemiddeldePerJaar <= 20000;
+
+  const data = {
+    autoNaam: reportData?.autoNaam || "Wordt geladen...",
+    vraagprijs: reportData?.vraagprijs || 0,
+    eerlijkePrijs: reportData?.eerlijkePrijs || 0,
+    kilometerstand: kilometerstand,
+    bouwjaar: bouwjaar,
+    advertentieId: reportData?.advertentieId || reportData?.id || "Niet beschikbaar",
+    brandstof: reportData?.brandstof || "Onbekend",
+    transmissie: reportData?.transmissie || "Onbekend",
+    carrosserie: reportData?.carrosserie || "Onbekend",
+    verdict: mapVerdictToLabel(reportData?.verdict),
+    dealScore: reportData?.dealScore || 0,
+    fotos: reportData?.fotos || [],
+    photoUrls: reportData?.fotos || [],
+    positievePunten: reportData?.positievePunten || [],
+    aandachtspunten: reportData?.aandachtspunten || [],
+    rodeVlaggen: reportData?.rodeVlaggen || [],
+    verkoper: {
+      naam: reportData?.verkoper?.naam || reportData?.verkoper || "Niet beschikbaar",
+      type: reportData?.verkoper?.type || ((reportData?.aantalAdvertenties > 5) ? "Dealer" : "Particulier"),
+      lidSinds: reportData?.verkoper?.sinds || reportData?.verkoperSinds || "Niet beschikbaar",
+      actieveAdvertenties: reportData?.verkoper?.aantalAdvertenties || reportData?.aantalAdvertenties || 0
+    },
+    vergelijkbareAutos: reportData?.vergelijkbareAutos || [],
+    rdw: reportData?.rdwData || {},
+    advertentieAnalyse: reportData?.advertentieAnalyse || {},
+    fotoAnalyse: reportData?.fotoAnalyse || [],
+    ontbrekendeFotos: reportData?.ontbrekendeFotos || [],
+    onderhandelingsScript: reportData?.onderhandelingsScript || "",
+    onderhandelingsTips: reportData?.onderhandelingsTips || [],
+    openingsBod: reportData?.openingsBod || 0
+  };
+
+  if (['verwerking', 'scraping', 'vergelijken', 'analyseren', 'afronden', 'ai_analyseren'].includes(reportData?.status)) {
+    const stappen = [
+      { id: 'scraping', tekst: 'Advertentie ophalen...' },
+      { id: 'vergelijken', tekst: 'Vergelijkbare autos zoeken...' },
+      { id: 'analyseren', tekst: 'AI analyse uitvoeren...' },
+      { id: 'afronden', tekst: 'Rapport samenstellen...' }
+    ];
+
+    let currentIdx = stappen.findIndex(s => s.id === reportData.status);
+    if (currentIdx === -1) {
+       currentIdx = 0;
+    }
+    const progress = ((currentIdx + 1) / stappen.length) * 100;
+
     return (
       <div className="min-h-screen bg-[#050B14] flex flex-col items-center justify-center pt-20 px-4">
         <div className="max-w-md w-full text-center space-y-8">
@@ -273,35 +180,43 @@ export const ReportPage: React.FC = () => {
            </div>
            <div>
              <h2 className="text-3xl font-heading font-extrabold text-white mb-3 tracking-tight">Auto wordt geanalyseerd...</h2>
-             <p className="text-gray-400 text-lg">Onze AI verzamelt nu alle gegevens van Marktplaats en RDW. Dit duurt meestal 30-60 seconden.</p>
+             <p className="text-gray-400 text-lg">Onze AI verzamelt nu alle gegevens van Marktplaats en RDW.</p>
            </div>
-           <div className="space-y-4">
+           
+           {/* Stappen weergave */}
+           <div className="space-y-3 pt-4 text-left">
+             {stappen.map((stap, idx) => (
+               <div key={stap.id} className="flex items-center gap-3">
+                 <div className="w-6 h-6 shrink-0 flex items-center justify-center">
+                   {idx < currentIdx ? (
+                     <CheckCircle className="w-5 h-5 text-accent-green" />
+                   ) : idx === currentIdx ? (
+                     <Loader2 className="w-5 h-5 text-accent-green animate-spin" />
+                   ) : (
+                     <div className="w-3 h-3 rounded-full bg-white/20" />
+                   )}
+                 </div>
+                 <span className={`${idx <= currentIdx ? 'text-white font-medium' : 'text-gray-500'}`}>
+                   {stap.tekst}
+                 </span>
+               </div>
+             ))}
+           </div>
+           
+           <div className="space-y-4 pt-6">
              <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5 shadow-inner">
                <motion.div 
                  initial={{ width: "0%" }}
-                 animate={{ width: "100%" }}
-                 transition={{ duration: 45, ease: "linear" }}
+                 animate={{ width: `${progress}%` }}
+                 transition={{ duration: 0.5, ease: "easeInOut" }}
                  className="h-full bg-gradient-to-r from-primary-dark to-accent-green"
                />
              </div>
-             <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-widest">
-               <span>Scrapen</span>
-               <span>Analyseren</span>
-               <span>Voltooid</span>
+             <div className="text-xs font-bold text-gray-500 uppercase tracking-widest text-right">
+               {Math.round(progress)}%
              </div>
            </div>
-           <Card className="bg-white/5 border-white/5 p-6 rounded-2xl text-left">
-              <h4 className="text-white font-bold mb-3 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-accent-green" /> Wat we nu doen:
-              </h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>• Marktplaats advertentie uitlezen</li>
-                <li>• Prijs vergelijken met 50+ vergelijkbare auto's</li>
-                <li>• Foto's scannen op verborgen schades</li>
-                <li>• RDW kilometerstand en APK controleren</li>
-              </ul>
-           </Card>
-           <p className="text-xs text-gray-600">Je kunt deze pagina open laten, hij ververst automatisch.</p>
+           <p className="text-xs text-gray-600">Dit duurt meestal 30-60 seconden, pagina ververst vanzelf.</p>
         </div>
       </div>
     );
@@ -314,10 +229,12 @@ export const ReportPage: React.FC = () => {
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-6 opacity-80" />
           <h2 className="text-2xl font-bold text-white mb-2">Analyse Mislukt</h2>
           <p className="text-gray-400 max-w-md mx-auto mb-6">
-            Oeps! Er ging iets mis tijdens het verwerken van deze auto. 
-            Controleer of de link nog bereikbaar is, of probeer het opnieuw.
+            {reportData.error || "Oeps! Er ging iets mis tijdens het verwerken van deze auto. Controleer of de link nog bereikbaar is."}
           </p>
-          <Button onClick={() => navigate('/dashboard')} className="mt-4 bg-white/10 hover:bg-white/20 text-white rounded-xl">Terug naar Dashboard</Button>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => navigate('/')} className="bg-accent-green hover:bg-accent-green/80 text-black font-bold rounded-xl">Probeer Opnieuw</Button>
+            <Button onClick={() => navigate('/dashboard')} className="bg-white/10 hover:bg-white/20 text-white rounded-xl">Naar Dashboard</Button>
+          </div>
         </div>
       </div>
     );
@@ -336,9 +253,29 @@ export const ReportPage: React.FC = () => {
   }
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(data.onderhandeling.script);
+    navigator.clipboard.writeText(data.onderhandelingsScript);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    alert("Link naar rapport gekopieerd naar klembord!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
+  const handleSave = async () => {
+    if (!id) return;
+    try {
+      alert("Rapport is bewaard in je dashboard!");
+    } catch (err) {
+      console.error("Error saving report:", err);
+    }
   };
 
   const handleMijnRapportenClick = (e: React.MouseEvent) => {
@@ -360,9 +297,9 @@ export const ReportPage: React.FC = () => {
           </button>
           
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
-            <Button variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Share2 className="w-4 h-4 mr-2"/> Deel rapport</Button>
-            <Button variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Bookmark className="w-4 h-4 mr-2"/> Bewaar</Button>
+            <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
+            <Button onClick={handleShare} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Share2 className="w-4 h-4 mr-2"/> Deel rapport</Button>
+            <Button onClick={handleSave} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Bookmark className="w-4 h-4 mr-2"/> Bewaar</Button>
           </div>
         </div>
 
@@ -381,7 +318,16 @@ export const ReportPage: React.FC = () => {
                    
                    <div className="h-64 sm:h-80 bg-[#131B2A] rounded-2xl overflow-hidden shadow-inner border border-white/5 relative">
                      {data.photoUrls && data.photoUrls.length > 0 ? (
-                       <img src={data.photoUrls[0]} alt="Exterieur" className="w-full h-full object-cover" />
+                       <img 
+                          src={data.photoUrls[0]} 
+                          alt="Exterieur" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer" 
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                          }}
+                        />
                      ) : (
                        <div className="w-full h-full flex items-center justify-center text-gray-500">Geen foto beschikbaar</div>
                      )}
@@ -389,14 +335,32 @@ export const ReportPage: React.FC = () => {
                    <div className="grid grid-cols-2 gap-2">
                      <div className="h-24 bg-[#131B2A] rounded-xl overflow-hidden border border-white/5">
                        {data.photoUrls && data.photoUrls.length > 1 ? (
-                         <img src={data.photoUrls[1]} alt="Interieur 1" className="w-full h-full object-cover" />
+                         <img 
+                            src={data.photoUrls[1]} 
+                            alt="Interieur 1" 
+                            className="w-full h-full object-cover" 
+                            referrerPolicy="no-referrer" 
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                            }}
+                          />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Geen foto</div>
                        )}
                      </div>
                      <div className="h-24 bg-[#131B2A] rounded-xl overflow-hidden relative group cursor-pointer border border-white/5">
                        {data.photoUrls && data.photoUrls.length > 2 ? (
-                         <img src={data.photoUrls[2]} alt="Interieur 2" className="w-full h-full object-cover opacity-50 transition-opacity group-hover:opacity-60" />
+                         <img 
+                            src={data.photoUrls[2]} 
+                            alt="Interieur 2" 
+                            className="w-full h-full object-cover opacity-50 transition-opacity group-hover:opacity-60" 
+                            referrerPolicy="no-referrer" 
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                            }}
+                          />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">Geen foto</div>
                        )}
@@ -416,7 +380,7 @@ export const ReportPage: React.FC = () => {
                      € {data.vraagprijs.toLocaleString('nl-NL')}
                    </div>
                    <div className="flex flex-wrap gap-2">
-                     <Pill>{data.jaar}</Pill>
+                     <Pill>{data.bouwjaar || 'Onbekend'}</Pill>
                      <Pill>{data.kilometerstand.toLocaleString('nl-NL')} km</Pill>
                      <Pill>{data.brandstof}</Pill>
                      <Pill>{data.transmissie}</Pill>
@@ -513,10 +477,10 @@ export const ReportPage: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <RdwBlock label={`APK geldig t/m ${data.rdw.apk}`} ok={true} />
-            <RdwBlock label={data.rdw.gestolen ? "Geregistreerd als gestolen" : "Niet gestolen"} ok={!data.rdw.gestolen} />
-            <RdwBlock label={`${data.rdw.eigenaren} eigenaren`} ok={data.rdw.eigenaren <= 3} />
-            <RdwBlock label={`Eerste toelating ${data.rdw.eersteToelating}`} ok={true} />
+            <RdwBlock label={`APK geldig t/m ${data.rdw.apkVervaldatum || "Niet beschikbaar"}`} ok={!!data.rdw.apkVervaldatum} />
+            <RdwBlock label={data.rdw.isGestolen ? "GEREGISTREERD ALS GESTOLEN!" : "Niet gestolen"} ok={!data.rdw.isGestolen} />
+            <RdwBlock label={`${data.rdw.aantalEigenaren || "Niet beschikbaar"} eigenaren`} ok={true} />
+            <RdwBlock label={`Eerste toelating: ${data.rdw.eersteToelating || "Niet beschikbaar"}`} ok={true} />
           </div>
         </Card>
 
@@ -559,7 +523,7 @@ export const ReportPage: React.FC = () => {
                     <h3 className="text-xl font-bold text-white">Positieve Punten</h3>
                   </div>
                   <ul className="space-y-4">
-                    {data.overzicht.positief.map((punt, i) => (
+                    {data.positievePunten.map((punt: string, i: number) => (
                       <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-accent-green mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
                     ))}
                   </ul>
@@ -573,10 +537,10 @@ export const ReportPage: React.FC = () => {
                     <h3 className="text-xl font-bold text-white">Aandachtspunten</h3>
                   </div>
                   <ul className="space-y-4">
-                    {data.overzicht.aandachtspunten.slice(0, hasAccess ? undefined : 2).map((punt, i) => (
+                    {data.aandachtspunten.slice(0, hasAccess ? undefined : 2).map((punt: string, i: number) => (
                       <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-amber-500 mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
                     ))}
-                    {!hasAccess && data.overzicht.aandachtspunten.length > 2 && (
+                    {!hasAccess && data.aandachtspunten.length > 2 && (
                       <>
                         <li className="flex gap-3 text-gray-300 items-start opacity-40 blur-[2px] select-none">
                           <span className="text-amber-500 mt-0.5 font-bold">•</span> 
@@ -585,7 +549,7 @@ export const ReportPage: React.FC = () => {
                         <div className="pt-2 text-center">
                           <button onClick={() => navigate('/prijzen')} className="text-xs font-bold text-accent-green bg-accent-green/10 px-3 py-1.5 rounded-full border border-accent-green/20 hover:bg-accent-green/20 transition-colors">
                             <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                            Toon alle {data.overzicht.aandachtspunten.length} punten
+                            Toon alle {data.aandachtspunten.length} punten
                           </button>
                         </div>
                       </>
@@ -598,9 +562,9 @@ export const ReportPage: React.FC = () => {
               <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Verkoper Info</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.overzicht.verkoper.type}</div>
-                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.overzicht.verkoper.lidSinds}</div>
-                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.overzicht.verkoper.actieveAdvertenties} actieve advertenties</div>
+                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
+                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
+                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.actieveAdvertenties} actieve advertenties</div>
                 </div>
               </Card>
             </motion.div>
@@ -613,28 +577,51 @@ export const ReportPage: React.FC = () => {
                <div>
                  
                  {/* TAB 2: PRIJS */}
-                 {activeTab === 'prijs' && (
+                 {activeTab === 'prijs' && (() => {
+                   const vPr = data.vraagprijs;
+                   const gPr = data.eerlijkePrijs;
+                   const minPr = Math.round(gPr * 0.85);
+                   const maxPr = Math.round(gPr * 1.15);
+                   const calculatePosition = (val: number) => {
+                     if (val < minPr) return 0;
+                     if (val > maxPr) return 100;
+                     return ((val - minPr) / (maxPr - minPr)) * 100;
+                   };
+                   const vPos = calculatePosition(vPr);
+                   const gPos = calculatePosition(gPr);
+                   
+                   const km = data.kilometerstand;
+                   const yearsInt = new Date().getFullYear() - (data.bouwjaar || new Date().getFullYear());
+                   const years = yearsInt > 0 ? yearsInt : 1;
+                   const avgKmPerYear = Math.round(km / years);
+                   const normalMax = 18000;
+                   const normalMin = 10000;
+                   const isKmNormal = avgKmPerYear >= normalMin && avgKmPerYear <= normalMax;
+                   const kmStatusText = isKmNormal ? "✓ Normaal" : (avgKmPerYear > normalMax ? "Hoog" : "Laag");
+                   const kmPercent = Math.min((avgKmPerYear / normalMax) * 100, 100);
+
+                   return (
                    <div className="space-y-6">
                      <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
                        <h3 className="text-xl font-bold text-white mb-8">Prijsanalyse & Waardebepaling</h3>
                        
                        <div className="mb-10 px-2 max-w-4xl mx-auto">
                          <div className="flex justify-between text-sm text-gray-400 mb-3 font-bold uppercase tracking-wider">
-                           <span>Min € 17.500</span>
-                           <span>Max € 20.500</span>
+                           <span>Min € {minPr.toLocaleString('nl-NL')}</span>
+                           <span>Max € {maxPr.toLocaleString('nl-NL')}</span>
                          </div>
                          <div className="relative h-4 bg-[#131B2A] rounded-full border border-white/5 shadow-inner">
-                           <div className="absolute top-0 bottom-0 left-[0%] w-[56%] bg-accent-green/20 rounded-l-full"></div>
-                           <div className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-amber-500 border-4 border-[#0A111F] rounded-full z-20 left-[33%] -translate-x-1/2 shadow-lg group">
+                           <div className="absolute top-0 bottom-0 left-[0%] bg-accent-green/20 rounded-l-full" style={{width: `${gPos}%`}}></div>
+                           <div className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-amber-500 border-4 border-[#0A111F] rounded-full z-20 shadow-lg group" style={{left: `${vPos}%`, transform: 'translate(-50%, -50%)'}}>
                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black px-3 py-1 rounded text-xs font-bold text-amber-500 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Vraagprijs</div>
                            </div>
-                           <div className="absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-white z-10 rounded-full left-[56%] -translate-x-1/2 group cursor-help">
+                           <div className="absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-white z-10 rounded-full group cursor-help" style={{left: `${gPos}%`, transform: 'translate(-50%, -50%)'}}>
                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black px-3 py-1 rounded text-xs font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Gemiddelde</div>
                            </div>
                          </div>
                          <div className="flex justify-between items-center text-sm mt-5">
-                           <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500 border border-amber-400"></div> <span className="text-gray-300 font-medium">Vraagprijs (€ 18.500)</span></div>
-                           <div className="flex items-center gap-2"><div className="w-1.5 h-4 bg-white rounded-full"></div> <span className="text-gray-300 font-medium">Marktgemiddelde (€ 19.200)</span></div>
+                           <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500 border border-amber-400"></div> <span className="text-gray-300 font-medium">Vraagprijs (€ {vPr.toLocaleString('nl-NL')})</span></div>
+                           <div className="flex items-center gap-2"><div className="w-1.5 h-4 bg-white rounded-full"></div> <span className="text-gray-300 font-medium">Marktgemiddelde (€ {gPr.toLocaleString('nl-NL')})</span></div>
                          </div>
                        </div>
 
@@ -662,12 +649,12 @@ export const ReportPage: React.FC = () => {
                        <div className="bg-[#131B2A] border border-white/5 rounded-2xl p-6 mb-10">
                          <div className="flex justify-between items-end mb-4">
                            <div>
-                             <p className="text-gray-300 text-sm md:text-base">85.000 km in 6 jaar = gemiddeld <span className="text-white font-bold">14.166 km/jaar</span></p>
+                             <p className="text-gray-300 text-sm md:text-base">{km.toLocaleString('nl-NL')} km in {years} jaar = gemiddeld <span className="text-white font-bold">{avgKmPerYear.toLocaleString('nl-NL')} km/jaar</span></p>
                            </div>
-                           <div className="bg-accent-green/20 px-3 py-1 rounded-md text-accent-green font-bold text-sm tracking-wide">✓ Normaal</div>
+                           <div className={`px-3 py-1 rounded-md font-bold text-sm tracking-wide ${isKmNormal ? 'bg-accent-green/20 text-accent-green' : 'bg-amber-500/20 text-amber-500'}`}>{kmStatusText}</div>
                          </div>
                          <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                           <div className="w-[40%] h-full bg-gradient-to-r from-accent-green/50 to-accent-green"></div>
+                           <div className={`h-full ${isKmNormal ? 'bg-gradient-to-r from-accent-green/50 to-accent-green' : 'bg-gradient-to-r from-amber-500/50 to-amber-500'}`} style={{width: `${kmPercent}%`}}></div>
                          </div>
                          <p className="text-xs text-gray-500 mt-3">Normaal bereik voor dit type auto is 10.000 - 18.000 km per jaar.</p>
                        </div>
@@ -686,17 +673,17 @@ export const ReportPage: React.FC = () => {
                              </tr>
                            </thead>
                            <tbody className="divide-y divide-white/5">
-                             {data.vergelijkbareAutos.map((auto, i) => (
+                             {data.vergelijkbareAutos.map((auto: any, i: number) => (
                                <tr key={i} className={auto.isCurrent ? "bg-accent-green/5 border-l-4 border-l-accent-green" : ""}>
-                                 <td className={`py-4 px-6 font-bold ${auto.isCurrent ? 'text-accent-green' : 'text-gray-200'}`}>
-                                   {auto.naam} {auto.isCurrent && <span className="text-xs ml-2 bg-accent-green/20 px-2 py-0.5 rounded text-accent-green">Vraagprijs</span>}
+                                 <td className={`py-4 px-6 font-bold ${auto.isCurrent ? "text-accent-green" : "text-gray-200"}`}>
+                                   {auto.naam || auto.titel} {auto.isCurrent && <span className="text-xs ml-2 bg-accent-green/20 px-2 py-0.5 rounded text-accent-green">Vraagprijs</span>}
                                  </td>
-                                 <td className="py-4 px-6 text-gray-400">{auto.jaar}</td>
-                                 <td className="py-4 px-6 text-gray-400">{auto.km.toLocaleString()}</td>
-                                 <td className="py-4 px-6 font-bold text-right text-white">€ {auto.prijs.toLocaleString()}</td>
-                                 <td className="py-4 px-6 text-gray-400">{auto.bron}</td>
+                                 <td className="py-4 px-6 text-gray-400">{auto.jaar || auto.bouwjaar}</td>
+                                 <td className="py-4 px-6 text-gray-400">{(auto.km || auto.kilometerstand)?.toLocaleString()}</td>
+                                 <td className="py-4 px-6 font-bold text-right text-white">€ {auto.prijs?.toLocaleString()}</td>
+                                 <td className="py-4 px-6 text-gray-400">Marktplaats</td>
                                  <td className="py-4 px-6 text-right">
-                                   <a href={auto.link} className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
+                                   <a href={auto.url || auto.link} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
                                  </td>
                                </tr>
                              ))}
@@ -706,7 +693,7 @@ export const ReportPage: React.FC = () => {
 
                      </Card>
                    </div>
-                 )}
+                 );})()}
 
                  {/* TAB 3: RISICO'S */}
                  {activeTab === 'vlaggen' && (
@@ -723,7 +710,7 @@ export const ReportPage: React.FC = () => {
                        </div>
 
                        <div className="space-y-4 mb-10">
-                         {data.rodeVlaggen.map((vlag, i) => {
+                         {data.rodeVlaggen.map((vlag: any, i: number) => {
                            let badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
                            if(vlag.ernst === 'middel') badgeClass = "bg-amber-500/10 text-amber-500 border-amber-500/20";
                            if(vlag.ernst === 'laag') badgeClass = "bg-accent-green/10 text-accent-green border-accent-green/20";
@@ -746,19 +733,19 @@ export const ReportPage: React.FC = () => {
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Online Sinds</p>
-                           <p className={`text-lg font-bold ${data.advertentieAnalyse.onlineSindsKleur}`}>{data.advertentieAnalyse.onlineSinds}</p>
+                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.onlineSinds || "Onbekend"}</p>
                          </div>
                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Beschrijving</p>
-                           <p className={`text-lg font-bold ${data.advertentieAnalyse.beschrijvingKleur}`}>{data.advertentieAnalyse.beschrijving}</p>
+                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.volledigheid || "Onbekend"}</p>
                          </div>
                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Prijswijzigingen</p>
-                           <p className={`text-lg font-bold ${data.advertentieAnalyse.prijsWijzigingKleur}`}>{data.advertentieAnalyse.prijsWijziging}</p>
+                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.prijsWijzigingen || "Onbekend"}</p>
                          </div>
                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Taalgebruik</p>
-                           <p className={`text-sm font-bold mt-1.5 ${data.advertentieAnalyse.taalgebruikKleur}`}>{data.advertentieAnalyse.taalgebruik}</p>
+                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.taalgebruik || "Onbekend"}</p>
                          </div>
                        </div>
 
@@ -775,19 +762,28 @@ export const ReportPage: React.FC = () => {
                        </h3>
                        
                        <div className="grid sm:grid-cols-2 gap-6 mb-10">
-                         {data.fotos.map((foto, i) => (
+                         {data.fotoAnalyse.map((foto: any, i: number) => (
                            <div key={i} className="group">
                              <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
-                               <Car className="w-12 h-12 text-white/5" />
+                               <img 
+                                  src={foto.url} 
+                                  alt={foto.label} 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer" 
+                                  crossOrigin="anonymous"
+                                  onError={(e) => {
+                                      (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                                  }}
+                                />
                                
                                <div className="absolute right-3 bottom-3 shadow-lg">
-                                 {foto.status === 'ok' && <div className="bg-accent-green text-black rounded-full p-2"><CheckCircle className="w-4 h-4" /></div>}
-                                 {foto.status === 'waarschuwing' && <div className="bg-amber-500 text-black rounded-full p-2"><AlertTriangle className="w-4 h-4" /></div>}
-                                 {foto.status === 'probleem' && <div className="bg-red-500 text-white rounded-full p-2"><XCircle className="w-4 h-4" /></div>}
+                                 {foto.ernst === 'ok' && <div className="bg-accent-green text-black rounded-full p-2"><CheckCircle className="w-4 h-4" /></div>}
+                                 {(foto.ernst === 'waarschuwing' || foto.ernst === 'middel') && <div className="bg-amber-500 text-black rounded-full p-2"><AlertTriangle className="w-4 h-4" /></div>}
+                                 {(foto.ernst === 'probleem' || foto.ernst === 'hoog') && <div className="bg-red-500 text-white rounded-full p-2"><XCircle className="w-4 h-4" /></div>}
                                </div>
                              </div>
                              <h4 className="font-bold text-white text-base mb-1">{foto.label}</h4>
-                             <p className="text-sm text-gray-400">{foto.finding}</p>
+                             <p className="text-sm text-gray-400">{foto.bevinding}</p>
                            </div>
                          ))}
                        </div>
@@ -798,7 +794,7 @@ export const ReportPage: React.FC = () => {
                            <XCircle className="w-5 h-5" /> Ontbrekende foto's — vraag hier altijd om:
                          </h4>
                          <ul className="space-y-3 pl-1">
-                           {data.ontbrekendeFotos.map((item, i) => (
+                           {data.ontbrekendeFotos.map((item: string, i: number) => (
                              <li key={i} className="flex gap-3 text-gray-200 text-sm items-center font-medium">
                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,1)]"></div> {item}
                              </li>
@@ -817,9 +813,9 @@ export const ReportPage: React.FC = () => {
                        
                        <div className="text-center mb-10 pt-4">
                          <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mb-4">Aanbevolen Openingsbod</p>
-                         <p className="text-5xl md:text-7xl font-heading font-extrabold text-accent-green mb-6 drop-shadow-md">€ {data.onderhandeling.aanbevolenBod.toLocaleString('nl-NL')}</p>
+                         <p className="text-5xl md:text-7xl font-heading font-extrabold text-accent-green mb-6 drop-shadow-md">€ {data.openingsBod.toLocaleString('nl-NL')}</p>
                          <p className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full text-sm text-gray-300 font-medium">
-                           € {data.onderhandeling.verschilVraagprijs.toLocaleString('nl-NL')} onder vraagprijs
+                           € {(data.vraagprijs - data.openingsBod).toLocaleString('nl-NL')} onder vraagprijs
                          </p>
                        </div>
 
@@ -830,7 +826,7 @@ export const ReportPage: React.FC = () => {
                              <FileText className="w-5 h-5" /> Jouw persoonlijke script
                            </h4>
                            <div className="bg-black p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
-                             "{data.onderhandeling.script}"
+                             "{data.onderhandelingsScript}"
                            </div>
                            <div className="flex flex-col sm:flex-row gap-4">
                              <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">
@@ -845,7 +841,7 @@ export const ReportPage: React.FC = () => {
 
                        <h4 className="font-bold text-white mb-6 text-lg">Onderhandelingstips</h4>
                        <div className="grid gap-3">
-                         {data.onderhandeling.tips.map((tip, i) => (
+                         {data.onderhandelingsTips.map((tip: string, i: number) => (
                            <div key={i} className="bg-[#131B2A] border border-white/5 rounded-xl p-5 flex gap-4 items-center">
                              <div className="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center shrink-0">
                                <div className="w-2 h-2 rounded-full bg-accent-green"></div>

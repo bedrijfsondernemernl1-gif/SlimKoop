@@ -3,8 +3,32 @@ import { motion } from 'motion/react';
 import { ShieldCheck, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Footer } from '@/src/components/Footer';
 import { PricingCard } from '@/src/components/PricingCard';
+import { useStore } from '@/src/store/useStore';
+import { useNavigate } from 'react-router-dom';
+
+const PRICE_IDS: Record<string, string> = {
+  "Losse Scan": "https://buy.stripe.com/8x26oJ4ZW3LMdpOepS1ck02",
+  "Slimme Koper": "https://buy.stripe.com/bJeeVf9gc1DEdpO3Le1ck01",
+  "Autohandelaar": "https://buy.stripe.com/4gM9AV0JG0zA99y6Xq1ck03",
+};
 
 export const PricingPage: React.FC = () => {
+  const { user, isLoggedIn, openAuthModal } = useStore();
+  const navigate = useNavigate();
+
+  const handlePurchase = async (title: string) => {
+    if (!isLoggedIn) {
+      alert("Log eerst in om een pakket aan te schaffen.");
+      openAuthModal();
+      return;
+    }
+    
+    const paymentUrl = PRICE_IDS[title];
+    if (!paymentUrl) return;
+
+    // Direct redirect to Stripe Checkout link
+    window.location.href = paymentUrl;
+  };
   return (
     <div className="min-h-screen bg-black pt-32 flex flex-col relative overflow-hidden">
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-dark/20 blur-[120px] rounded-full pointer-events-none"></div>
@@ -33,7 +57,7 @@ export const PricingPage: React.FC = () => {
           {/* Plan 1: Losse Scan */}
           <PricingCard 
              title="Losse Scan" 
-             price="€4,99" 
+             price="€9,99" 
              period=""
              description="Ideaal als je precies weet welke auto je gaat kopen."
              features={[
@@ -44,14 +68,15 @@ export const PricingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
              ]}
-             btnText="Koop scan — €4,99"
+             btnText="Koop scan — €9,99"
              buttonStyle="outline"
+             onClick={() => handlePurchase("Losse Scan")}
           />
 
           {/* Plan 2: Slimme Koper */}
           <PricingCard 
              title="Slimme Koper" 
-             price="€9,99" 
+             price="€19.99" 
              period=""
              description="De favoriete keuze voor wie meerdere auto's vergelijkt."
              badgeText="Meest Gekozen"
@@ -63,15 +88,16 @@ export const PricingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
              ]}
-             btnText="Start nu — €9,99"
+             btnText="Start nu — €19.99"
              featured={true}
              buttonStyle="primary"
+             onClick={() => handlePurchase("Slimme Koper")}
           />
 
           {/* Plan 3: Autohandelaar */}
           <PricingCard 
              title="Autohandelaar" 
-             price="€19" 
+             price="€29.99" 
              period="/ maand"
              description="Voor wie wekelijks auto's beoordeelt en koopt."
              badgeText="Voor professionals"
@@ -84,6 +110,7 @@ export const PricingPage: React.FC = () => {
              ]}
              btnText="Start abonnement"
              buttonStyle="outline-green"
+             onClick={() => handlePurchase("Autohandelaar")}
           />
         </div>
 

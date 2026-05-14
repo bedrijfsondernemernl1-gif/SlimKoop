@@ -9,7 +9,6 @@ import { HowItWorksPage } from './pages/HowItWorksPage';
 import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
 import { AboutPage } from './pages/AboutPage';
-import { LoadingAnalysisPage } from './pages/LoadingAnalysisPage';
 import { AnalysisInputPage } from './pages/AnalysisInputPage';
 
 function ScrollToTop() {
@@ -32,7 +31,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/analyseer" element={<AnalysisInputPage />} />
-          <Route path="/analyseer/laden" element={<LoadingAnalysisPage />} />
           <Route path="/hoe-het-werkt" element={<HowItWorksPage />} />
           <Route path="/prijzen" element={<PricingPage />} />
           <Route path="/contact" element={<ContactPage />} />

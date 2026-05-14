@@ -22,8 +22,18 @@ export const DashboardOverview: React.FC = () => {
   const [recentCars, setRecentCars] = useState<Analyse[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
   const { user } = useStore();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+        setShowSuccess(true);
+        // Clear query param
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchAnalyses() {
@@ -41,12 +51,19 @@ export const DashboardOverview: React.FC = () => {
         const snapshot = await getDocs(q);
         const cars = snapshot.docs.map(doc => {
           const data = doc.data();
+          let dateStr = 'Onbekend';
+          if (data.createdAt) {
+            try {
+              const dateObj = typeof data.createdAt.toMillis === 'function' ? new Date(data.createdAt.toMillis()) : new Date(data.createdAt);
+              dateStr = dateObj.toLocaleDateString('nl-NL');
+            } catch(e) { console.error(e); }
+          }
           return {
             id: doc.id,
             title: data.title || 'Onbekende auto',
             price: data.price || 'Prijs op aanvraag',
             score: data.score || 0,
-            date: data.createdAt ? new Date(data.createdAt.toMillis()).toLocaleDateString('nl-NL') : 'Onbekend',
+            date: dateStr,
             img: data.img || 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=100&h=100&fit=crop',
           };
         });
@@ -108,6 +125,15 @@ export const DashboardOverview: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
+        {showSuccess && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="bg-black border border-accent-green/50 p-8 rounded-2xl max-w-sm text-center">
+                    <h3 className="text-2xl font-bold text-white mb-4">Bedankt voor je aankoop!</h3>
+                    <p className="text-gray-300 mb-6">Je pakket is aangeschaft en je accountstatus is geupgraded. Veel plezier met gebruik van onze diensten!</p>
+                    <Button onClick={() => setShowSuccess(false)} className="w-full">Sluiten</Button>
+                </div>
+            </div>
+        )}
       {/* Top bar */}
       <div className="p-6 md:p-8 border-b border-white/5 bg-white/[0.02]">
         <form onSubmit={handleAnalyze} className="flex flex-col sm:flex-row gap-4 max-w-3xl">
