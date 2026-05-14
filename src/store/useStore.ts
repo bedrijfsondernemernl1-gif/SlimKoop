@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 enum OperationType {
   CREATE = 'create',
@@ -53,6 +53,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 interface StoreState {
   isLoggedIn: boolean;
   isPremium: boolean;
+  subscriptionPlan: string | null;
   isAuthModalOpen: boolean;
   user: User | null;
   authLoading: boolean;
@@ -63,10 +64,17 @@ interface StoreState {
   closeAuthModal: () => void;
 }
 
+let unsubUserDoc: (() => void) | null = null;
+
 export const useStore = create<StoreState>((set) => {
   // Listen to Firebase auth state
   onAuthStateChanged(auth, async (user) => {
     let isValidLogin = false;
+    
+    if (unsubUserDoc) {
+      unsubUserDoc();
+      unsubUserDoc = null;
+    }
     
     if (user) {
       if (user.providerData.some(p => p.providerId === 'google.com') || user.emailVerified) {
@@ -76,24 +84,35 @@ export const useStore = create<StoreState>((set) => {
       if (isValidLogin) {
         try {
           const userRef = doc(db, 'gebruikers', user.uid);
+          // Initial check/create
           const userSnap = await getDoc(userRef).catch(err => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
           if (userSnap && !userSnap.exists()) {
             await setDoc(userRef, {
               email: user.email,
               uid: user.uid,
-              aanmaakdatum: new Date().toISOString()
+              aanmaakdatum: new Date().toISOString() // will be converted to real date or handled
             }).catch(err => handleFirestoreError(err, OperationType.WRITE, `gebruikers/${user.uid}`));
           }
+          
+          unsubUserDoc = onSnapshot(userRef, (docSnap) => {
+             if (docSnap.exists()) {
+                 const data = docSnap.data();
+                 const adminPremium = user.email === 'ibrahimdiscord675@gmail.com';
+                 const plan = data.subscriptionPlan || null;
+                 set({ 
+                     isPremium: Boolean(data.isPremium) || adminPremium,
+                     subscriptionPlan: plan
+                 });
+             }
+          }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
+          
         } catch (err) {
           console.error("Failed to sync user doc:", err);
         }
       }
     }
 
-    let isPremiumAccount = false;
-    if (user && user.email === 'ibrahimdiscord675@gmail.com') {
-      isPremiumAccount = true;
-    }
+    const isPremiumAccount = user && user.email === 'ibrahimdiscord675@gmail.com' ? true : false;
 
     set({ 
       user: isValidLogin ? user : null,
@@ -106,13 +125,15 @@ export const useStore = create<StoreState>((set) => {
   return {
     isLoggedIn: false, // Default freemium user not logged in
     isPremium: false,
+    subscriptionPlan: null,
     isAuthModalOpen: false,
     user: null,
     authLoading: true,
     login: () => set({ isLoggedIn: true }), // Keeping this for manual overrides if needed
     logout: async () => {
+      if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
       await signOut(auth);
-      set({ isLoggedIn: false, isPremium: false, user: null });
+      set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, user: null });
     },
     upgrade: () => set({ isPremium: true, isLoggedIn: true }),
     openAuthModal: () => set({ isAuthModalOpen: true }),

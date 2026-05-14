@@ -7,9 +7,9 @@ import { useStore } from '@/src/store/useStore';
 import { useNavigate } from 'react-router-dom';
 
 const PRICE_IDS: Record<string, string> = {
-  "Losse Scan": "https://buy.stripe.com/8x26oJ4ZW3LMdpOepS1ck02",
-  "Slimme Koper": "https://buy.stripe.com/bJeeVf9gc1DEdpO3Le1ck01",
-  "Autohandelaar": "https://buy.stripe.com/4gM9AV0JG0zA99y6Xq1ck03",
+  "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
+  "Slimme Koper": "price_1TWzJoRsJS7Vz7uq0sMvxaLG",
+  "Autohandelaar": "price_1TWzLoRsJS7Vz7uqcB7DF5qQ",
 };
 
 export const PricingPage: React.FC = () => {
@@ -23,11 +23,41 @@ export const PricingPage: React.FC = () => {
       return;
     }
     
-    const paymentUrl = PRICE_IDS[title];
-    if (!paymentUrl) return;
+    const priceId = PRICE_IDS[title];
+    if (!priceId) return;
 
-    // Direct redirect to Stripe Checkout link
-    window.location.href = paymentUrl;
+    try {
+        const response = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                priceId, 
+                userId: user?.uid,
+                successUrl: window.location.origin + '/dashboard',                
+                cancelUrl: window.location.origin + '/pricing'
+            }),
+        });
+
+        const contentType = response.headers.get("content-type");
+        if (!response.ok) {
+            let errorMessage = `Server fout: ${response.status}`;
+            if (contentType && contentType.includes("application/json")) {
+                const errorResult = await response.json();
+                errorMessage = errorResult.error || errorMessage;
+            } else {
+                console.error("Non-JSON error response from server:", await response.text());
+            }
+            throw new Error(errorMessage);
+        }
+
+        const { url } = await response.json();                
+        if (url) {
+            window.location.href = url;
+        }
+    } catch (error) {
+        console.error("Fout bij checkout:", error);
+        alert(`Er is een fout opgetreden bij het starten van de betaling: ${error instanceof Error ? error.message : 'Onbekende fout'}. Probeer het later opnieuw.`);
+    }
   };
   return (
     <div className="min-h-screen bg-black pt-32 flex flex-col relative overflow-hidden">

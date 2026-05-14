@@ -127,9 +127,9 @@ export const DashboardOverview: React.FC = () => {
     <div className="flex-1 flex flex-col overflow-hidden relative">
         {showSuccess && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                <div className="bg-black border border-accent-green/50 p-8 rounded-2xl max-w-sm text-center">
-                    <h3 className="text-2xl font-bold text-white mb-4">Bedankt voor je aankoop!</h3>
-                    <p className="text-gray-300 mb-6">Je pakket is aangeschaft en je accountstatus is geupgraded. Veel plezier met gebruik van onze diensten!</p>
+                <div className="bg-black border border-accent-green/50 p-8 rounded-2xl max-w-sm text-center shadow-2xl">
+                    <h3 className="text-2xl font-bold text-white mb-4">Betaling Succesvol</h3>
+                    <p className="text-gray-300 mb-6">Bedankt voor je aankoop! Je account is succesvol geüpgraded. Je hebt nu direct toegang tot je pakket en alle bijbehorende premium functies.</p>
                     <Button onClick={() => setShowSuccess(false)} className="w-full">Sluiten</Button>
                 </div>
             </div>
