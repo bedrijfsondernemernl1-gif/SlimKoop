@@ -1,24 +1,19 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Car, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { Footer } from '@/src/components/Footer';
 
 export const AnalysisInputPage: React.FC = () => {
   const [url, setUrl] = useState('');
-  const [isManual, setIsManual] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (url || isManual) {
-      if (isManual) {
-        alert("Handmatige analyse is nog niet beschikbaar.");
-        return;
-      }
+    if (url) {
       setIsLoading(true);
       try {
         const { auth } = await import('@/src/lib/firebase');
@@ -75,8 +70,7 @@ export const AnalysisInputPage: React.FC = () => {
               <span className="flex items-center gap-1.5 text-orange-400"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
            </div>
 
-           {!isManual ? (
-             <form onSubmit={handleAnalyze} className="space-y-6">
+           <form onSubmit={handleAnalyze} className="space-y-6">
                 <div>
                    <label className="block text-sm font-medium text-gray-300 mb-2">Advertentie Link (URL)</label>
                    <div className="relative">
@@ -95,56 +89,7 @@ export const AnalysisInputPage: React.FC = () => {
                 <Button disabled={isLoading} type="submit" size="xl" className="w-full h-16 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all">
                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : <>Start Analyse <ArrowRight className="w-5 h-5 ml-2" /></>}
                 </Button>
-                
-                <div className="text-center pt-2">
-                   <button type="button" onClick={() => setIsManual(true)} className="text-sm font-medium text-gray-400 hover:text-white transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-white">
-                     Of voer autogegevens handmatig in
-                   </button>
-                </div>
              </form>
-           ) : (
-             <form onSubmit={handleAnalyze} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                     <label className="block text-sm font-medium text-gray-300 mb-2">Kenteken</label>
-                     <Input 
-                        type="text"
-                        placeholder="XX-123-X" 
-                        className="h-12 bg-black/50 border border-white/10 text-white rounded-xl focus-visible:ring-accent-green text-center font-bold text-lg tracking-widest uppercase"
-                        required
-                      />
-                  </div>
-                  <div>
-                     <label className="block text-sm font-medium text-gray-300 mb-2">Kilometerstand</label>
-                     <Input 
-                        type="number"
-                        placeholder="120.000" 
-                        className="h-12 bg-black/50 border border-white/10 text-white rounded-xl focus-visible:ring-accent-green"
-                        required
-                      />
-                  </div>
-                  <div>
-                     <label className="block text-sm font-medium text-gray-300 mb-2">Vraagprijs (€)</label>
-                     <Input 
-                        type="number"
-                        placeholder="15000" 
-                        className="h-12 bg-black/50 border border-white/10 text-white rounded-xl focus-visible:ring-accent-green"
-                        required
-                      />
-                  </div>
-                </div>
-                
-                <Button type="submit" size="xl" className="w-full h-16 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all">
-                   Start Handmatige Analyse <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-                
-                <div className="text-center pt-2">
-                   <button type="button" onClick={() => setIsManual(false)} className="text-sm font-medium text-gray-400 hover:text-white transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-white">
-                     Terug naar URL scannen (Aanbevolen)
-                   </button>
-                </div>
-             </form>
-           )}
         </motion.div>
         
         {/* Features list */}

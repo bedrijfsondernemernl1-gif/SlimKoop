@@ -7,12 +7,21 @@ import { Input } from '@/src/components/ui/input';
 import { Footer } from '@/src/components/Footer';
 import { PricingCard } from '@/src/components/PricingCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/src/components/ui/accordion';
+import { useStore } from '@/src/store/useStore';
+
+const PRICE_IDS: Record<string, string> = {
+  "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
+  "Slimme Koper": "price_1TWzJoRsJS7Vz7uq0sMvxaLG",
+  "Autohandelaar": "price_1TWzLoRsJS7Vz7uqcB7DF5qQ",
+};
 
 export const LandingPage: React.FC = () => {
   const [url, setUrl] = useState('');
+  const [showLoginNotification, setShowLoginNotification] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
+  const { user, isLoggedIn, openAuthModal } = useStore();
   
   useEffect(() => {
     if (location.hash) {
@@ -61,6 +70,44 @@ export const LandingPage: React.FC = () => {
     }
   };
 
+  const handlePurchase = async (title: string) => {
+    if (!isLoggedIn) {
+      setShowLoginNotification(true);
+      setTimeout(() => setShowLoginNotification(false), 4000);
+      openAuthModal();
+      return;
+    }
+    
+    const priceId = PRICE_IDS[title];
+    if (!priceId) return;
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          priceId, 
+          userId: user?.uid,
+          successUrl: window.location.origin + '/dashboard',                
+          cancelUrl: window.location.origin + '/#prijzen'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorResult = await response.json().catch(() => ({}));
+        throw new Error(errorResult.error || `Server fout: ${response.status}`);
+      }
+
+      const { url: checkoutUrl } = await response.json();                
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+      }
+    } catch (error) {
+      console.error("Fout bij checkout:", error);
+      alert(`Er is een fout opgetreden bij het starten van de betaling. Probeer het later opnieuw.`);
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -76,6 +123,16 @@ export const LandingPage: React.FC = () => {
 
   return (
       <div className="relative overflow-hidden min-h-screen scroll-smooth" ref={containerRef}>
+      
+      {/* Login Notification */}
+      {showLoginNotification && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-black/90 border border-accent-green/50 backdrop-blur-xl rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-accent-green" />
+            <span className="text-white font-medium">Log eerst in om een pakket aan te schaffen</span>
+          </div>
+        </div>
+      )}
       
       {/* Hero Section */}
       <motion.div 
@@ -298,12 +355,13 @@ export const LandingPage: React.FC = () => {
              ]}
              btnText="Koop scan — €9,99"
              buttonStyle="outline"
+             onClick={() => handlePurchase("Losse Scan")}
           />
 
           {/* Plan 2: Slimme Koper */}
           <PricingCard 
              title="Slimme Koper" 
-             price="€19.99" 
+             price="€19,99" 
              period=""
              description="De favoriete keuze voor wie meerdere auto's vergelijkt."
              badgeText="Meest Gekozen"
@@ -315,15 +373,16 @@ export const LandingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
              ]}
-             btnText="Start nu — €19.99"
+             btnText="Start nu — €19,99"
              featured={true}
              buttonStyle="primary"
+             onClick={() => handlePurchase("Slimme Koper")}
           />
 
           {/* Plan 3: Autohandelaar */}
           <PricingCard 
              title="Autohandelaar" 
-             price="€29.99" 
+             price="€29" 
              period="/ maand"
              description="Voor wie wekelijks auto's beoordeelt en koopt."
              badgeText="Voor professionals"
@@ -336,6 +395,7 @@ export const LandingPage: React.FC = () => {
              ]}
              btnText="Start abonnement"
              buttonStyle="outline-green"
+             onClick={() => handlePurchase("Autohandelaar")}
           />
         </div>
 
