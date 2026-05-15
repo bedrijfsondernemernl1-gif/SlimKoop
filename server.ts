@@ -291,6 +291,20 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
           ...listing,
           verkoperType: (listing as any).verkoperType
       }, vergelijkbareAutos || []);
+      
+      if (!analyse) {
+        console.log("[SERVER] Gemini retourneerde null, probeer opnieuw...");
+        analyse = await analyseerdeTekst({
+            ...listing,
+            verkoperType: (listing as any).verkoperType
+        }, vergelijkbareAutos || []);
+      }
+      
+      if (!analyse) {
+        console.error("[SERVER] Gemini retourneerde opnieuw null na retry.");
+        await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: 'AI analyse heeft geen resultaat opgeleverd. Probeer opnieuw.' });
+        return;
+      }
     } catch (e: any) {
       console.log("[SERVER] Gemini API Fout:", e);
       await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: e.message || 'Fout bij ai analyse' });

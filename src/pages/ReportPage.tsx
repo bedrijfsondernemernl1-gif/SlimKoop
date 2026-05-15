@@ -313,7 +313,7 @@ export const ReportPage: React.FC = () => {
                  {/* Images */}
                  <div className="flex flex-col gap-2 relative">
                    <div className="absolute top-3 left-3 bg-white text-black px-2.5 py-1 rounded-md text-xs font-bold tracking-wide z-10 shadow-lg flex items-center gap-1">
-                     <BadgeCheck className="w-4 h-4" /> Marktplaats · {data.advertentieId}
+                     <BadgeCheck className="w-4 h-4" /> Marktplaats {reportData?.status === 'compleet' ? '· Geanalyseerd' : ''}
                    </div>
                    
                    <div className="h-64 sm:h-80 bg-[#131B2A] rounded-2xl overflow-hidden shadow-inner border border-white/5 relative">
@@ -381,10 +381,9 @@ export const ReportPage: React.FC = () => {
                    </div>
                    <div className="flex flex-wrap gap-2">
                      <Pill>{data.bouwjaar || 'Onbekend'}</Pill>
-                     <Pill>{data.kilometerstand.toLocaleString('nl-NL')} km</Pill>
-                     <Pill>{data.brandstof}</Pill>
-                     <Pill>{data.transmissie}</Pill>
-                     <Pill>{data.carrosserie}</Pill>
+                     <Pill>{data.kilometerstand ? `${data.kilometerstand.toLocaleString('nl-NL')} km` : 'Onbekend'}</Pill>
+                     <Pill>{data.brandstof !== 'Onbekend' && data.brandstof !== 'DETAIL_RESULT' ? data.brandstof : 'Onbekend'}</Pill>
+                     <Pill>{data.transmissie !== 'Onbekend' && data.transmissie !== 'DETAIL_RESULT' ? data.transmissie : 'Onbekend'}</Pill>
                    </div>
                  </div>
                </div>

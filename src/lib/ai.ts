@@ -106,7 +106,7 @@ Geef exact dit JSON formaat terug:
 }`;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-2.0-flash",
       contents: textPrompt
     });
     const textData = result.text;
@@ -191,7 +191,7 @@ Response JSON formaat:
     };
 
     const result = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-2.0-flash",
       contents
     });
     const photoData = result.text;
