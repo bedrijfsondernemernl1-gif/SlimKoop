@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
@@ -38,6 +39,75 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.post("/api/scrape-marktplaats", async (req, res) => {
+    const { url } = req.body;
+    if (!url || !url.includes("marktplaats.nl")) {
+      return res.status(400).json({ error: "Geldige Marktplaats URL is vereist" });
+    }
+
+    try {
+      console.log(`[SERVER] Start scraping for URL: ${url}`);
+      const listing = await scrapeMarktplaats(url);
+      if (!listing) {
+        return res.status(404).json({ error: 'Kon de advertentie niet ophalen.' });
+      }
+
+      console.log(`[SERVER] Scraped listing: ${listing.titel}, fetching parallels...`);
+      
+      const [vergelijkbaar, rdw] = await Promise.all([
+        scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar).catch(() => []),
+        checkRDW(listing.kenteken).catch(() => null)
+      ]);
+
+      res.json({
+        listing,
+        vergelijkbareAutos: vergelijkbaar,
+        rdwData: rdw
+      });
+
+    } catch (error: any) {
+      console.error("[SERVER] Scrape error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/save-rapport", async (req, res) => {
+    const { rapportId, userId, data, analyses } = req.body;
+    
+    if (!rapportId) return res.status(400).json({ error: "rapportId is vereist" });
+
+    try {
+      const rapportRef = doc(db, 'rapporten', rapportId);
+      await updateDoc(rapportRef, {
+        ...data,
+        ...analyses,
+        status: 'compleet',
+        updatedAt: serverTimestamp()
+      });
+
+      // Sync to analyses collection for dashboard if user is not anonymous
+      if (userId && userId !== "anonymous") {
+        await addDoc(collection(db, 'analyses'), {
+          userId: userId,
+          rapportId: rapportId,
+          title: data.autoNaam || data.titel,
+          price: typeof data.vraagprijs === 'number' ? `€ ${data.vraagprijs.toLocaleString('nl-NL')}` : data.vraagprijs,
+          score: analyses?.dealScore || 0,
+          img: data.fotos?.[0] || '',
+          url: data.url,
+          status: 'Voltooid',
+          statusColor: 'text-accent-green',
+          createdAt: serverTimestamp()
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[SERVER] Save error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/analyseer", async (req, res) => {
     const { url, userId } = req.body;
 
@@ -53,8 +123,8 @@ async function startServer() {
         createdAt: serverTimestamp()
       });
 
-      // Start background process without awaiting
-      voerAnalyseUit(docRef.id, url, userId).catch(console.error);
+      // Start background process
+      voerAnalyseUit(docRef.id, url, userId || "anonymous").catch(console.error);
 
       return res.json({
         success: true,
@@ -232,15 +302,16 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
   try {
     // ── FASE 1: SCRAPING ──
     await updateDoc(doc(db, 'rapporten', rapportId), { status: 'scraping' });
-    console.log(`Scraping listing at URL: ${url}`);
+    console.log(`[SCRAPING] Listing at URL: ${url}`);
     
     const listing = await scrapeMarktplaats(url);
     if (!listing) {
+      console.error(`[SCRAPING] Failed for URL: ${url}`);
       await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
       return;
     }
     
-    console.log("Scraped data binnengekregen:", listing.titel, listing.prijs);
+    console.log(`[SCRAPING] Success: ${listing.titel} (${listing.kenteken})`);
 
     await updateDoc(doc(db, 'rapporten', rapportId), { 
       autoNaam: listing.titel,
@@ -257,7 +328,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
         naam: listing.verkoper,
         sinds: listing.verkoperSinds,
         aantalAdvertenties: listing.aantalAdvertenties,
-        type: (listing as any).verkoperType || 'Particulier'
+        type: listing.verkoperType || 'Particulier'
       },
       dagenOnline: listing.dagenOnline,
       kenteken: listing.kenteken
@@ -265,7 +336,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
     // ── FASE 2: PARALLEL OPHALEN ──
     await updateDoc(doc(db, 'rapporten', rapportId), { status: 'vergelijken' });
-    console.log(`[SERVER] Start parallel tasks voor kenteken: ${listing.kenteken}`);
+    console.log(`[PARALLEL] Start tasks voor ${listing.kenteken}`);
 
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
       scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar),
@@ -275,84 +346,84 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     
     const vergelijkbareAutos = vergelijkbaar.status === 'fulfilled' ? vergelijkbaar.value : [];
     const rdw = rdwData.status === 'fulfilled' ? rdwData.value : null;
-    const fotos = fotoAnalyse.status === 'fulfilled' ? fotoAnalyse.value : null;
+    const fotos = (fotoAnalyse.status === 'fulfilled' && fotoAnalyse.value) ? fotoAnalyse.value : { fotos: [], ontbrekendeFotos: [] };
     
-    if (rdw) {
-        console.log(`[SERVER] RDW success voor ${listing.kenteken}:`, rdw.apkVervaldatum, rdw.eersteToelating);
-    }
+    console.log(`[PARALLEL] Collected data: ${vergelijkbareAutos.length} parallels, RDW: ${!!rdw}, Fotos: ${fotos.fotos?.length || 0}`);
 
     // ── FASE 3: GEMINI ANALYSE ──
     await updateDoc(doc(db, 'rapporten', rapportId), { status: 'analyseren' });
-    console.log(`[SERVER] Start Gemini Text Analysis...`);
     
     let analyse;
     try {
-      analyse = await analyseerdeTekst({
-          ...listing,
-          verkoperType: (listing as any).verkoperType
-      }, vergelijkbareAutos || []);
+      console.log("[GEMINI] Calling with key:", process.env.GEMINI_API_KEY ? "SET (" + process.env.GEMINI_API_KEY.substring(0,8) + "...)" : "NOT SET");
+      analyse = await analyseerdeTekst(listing, vergelijkbareAutos || []);
+      console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
-      console.log("[SERVER] Gemini API Fout:", e);
-      await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: e.message || 'Fout bij ai analyse' });
+      console.error("[GEMINI] EXCEPTION:", e.message);
+      await updateDoc(doc(db, 'rapporten', rapportId), { 
+        status: 'fout', 
+        error: `AI Analyse fout: ${e.message}` 
+      });
+      return;
+    }
+
+    if (!analyse) {
+      console.error("[GEMINI] No result returned.");
+      await updateDoc(doc(db, 'rapporten', rapportId), { 
+        status: 'fout', 
+        error: 'Gemini retourneerde geen resultaat. Check API key.' 
+      });
       return;
     }
 
     // ── FASE 4: ALLES OPSLAAN ──
     await updateDoc(doc(db, 'rapporten', rapportId), { status: 'afronden' });
 
-    try {
-      await updateDoc(doc(db, 'rapporten', rapportId), {
-        dealScore: analyse?.dealScore || 0,
-        verdict: analyse?.verdict || 'onbekend',
-        eerlijkePrijs: analyse?.eerlijkePrijs || 0,
-        directeWinst: analyse?.directeWinst || 0,
-        positievePunten: analyse?.positievePunten || [],
-        aandachtspunten: analyse?.aandachtspunten || [],
-        rodeVlaggen: analyse?.rodeVlaggen || [],
-        advertentieAnalyse: analyse?.advertentieAnalyse || null,
-        onderhandelingsScript: analyse?.onderhandelingsScript || '',
-        openingsBod: analyse?.openingsBod || 0,
-        onderhandelingsTips: analyse?.onderhandelingsTips || [],
-        samenvatting: analyse?.samenvatting || [],
-        vergelijkbareAutos: vergelijkbareAutos || [],
-        rdwData: rdw || null,
-        fotoAnalyse: fotos?.fotos || [],
-        ontbrekendeFotos: fotos?.ontbrekendeFotos || [],
+    await updateDoc(doc(db, 'rapporten', rapportId), {
+        dealScore: analyse.dealScore || 0,
+        verdict: analyse.verdict || 'onbekend',
+        eerlijkePrijs: analyse.eerlijkePrijs || 0,
+        directeWinst: analyse.directeWinst || 0,
+        positievePunten: analyse.positievePunten || [],
+        aandachtspunten: analyse.aandachtspunten || [],
+        rodeVlaggen: analyse.rodeVlaggen || [],
+        advertentieAnalyse: analyse.advertentieAnalyse || null,
+        onderhandelingsScript: analyse.onderhandelingsScript || '',
+        openingsBod: analyse.openingsBod || 0,
+        onderhandelingsTips: analyse.onderhandelingsTips || [],
+        samenvatting: analyse.samenvatting || [],
+        vergelijkbareAutos: vergelijkbareAutos,
+        rdwData: rdw,
+        fotoAnalyse: fotos.fotos || [],
+        ontbrekendeFotos: fotos.ontbrekendeFotos || [],
         status: 'compleet',
         updatedAt: serverTimestamp()
-      });
-      
-      // Sync to analyses collection for dashboard if user is not anonymous
-      if (userId && userId !== "anonymous") {
-        try {
-          await addDoc(collection(db, 'analyses'), {
+    });
+    
+    // Sync to analyses collection for dashboard if user is not anonymous
+    if (userId && userId !== "anonymous") {
+        await addDoc(collection(db, 'analyses'), {
             userId: userId,
             rapportId: rapportId,
-            title: listing.titel || 'Onbekende auto',
-            price: listing.prijs ? `€ ${listing.prijs.toLocaleString('nl-NL')}` : 'Prijs op aanvraag',
-            score: analyse?.dealScore || 0,
-            img: (listing.fotos?.[0] || '').substring(0, 900),
+            title: listing.titel,
+            price: `€ ${listing.prijs.toLocaleString('nl-NL')}`,
+            score: analyse.dealScore || 0,
+            img: listing.fotos?.[0] || '',
             url: url,
-            status: 'Compleet',
+            status: 'Voltooid',
             statusColor: 'text-accent-green',
             createdAt: serverTimestamp()
-          });
-          console.log("[SERVER] Analyse document toegevoegd aan dashboard.");
-        } catch (analysesError) {
-          console.error("[SERVER] Kon analyse niet opslaan voor dashboard (niet-kritisch):", analysesError);
-        }
-      }
-      
-      console.log("[SERVER] Rapport succesvol geupdated naar compleet.");
-    } catch (dbError) {
-      console.log("[SERVER] Firestore fout:", dbError);
-      await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: 'Firestore opslag fout' });
-      return;
+        });
     }
+    
+    console.log(`[FINISH] Rapport ${rapportId} succesvol afgerond.`);
 
   } catch (error: any) {
-    console.error("Fout in voerAnalyseUit:", error);
-    await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: error.message || 'Onbekende fout' });
+    console.error("[ERROR] In background task:", error);
+    await updateDoc(doc(db, 'rapporten', rapportId), { 
+        status: 'fout', 
+        error: error.message || 'Onbekende fout' 
+    });
   }
 }
 

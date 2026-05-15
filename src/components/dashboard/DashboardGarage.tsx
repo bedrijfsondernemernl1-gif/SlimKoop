@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowDown, Car, Trash2, RotateCcw, Loader2 } from 'lucide-react';
+import { ArrowDown, Bell, Car, Trash2, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/src/store/useStore';
@@ -44,6 +44,7 @@ export const DashboardGarage: React.FC = () => {
           const parsedPrice = parseInt((data.price || '0').replace(/[^0-9]/g, '')) || 0;
           return {
             id: document.id,
+            rapportId: data.rapportId,
             title: data.title || 'Onbekende auto',
             savedPrice: parsedPrice,
             currentPrice: parsedPrice, // Placeholder
@@ -85,8 +86,6 @@ export const DashboardGarage: React.FC = () => {
           <h2 className="text-3xl font-heading font-bold text-white tracking-tight mb-2">Mijn Garage</h2>
           <p className="text-gray-400">Beheer en volg de prijs van je favoriete auto's.</p>
         </div>
-        <div className="hidden md:flex gap-2">
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -105,7 +104,7 @@ export const DashboardGarage: React.FC = () => {
                  transition={{ delay: i * 0.1 }}
                  className="group glass-panel rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative flex flex-col hover:border-white/20 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)]"
                >
-                  <div className="relative h-48 bg-black overflow-hidden group-hover:h-44 transition-all duration-300 cursor-pointer" onClick={() => navigate(`/rapport/${car.id}`)}>
+                  <div className="relative h-48 bg-black overflow-hidden group-hover:h-44 transition-all duration-300 cursor-pointer" onClick={() => navigate(`/rapport/${car.rapportId}`)}>
                     <img src={car.img} alt={car.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700 ease-out" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent pointer-events-none"></div>
                     
@@ -149,7 +148,7 @@ export const DashboardGarage: React.FC = () => {
                       Update
                     </Button>
                     <Button 
-                      onClick={() => navigate(`/rapport/${car.id}`)}
+                      onClick={() => navigate(`/rapport/${car.rapportId}`)}
                       className="bg-accent-green hover:bg-accent-green/90 text-black shadow-[0_0_15px_rgba(0,200,83,0.2)] rounded-xl font-semibold h-11"
                     >
                       Rapport

@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/src/components/ui/card';
 import { AuthModal } from '@/src/components/AuthModal';
 import { useStore } from '@/src/store/useStore';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const TABS = [
   { id: 'overzicht', label: 'Overzicht', locked: false },
@@ -29,6 +29,8 @@ export const ReportPage: React.FC = () => {
   
   const [gaugeValue, setGaugeValue] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [showIframeWarning, setShowIframeWarning] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const controls = useAnimation();
 
@@ -44,6 +46,12 @@ export const ReportPage: React.FC = () => {
         const res = await fetch(`/api/rapport/${id}?isBetaald=${hasAccess}`);
         const data = await res.json();
         
+        if (res.status === 404 && isPolling) {
+          console.log("Rapport niet gevonden (404), opnieuw proberen...");
+          setTimeout(fetchReport, 2000);
+          return;
+        }
+
         if (!res.ok) {
           throw new Error(data.error || "Fout bij ophalen rapport");
         }
@@ -258,15 +266,35 @@ export const ReportPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    alert("Link naar rapport gekopieerd naar klembord!");
-    setTimeout(() => setCopied(false), 2000);
+  const handleShare = async () => {
+    try {
+      if (navigator.share && window.self === window.top) {
+        await navigator.share({
+          title: data.autoNaam,
+          text: `Check dit Slimkoop rapport voor de ${data.autoNaam}`,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }
+    } catch(e) {
+      console.log('Error sharing', e);
+    }
   };
 
   const handleDownloadPDF = () => {
-    window.print();
+    try {
+      if (window.self !== window.top) {
+        setShowIframeWarning(true);
+        setTimeout(() => setShowIframeWarning(false), 5000);
+      } else {
+        window.print();
+      }
+    } catch(e) {
+      console.error(e);
+    }
   };
 
   const handleSave = async () => {
@@ -297,8 +325,16 @@ export const ReportPage: React.FC = () => {
           </button>
           
           <div className="flex flex-wrap gap-3">
+            {showIframeWarning && (
+              <div className="absolute top-16 right-4 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 bg-amber-500 text-black px-4 py-2 rounded-lg text-sm font-bold shadow-xl z-50 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" /> Open app in nieuw tabblad om te printen (PDF)
+              </div>
+            )}
             <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
-            <Button onClick={handleShare} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Share2 className="w-4 h-4 mr-2"/> Deel rapport</Button>
+            <Button onClick={handleShare} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl">
+              {shareCopied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2"/>}
+              {shareCopied ? "Gekopieerd!" : "Deel rapport"}
+            </Button>
             <Button onClick={handleSave} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Bookmark className="w-4 h-4 mr-2"/> Bewaar</Button>
           </div>
         </div>

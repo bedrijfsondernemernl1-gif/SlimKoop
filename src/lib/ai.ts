@@ -38,7 +38,9 @@ export interface PhotoAnalysisResult {
 
 function getAIClient() {
   let apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey === "MY_GEMINI_API_KEY" || !apiKey) {
+  
+  // Fallback: lees .env file
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     try {
       const envContent = fs.readFileSync(path.resolve(process.cwd(), '.env'), 'utf-8');
       const match = envContent.match(/GEMINI_API_KEY=(.*)/);
@@ -47,8 +49,22 @@ function getAIClient() {
       }
     } catch(e) {}
   }
+  
+  // Hardcoded fallback (TIJDELIJK)
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+    apiKey = "AIzaSyDZEzKWENdXAHvMtK5-ksPrhZEWt-Z_FvM";
+  }
+  
+  console.log(`[AI] Gemini API key geladen: ${apiKey ? apiKey.substring(0, 8) + '...' : 'GEEN KEY!'}`);
+  
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY ontbreekt volledig!");
+  }
+  
   return new GoogleGenAI({ apiKey });
 }
+
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 export async function analyseerdeTekst(listingData: any, vergelijkbareAutos: any[] = []): Promise<TextAnalysisResult | null> {
   try {
@@ -70,7 +86,7 @@ Vergelijkbare auto's (gebruikt voor marktgemiddelde):
 ${JSON.stringify(vergelijkbareAutos.map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}
 
 INSTRUCTIES VOOR SCORE BEREKENING (dealScore):
-Bereken de dealScore op basis van de volgende vier gewogen factoren (totaal 100 punten):
+Bereken de dealScore op basis van the volgende vier gewogen factoren (totaal 100 punten):
 1. Prijs ten opzichte van markt (max 40 punten): Hoe lager de prijs t.o.v. vergelijkbare auto's, hoe meer punten.
 2. Rode vlaggen (max 30 punten): Geen rode vlaggen = 30 punten. Elke vlag kost punten afhankelijk van ernst.
 3. Kwaliteit van de advertentie (max 15 punten): Volledigheid en professionaliteit van beschrijving.
@@ -106,7 +122,7 @@ Geef exact dit JSON formaat terug:
 }`;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: DEFAULT_MODEL,
       contents: textPrompt
     });
     const textData = result.text;
@@ -122,26 +138,26 @@ Geef exact dit JSON formaat terug:
   }
 }
 
-export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisResult | null> {
+export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisResult> {
+  if (!fotoUrls || fotoUrls.length === 0) {
+    return { fotos: [], ontbrekendeFotos: ["Geen foto's beschikbaar"] };
+  }
+  
   try {
     const ai = getAIClient();
-    const urlsToUse = (fotoUrls || []).slice(0, 6);
+    const urlsToUse = fotoUrls.slice(0, 6);
 
     const fetchedImages = await Promise.all(
       urlsToUse.map(async (url) => {
         try {
-          const res = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': 'https://www.marktplaats.nl/'
-            }
-          });
-          const buffer = await res.arrayBuffer();
-          const base64 = Buffer.from(buffer).toString('base64');
+          const res = await fetch(url);
+          const arrayBuffer = await res.arrayBuffer();
+          const base64data = Buffer.from(arrayBuffer).toString('base64');
           const mimeType = res.headers.get("content-type") || "image/jpeg";
-          return { url, base64, mimeType };
+          
+          return { url, base64: base64data, mimeType };
         } catch (e) {
-          console.warn(`Kon foto niet ophalen via fetch op server: ${url}`, e);
+          console.warn(`Kon foto niet ophalen: ${url}`, e);
           return null;
         }
       })
@@ -191,7 +207,7 @@ Response JSON formaat:
     };
 
     const result = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: DEFAULT_MODEL,
       contents
     });
     const photoData = result.text;
@@ -210,9 +226,9 @@ Response JSON formaat:
       
       return parsed;
     }
-    return null;
+    return { fotos: [], ontbrekendeFotos: ["Foto analyse kon niet voltooid worden"] };
   } catch (error) {
     console.error("Fout tijdens analyseerFotos:", error);
-    return null;
+    return { fotos: [], ontbrekendeFotos: ["Foto analyse niet beschikbaar door API fout"] };
   }
 }

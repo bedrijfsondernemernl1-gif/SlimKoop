@@ -9,7 +9,7 @@ import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
 import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const DashboardSettings: React.FC = () => {
-  const { isPremium, user, subscriptionPlan } = useStore();
+  const { isPremium, user } = useStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
 

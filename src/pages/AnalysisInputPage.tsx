@@ -70,7 +70,7 @@ export const AnalysisInputPage: React.FC = () => {
               <span className="flex items-center gap-1.5 text-orange-400"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
            </div>
 
-           <form onSubmit={handleAnalyze} className="space-y-6">
+             <form onSubmit={handleAnalyze} className="space-y-6">
                 <div>
                    <label className="block text-sm font-medium text-gray-300 mb-2">Advertentie Link (URL)</label>
                    <div className="relative">

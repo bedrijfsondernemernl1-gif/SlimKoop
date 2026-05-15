@@ -60,6 +60,7 @@ export const DashboardOverview: React.FC = () => {
           }
           return {
             id: doc.id,
+            rapportId: data.rapportId,
             title: data.title || 'Onbekende auto',
             price: data.price || 'Prijs op aanvraag',
             score: data.score || 0,
@@ -200,7 +201,7 @@ export const DashboardOverview: React.FC = () => {
                 variants={itemVariants}
                 whileHover={{ scale: 1.01, x: 5 }}
                 className="glass rounded-2xl p-4 flex flex-col justify-between sm:items-center hover:bg-white/10 transition-all group cursor-pointer border-white/5 hover:border-accent-green/30 relative overflow-hidden"
-                onClick={() => navigate(`/rapport/${car.id}`)}
+                onClick={() => navigate(`/rapport/${car.rapportId}`)}
               >
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent-green to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="flex gap-6 items-center w-full">

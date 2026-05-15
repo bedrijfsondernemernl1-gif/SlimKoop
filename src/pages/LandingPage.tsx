@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, useScroll, useTransform } from 'motion/react';
+import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
@@ -22,6 +22,51 @@ export const LandingPage: React.FC = () => {
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
   const { user, isLoggedIn, openAuthModal } = useStore();
+  
+  const handlePurchase = async (title: string) => {
+    if (!isLoggedIn) {
+      setShowLoginNotification(true);
+      setTimeout(() => setShowLoginNotification(false), 3000);
+      openAuthModal();
+      return;
+    }
+    
+    const priceId = PRICE_IDS[title];
+    if (!priceId) return;
+
+    try {
+        const response = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                priceId, 
+                userId: user?.uid,
+                successUrl: window.location.origin + '/dashboard',                
+                cancelUrl: window.location.origin + '/'
+            }),
+        });
+
+        const contentType = response.headers.get("content-type");
+        if (!response.ok) {
+            let errorMessage = `Server fout: ${response.status}`;
+            if (contentType && contentType.includes("application/json")) {
+                const errorResult = await response.json();
+                errorMessage = errorResult.error || errorMessage;
+            } else {
+                console.error("Non-JSON error response from server:", await response.text());
+            }
+            throw new Error(errorMessage);
+        }
+
+        const { url } = await response.json();                
+        if (url) {
+            window.location.href = url;
+        }
+    } catch (error) {
+        console.error("Fout bij checkout:", error);
+        alert(`Er is een fout opgetreden bij het starten van de betaling: ${error instanceof Error ? error.message : 'Onbekende fout'}. Probeer het later opnieuw.`);
+    }
+  };
   
   useEffect(() => {
     if (location.hash) {
@@ -70,44 +115,6 @@ export const LandingPage: React.FC = () => {
     }
   };
 
-  const handlePurchase = async (title: string) => {
-    if (!isLoggedIn) {
-      setShowLoginNotification(true);
-      setTimeout(() => setShowLoginNotification(false), 4000);
-      openAuthModal();
-      return;
-    }
-    
-    const priceId = PRICE_IDS[title];
-    if (!priceId) return;
-
-    try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          priceId, 
-          userId: user?.uid,
-          successUrl: window.location.origin + '/dashboard',                
-          cancelUrl: window.location.origin + '/#prijzen'
-        }),
-      });
-
-      if (!response.ok) {
-        const errorResult = await response.json().catch(() => ({}));
-        throw new Error(errorResult.error || `Server fout: ${response.status}`);
-      }
-
-      const { url: checkoutUrl } = await response.json();                
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-      }
-    } catch (error) {
-      console.error("Fout bij checkout:", error);
-      alert(`Er is een fout opgetreden bij het starten van de betaling. Probeer het later opnieuw.`);
-    }
-  };
-
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -124,15 +131,25 @@ export const LandingPage: React.FC = () => {
   return (
       <div className="relative overflow-hidden min-h-screen scroll-smooth" ref={containerRef}>
       
-      {/* Login Notification */}
-      {showLoginNotification && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="bg-black/90 border border-accent-green/50 backdrop-blur-xl rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3">
-            <ShieldCheck className="w-5 h-5 text-accent-green" />
-            <span className="text-white font-medium">Log eerst in om een pakket aan te schaffen</span>
-          </div>
-        </div>
-      )}
+      {/* Login Notification Toast */}
+      <AnimatePresence>
+        {showLoginNotification && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 50, x: '-50%' }}
+            className="fixed bottom-10 left-1/2 z-[100] bg-[#0A111F] border border-accent-green/30 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[300px]"
+          >
+            <div className="w-10 h-10 rounded-full bg-accent-green/10 flex items-center justify-center">
+              <Lock className="w-5 h-5 text-accent-green" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-sm">Log eerst in</p>
+              <p className="text-gray-400 text-xs">Je moet ingelogd zijn om een pakket aan te schaffen.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Hero Section */}
       <motion.div 

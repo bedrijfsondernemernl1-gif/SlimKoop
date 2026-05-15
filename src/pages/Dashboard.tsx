@@ -61,10 +61,10 @@ export const Dashboard: React.FC = () => {
           <div className="absolute inset-0 bg-accent-green/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
           <div className="relative z-10">
             <p className="font-semibold text-white mb-1 flex items-center gap-2">
-              {isPremium ? (subscriptionPlan || 'Premium') : 'Gratis Account'}
+              {isPremium ? (subscriptionPlan || 'Pro Abonnement') : 'Gratis Account'}
             </p>
             <p className="text-gray-400 mb-4 text-xs">
-              {isPremium ? `Plan: ${subscriptionPlan || 'Premium'}` : 'Upgrade voor meer inzicht.'}
+              {isPremium ? 'Je hebt premium voordelen.' : 'Upgrade voor meer inzicht.'}
             </p>
             <Button 
               variant={isPremium ? "outline" : "default"} 

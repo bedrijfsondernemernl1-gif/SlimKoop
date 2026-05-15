@@ -14,6 +14,7 @@ export interface MarktplaatsData {
   merk: string;
   model: string;
   verkoper: string;
+  verkoperType: string;
   verkoperSinds: string;
   aantalAdvertenties: number;
   dagenOnline: number;
@@ -40,7 +41,7 @@ function getApifyClient() {
 }
 
 function getActorId() {
-  return process.env.APIFY_ACTOR_ID || 'daddyapi/marktplaats-scraper';
+  return process.env.APIFY_ACTOR_ID || 'g1VRIdIyesUfRQs2F';
 }
 
 function extractNumber(val: any): number {
@@ -70,75 +71,79 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     const actorId = getActorId();
 
     const run = await client.actor(actorId).call({
-      startUrls: [{ url }],
-      olxDomain: "marktplaats.nl",
-      maxRequestsPerCrawl: 20,
-      proxyConfiguration: {
-        useApifyProxy: true,
-        apifyProxyGroups: ["RESIDENTIAL"]
-      }
+      urls: [{ url }],
+      maxRecords: 5
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
     const scrapedData: any = items[0] || {};
 
-    if (!scrapedData || (!scrapedData.title && !scrapedData.name)) {
-        return null;
+    if (!scrapedData || !scrapedData.title) {
+      console.log("[SCRAPER] Geen data ontvangen van Apify");
+      return null;
     }
 
-    let brand = (scrapedData.brand || getAttribute(scrapedData, ['merk', 'brand']) || "").toString();
-    let model = (scrapedData.model || getAttribute(scrapedData, ['model']) || "").toString();
-    
-    // Fallback naar titel als merk/model ontbreken
-    const title = (scrapedData.title || scrapedData.name || "").toLowerCase();
-    if (!brand || !model) {
-      const commonBrands = ['volkswagen', 'bmw', 'audi', 'mercedes', 'opel', 'ford', 'peugeot', 'renault', 'toyota', 'volvo', 'fiat', 'citroen', 'hyundai', 'kia', 'mazda', 'nissan', 'seat', 'skoda', 'suzuki', 'tesla'];
-      
-      const foundBrand = commonBrands.find(b => title.includes(b));
-      if (foundBrand && !brand) {
-        brand = foundBrand.charAt(0).toUpperCase() + foundBrand.slice(1);
-      }
-    }
+    console.log("[SCRAPER] Raw data keys:", Object.keys(scrapedData));
 
-    let yearString = scrapedData.year || getAttribute(scrapedData, ['bouwjaar', 'year', 'datum eerste toelating']) || "0";
-    const year = extractNumber(yearString);
+    const attrs = scrapedData.attributes || {};
     
-    let mileageString = scrapedData.mileage || getAttribute(scrapedData, ['kilometerstand', 'km', 'odo', 'tellerstand']) || "0";
-    const mileage = extractNumber(mileageString);
-
-    const kentekenString = scrapedData.kenteken || getAttribute(scrapedData, ['kenteken', 'license plate', 'kentekenbewijs', 'plaat']) || "";
-    const kentekenStr = kentekenString.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    // Direct beschikbare velden uit nieuwe scraper
+    const brand = scrapedData.brand || attrs.brand?.split(' ')[0] || "";
+    const model = scrapedData.model || attrs.brand?.split(' ').slice(1).join(' ') || "";
+    const year = parseInt(scrapedData.constructionYear || attrs.constructionYear || "0") || 0;
     
-    const transmissie = getAttribute(scrapedData, ['transmissie', 'transmission', 'geschakeld', 'bak', 'automaat', 'handgeschakeld']) || "Onbekend";
-    const brandstof = getAttribute(scrapedData, ['brandstof', 'fuel', 'benzine', 'diesel', 'hybride', 'elektrisch']) || "Onbekend";
-    const carrosserie = getAttribute(scrapedData, ['carrosserie', 'body', 'carrosserievorm', 'type', 'vkv']) || "Onbekend";
-
+    // Kilometerstand: "13.490" -> 13490
+    const mileageStr = attrs.mileage || "";
+    const mileage = parseInt(mileageStr.replace(/\./g, '').replace(/\s/g, '')) || 0;
+    
+    // Kenteken direct beschikbaar
+    const kenteken = (scrapedData.licensePlate || "").replace(/[-\s]/g, '').toUpperCase();
+    
+    // Brandstof, transmissie, carrosserie direct uit attributes
+    const brandstof = attrs.fuel || "Onbekend";
+    const transmissie = attrs.transmission || "Onbekend";
+    const carrosserie = attrs.vehicleType || "";
+    
     // Verkoper info
     const seller = scrapedData.seller || {};
-    const verkoperNaam = seller.name || scrapedData.sellerName || getAttribute(scrapedData, ['verkoper', 'seller', 'naam', 'handelsnaam']) || "Onbekend";
-    const verkoperTypeRaw = (seller.type || getAttribute(scrapedData, ['type', 'soort', 'verkopertype']) || "").toLowerCase();
-    
-    // Verbeterde dealer check
-    const isDealer = verkoperTypeRaw.includes('dealer') || 
-                     verkoperTypeRaw.includes('bedrijf') || 
-                     scrapedData.description?.toLowerCase().includes('garantie') || 
-                     scrapedData.description?.toLowerCase().includes('showroom') ||
-                     title.includes('dealer');
-                     
+    const verkoperNaam = seller.name || "Onbekend";
+    const isDealer = seller.type === 'TRADER' || seller.type === 'dealer';
     const verkoperType = isDealer ? 'Dealer' : 'Particulier';
-    const lidSinds = seller.activeYears || seller.memberSince || getAttribute(scrapedData, ['lid sinds', 'actief sinds', 'member since']) || "Onbekend";
-    const aantalAds = extractNumber(seller.numberOfAds || scrapedData.sellerAdsCount || getAttribute(scrapedData, ['aantal advertenties', 'actieve advertenties']));
+    const lidSinds = seller.activeSince || (seller.activeYears ? `${seller.activeYears} jaar` : "Onbekend");
+    const aantalAds = 0; // Niet beschikbaar in nieuwe scraper
+    
+    // Fotos: nieuwe scraper geeft images als array van relative URLs
+    const photosRaw = scrapedData.images || [];
+    const fotos = photosRaw.map((img: string) => {
+      if (img.startsWith('//')) return 'https:' + img;
+      if (img.startsWith('http')) return img;
+      return 'https://images.marktplaats.com' + img;
+    }).slice(0, 15);
 
-    const photosRaw = scrapedData.photos || scrapedData.images || [];
-    const fotos = (Array.isArray(photosRaw) ? photosRaw.map(p => typeof p === 'string' ? p : (p.url || p.original || p.large)) : []).filter(Boolean).slice(0, 15);
+    // Prijs: priceCents / 100
+    let prijs = 0;
+    if (scrapedData.price?.priceCents) {
+      prijs = Math.round(scrapedData.price.priceCents / 100);
+    }
+
+    // Dagen online uit stats.since
+    let dagenOnline = 0;
+    if (scrapedData.stats?.since) {
+      const sinceDate = new Date(scrapedData.stats.since);
+      const now = new Date();
+      dagenOnline = Math.floor((now.getTime() - sinceDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Description: gebruik plain text versie
+    const beschrijving = scrapedData.description || "";
 
     const data: MarktplaatsData = {
-      titel: scrapedData.title || scrapedData.name || "",
-      prijs: extractNumber(scrapedData.price?.amount || scrapedData.price?.display || scrapedData.price || "0"),
-      beschrijving: scrapedData.description || "",
+      titel: scrapedData.title || "",
+      prijs: prijs,
+      beschrijving: beschrijving,
       fotos: fotos,
-      kenteken: kentekenStr,
+      kenteken: kenteken,
       kilometerstand: mileage,
       bouwjaar: year,
       brandstof: brandstof,
@@ -147,12 +152,13 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
       merk: brand || "Onbekend",
       model: model || "Onbekend",
       verkoper: verkoperNaam,
+      verkoperType: verkoperType,
       verkoperSinds: lidSinds,
       aantalAdvertenties: aantalAds,
-      dagenOnline: extractNumber(scrapedData.daysOnline || getAttribute(scrapedData, ['dagen online'])) || 0
+      dagenOnline: dagenOnline
     };
 
-    console.log(`[SCRAPER] Gegevens geëxtraheerd voor: ${data.titel} (${data.kenteken})`);
+    console.log(`[SCRAPER] Geëxtraheerd: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.kenteken} | ${data.brandstof}`);
     return data;
   } catch (error) {
     console.error("Fout tijdens scrapeMarktplaats:", error);
@@ -161,79 +167,59 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
 }
 
 export async function scrapeVergelijkbaar(merk: string, model: string, jaar: number): Promise<VergelijkbaarResult[]> {
-  const query = `${merk || ""} ${model || ""}`.trim();
-  if (!query) {
-    console.log("Geen merk of model gevonden voor vergelijkbaar zoeken, sla over.");
+  if (!merk) {
+    console.log("[SCRAPER] Geen merk voor vergelijkbaar zoeken");
     return [];
   }
 
   try {
     const client = getApifyClient();
     const actorId = getActorId();
-    // Zorg voor strikte zoekopdracht: Merk + Model
-    const searchQuery = `${merk} ${model}`;
     
-    console.log(`[SCRAPER] Strikt zoeken naar vergelijkbare auto's: "${searchQuery}"`);
+    // Bouw Marktplaats zoek-URL
+    const merkSlug = merk.toLowerCase().replace(/\s+/g, '-');
+    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/#f:10882|constructionYearFrom:${jaar > 1900 ? jaar - 2 : ''}|constructionYearTo:${jaar > 1900 ? jaar + 2 : ''}`;
+    
+    console.log(`[SCRAPER] Vergelijkbaar zoeken via URL: ${searchUrl}`);
 
-    const searchRun = await client.actor(actorId).call({
-      searchQuery: searchQuery,
-      olxDomain: "marktplaats.nl",
-      sortBy: "relevance",
-      maxPages: 1,
-      maxRequestsPerCrawl: 40,
-      proxyConfiguration: {
-        useApifyProxy: true,
-        apifyProxyGroups: ["RESIDENTIAL"]
-      }
+    const run = await client.actor(actorId).call({
+      urls: [{ url: searchUrl }],
+      maxRecords: 15
     });
 
-    const datasetClient = client.dataset(searchRun.defaultDatasetId!);
+    const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
 
-    // Filteren op echte advertenties en jaar én merk/model in titel
-    const filteredItems = items.filter((item: any) => {
-      const title = (item.title || item.name || "").toLowerCase();
-      const merkLower = (merk || "").toLowerCase();
-      const modelLower = (model || "").toLowerCase();
+    const vergelijkbaar: VergelijkbaarResult[] = items
+      .filter((item: any) => {
+        // Filter niet-relevante items
+        const title = (item.title || "").toLowerCase();
+        const blacklist = ['gezocht', 'inkoop', 'onderdelen', 'demontage'];
+        if (blacklist.some(w => title.includes(w))) return false;
+        return true;
+      })
+      .slice(0, 10)
+      .map((item: any) => {
+        const attrs = item.attributes || {};
+        const prijs = item.price?.priceCents ? Math.round(item.price.priceCents / 100) : 0;
+        const km = parseInt((attrs.mileage || "0").replace(/\./g, '')) || 0;
+        const jaarMatch = item.title?.match(/\b(19\d{2}|20\d{2})\b/);
+        const parseJaar = parseInt(item.constructionYear || attrs.constructionYear || (jaarMatch ? jaarMatch[1] : "0")) || 0;
+        let fullUrl = item.url || "";
+        if (fullUrl && !fullUrl.startsWith("http")) {
+          fullUrl = "https://www.marktplaats.nl" + fullUrl;
+        }
+        return {
+          titel: item.title || "",
+          prijs: prijs,
+          km: km,
+          jaar: parseJaar,
+          url: fullUrl
+        };
+      });
 
-      // Moet merk en model bevatten (of op zijn minst model als merk te generiek is)
-      if (merkLower && !title.includes(merkLower)) return false;
-      if (modelLower && !title.includes(modelLower)) return false;
-      
-      // Filter "Van je ... af?" advertenties en andere onzin
-      const blacklist = ['af?', 'inkoop', 'gezocht', 'verkopen', 'gezocht', 'onderdelen', 'auto inkoop', 'demontage'];
-      if (blacklist.some(word => title.includes(word))) {
-        return false;
-      }
-      
-      if (jaar > 1900) {
-        let itemYearStr = item.year || getAttribute(item, ['bouwjaar', 'year']) || "0";
-        let itemYear = extractNumber(itemYearStr);
-        if (itemYear === 0) return true;
-        // Strict jaar bereik
-        return itemYear >= jaar - 2 && itemYear <= jaar + 2;
-      }
-      return true;
-    });
-
-    const vergelijkbaarResult: VergelijkbaarResult[] = filteredItems.slice(0, 10).map((item: any) => {
-      let itemMileageStr = item.mileage || getAttribute(item, ['kilometerstand', 'km']);
-      let itemYearStr = item.year || getAttribute(item, ['bouwjaar', 'year']);
-
-      let fullUrl = item.url || "";
-      if (fullUrl && !fullUrl.startsWith("http")) {
-        fullUrl = "https://www.marktplaats.nl" + (fullUrl.startsWith("/") ? "" : "/") + fullUrl;
-      }
-      return {
-        titel: item.title || item.name || "",
-        prijs: extractNumber(item.price?.amount || item.price?.display || item.price),
-        km: extractNumber(itemMileageStr),
-        jaar: extractNumber(itemYearStr),
-        url: fullUrl
-      };
-    });
-
-    return vergelijkbaarResult;
+    console.log(`[SCRAPER] ${vergelijkbaar.length} vergelijkbare auto's gevonden`);
+    return vergelijkbaar;
   } catch (error) {
     console.error("Fout tijdens scrapeVergelijkbaar:", error);
     return [];

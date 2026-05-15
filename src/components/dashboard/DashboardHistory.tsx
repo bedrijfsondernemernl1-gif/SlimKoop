@@ -22,8 +22,7 @@ interface HistoryItem {
 
 export const DashboardHistory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [filterScore, setFilterScore] = useState('all');
   const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -52,6 +51,7 @@ export const DashboardHistory: React.FC = () => {
           }
           return {
             id: doc.id,
+            rapportId: d.rapportId,
             date: dateObj.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' }),
             time: dateObj.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
             title: d.title || 'Onbekende auto',
@@ -90,32 +90,17 @@ export const DashboardHistory: React.FC = () => {
             />
           </div>
           <div className="relative">
-            <Button 
-              variant="outline" 
-              className="h-12 bg-white/5 border-white/10 hover:bg-white/10 text-gray-300 gap-2 rounded-xl px-6"
-              onClick={() => setShowFilterMenu(!showFilterMenu)}
+            <select
+              value={filterScore}
+              onChange={(e) => setFilterScore(e.target.value)}
+              className="h-12 bg-white/5 border border-white/10 text-gray-300 rounded-xl px-4 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-accent-green"
             >
-              <Filter className="w-4 h-4" />
-              {filterStatus === 'all' ? 'Filter' : filterStatus === 'high' ? 'Score 70+' : filterStatus === 'medium' ? 'Score 50-69' : 'Score < 50'}
-            </Button>
-            {showFilterMenu && (
-              <div className="absolute right-0 top-14 z-50 bg-black/95 border border-white/10 rounded-xl shadow-2xl py-2 min-w-[180px] backdrop-blur-xl">
-                {[
-                  { value: 'all', label: 'Alles tonen' },
-                  { value: 'high', label: 'Score 70+ (Goed)' },
-                  { value: 'medium', label: 'Score 50-69' },
-                  { value: 'low', label: 'Score < 50 (Slecht)' },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors ${filterStatus === opt.value ? 'text-accent-green font-medium' : 'text-gray-300'}`}
-                    onClick={() => { setFilterStatus(opt.value); setShowFilterMenu(false); }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
+              <option value="all" className="bg-black text-white">Filter: Alles</option>
+              <option value="70+" className="bg-black text-white">Score: 70+ (Goede deal)</option>
+              <option value="50-69" className="bg-black text-white">Score: 50-69 (Redelijk)</option>
+              <option value="<50" className="bg-black text-white">Score: &lt;50 (Slechte deal)</option>
+            </select>
+            <Filter className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -146,14 +131,15 @@ export const DashboardHistory: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {historyData.filter(item => {
-                    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesFilter = filterStatus === 'all' || 
-                      (filterStatus === 'high' && item.score >= 70) ||
-                      (filterStatus === 'medium' && item.score >= 50 && item.score < 70) ||
-                      (filterStatus === 'low' && item.score < 50);
-                    return matchesSearch && matchesFilter;
-                  }).map((row, i) => (
+                  {historyData
+                    .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .filter(item => {
+                      if (filterScore === '70+') return item.score >= 70;
+                      if (filterScore === '50-69') return item.score >= 50 && item.score < 70;
+                      if (filterScore === '<50') return item.score < 50;
+                      return true;
+                    })
+                    .map((row, i) => (
                     <motion.tr 
                       key={row.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -189,7 +175,7 @@ export const DashboardHistory: React.FC = () => {
                           </Button>
                           <Button 
                             variant="ghost" 
-                            onClick={() => navigate(`/rapport/${row.id}`)}
+                            onClick={() => navigate(`/rapport/${row.rapportId}`)}
                             className="h-10 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-primary transition-colors text-sm font-medium border border-white/5"
                           >
                             Rapport <ExternalLink className="w-3.5 h-3.5" />
