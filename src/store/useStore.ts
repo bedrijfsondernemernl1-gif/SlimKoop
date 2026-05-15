@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, query, collection, where } from 'firebase/firestore';
 
 enum OperationType {
   CREATE = 'create',
@@ -65,16 +65,17 @@ interface StoreState {
 }
 
 let unsubUserDoc: (() => void) | null = null;
+let unsubSub: (() => void) | null = null;
+let unsubPayment: (() => void) | null = null;
 
 export const useStore = create<StoreState>((set) => {
   // Listen to Firebase auth state
   onAuthStateChanged(auth, async (user) => {
     let isValidLogin = false;
     
-    if (unsubUserDoc) {
-      unsubUserDoc();
-      unsubUserDoc = null;
-    }
+    if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
+    if (unsubSub) { unsubSub(); unsubSub = null; }
+    if (unsubPayment) { unsubPayment(); unsubPayment = null; }
     
     if (user) {
       if (user.providerData.some(p => p.providerId === 'google.com') || user.emailVerified) {
@@ -90,7 +91,7 @@ export const useStore = create<StoreState>((set) => {
             await setDoc(userRef, {
               email: user.email,
               uid: user.uid,
-              aanmaakdatum: new Date().toISOString() // will be converted to real date or handled
+              aanmaakdatum: new Date().toISOString()
             }).catch(err => handleFirestoreError(err, OperationType.WRITE, `gebruikers/${user.uid}`));
           }
           
@@ -105,7 +106,30 @@ export const useStore = create<StoreState>((set) => {
                  });
              }
           }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
+
+          const subsQuery = query(
+            collection(db, 'customers', user.uid, 'subscriptions'),
+            where('status', 'in', ['active', 'trialing'])
+          );
           
+          unsubSub = onSnapshot(subsQuery, (snapshot) => {
+            if (!snapshot.empty) {
+              const plan = snapshot.docs[0].data()?.items?.[0]?.price?.product?.name || 'Premium';
+              set({ isPremium: true, subscriptionPlan: plan });
+            }
+          });
+          
+          const paymentsQuery = query(
+            collection(db, 'customers', user.uid, 'payments'),
+            where('status', '==', 'succeeded')
+          );
+          
+          unsubPayment = onSnapshot(paymentsQuery, (snapshot) => {
+            if (!snapshot.empty) {
+              set({ isPremium: true, subscriptionPlan: 'Losse Scan' });
+            }
+          });
+
         } catch (err) {
           console.error("Failed to sync user doc:", err);
         }
@@ -129,6 +153,8 @@ export const useStore = create<StoreState>((set) => {
     login: () => set({ isLoggedIn: true }), // Keeping this for manual overrides if needed
     logout: async () => {
       if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
+      if (unsubSub) { unsubSub(); unsubSub = null; }
+      if (unsubPayment) { unsubPayment(); unsubPayment = null; }
       await signOut(auth);
       set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, user: null });
     },

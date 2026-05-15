@@ -60,6 +60,23 @@ service cloud.firestore {
       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
     }
 
+    // 4. Stripe Extension
+    match /customers/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      
+      match /checkout_sessions/{sessionId} {
+        allow read, create: if isSignedIn() && request.auth.uid == userId;
+      }
+      
+      match /subscriptions/{subscriptionId} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+      }
+      
+      match /payments/{paymentId} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
     // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;

@@ -17,6 +17,18 @@
           "type": "string",
           "format": "date-time",
           "description": "Account creation timestamp"
+        },
+        "subscriptionPlan": {
+          "type": "string",
+          "description": "Current subscription plan"
+        },
+        "isPremium": {
+          "type": "boolean",
+          "description": "True if user has a paid plan"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": ["email", "uid", "aanmaakdatum"]

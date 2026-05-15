@@ -8,6 +8,8 @@ import { Footer } from '@/src/components/Footer';
 import { PricingCard } from '@/src/components/PricingCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/src/components/ui/accordion';
 import { useStore } from '@/src/store/useStore';
+import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/src/lib/firebase';
 
 const PRICE_IDS: Record<string, string> = {
   "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
@@ -24,47 +26,36 @@ export const LandingPage: React.FC = () => {
   const { user, isLoggedIn, openAuthModal } = useStore();
   
   const handlePurchase = async (title: string) => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !user) {
       setShowLoginNotification(true);
-      setTimeout(() => setShowLoginNotification(false), 3000);
+      setTimeout(() => setShowLoginNotification(false), 4000);
       openAuthModal();
       return;
     }
-    
+
     const priceId = PRICE_IDS[title];
     if (!priceId) return;
 
     try {
-        const response = await fetch('/api/create-checkout-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                priceId, 
-                userId: user?.uid,
-                successUrl: window.location.origin + '/dashboard',                
-                cancelUrl: window.location.origin + '/'
-            }),
-        });
-
-        const contentType = response.headers.get("content-type");
-        if (!response.ok) {
-            let errorMessage = `Server fout: ${response.status}`;
-            if (contentType && contentType.includes("application/json")) {
-                const errorResult = await response.json();
-                errorMessage = errorResult.error || errorMessage;
-            } else {
-                console.error("Non-JSON error response from server:", await response.text());
-            }
-            throw new Error(errorMessage);
+      const docRef = await addDoc(
+        collection(db, 'customers', user.uid, 'checkout_sessions'),
+        {
+          mode: priceId === 'price_1TWzLoRsJS7Vz7uqcB7DF5qQ' ? 'subscription' : 'payment',
+          price: priceId,
+          success_url: window.location.origin + '/dashboard?success=true',
+          cancel_url: window.location.origin + '/#prijzen',
+          allow_promotion_codes: true,
         }
+      );
 
-        const { url } = await response.json();                
-        if (url) {
-            window.location.href = url;
-        }
-    } catch (error) {
-        console.error("Fout bij checkout:", error);
-        alert(`Er is een fout opgetreden bij het starten van de betaling: ${error instanceof Error ? error.message : 'Onbekende fout'}. Probeer het later opnieuw.`);
+      onSnapshot(docRef, (snap) => {
+        const data = snap.data() as any;
+        if (data?.error) { alert(data.error.message); }
+        if (data?.url) { window.location.assign(data.url); }
+      });
+    } catch (e: any) {
+      console.error("Fout bij checkout:", e);
+      alert("Er is iets misgegaan. Probeer het later opnieuw.");
     }
   };
   

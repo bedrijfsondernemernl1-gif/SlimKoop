@@ -11,6 +11,17 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, updateDoc, doc, serverTimestamp, getDoc, setDoc } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
 
+import admin from "firebase-admin";
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: firebaseConfig.projectId,
+    credential: admin.credential.applicationDefault()
+  });
+}
+const adminDb = admin.firestore();
+adminDb.settings({ databaseId: firebaseConfig.firestoreDatabaseId });
+
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
@@ -197,85 +208,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/create-checkout-session", async (req, res) => {
-      console.log("Stripe checkout session creation requested:", req.body);
-      const { priceId, userId, successUrl, cancelUrl } = req.body;
-      
-      if (!userId) return res.status(401).json({ error: "Gebruiker niet ingelogd" });
-      
-      const validPriceIds = Object.values(PRICE_IDS);
-      console.log("Valid price IDs:", validPriceIds);
-      console.log("Received priceId:", priceId);
-      
-      if (!priceId || !validPriceIds.includes(priceId)) {
-        console.log("Ongeldig pakket:", priceId);
-        return res.status(400).json({ error: "Ongeldig pakket" });
-      }
 
-      try {
-          const session = await stripe.checkout.sessions.create({
-              line_items: [{ price: priceId, quantity: 1 }],
-              mode: priceId === PRICE_IDS.autohandelaar ? 'subscription' : 'payment',
-              payment_method_types: ['card', 'ideal'],
-              success_url: successUrl + '?success=true',
-              cancel_url: cancelUrl,
-              client_reference_id: userId,
-              allow_promotion_codes: true,
-          });
-          console.log("Checkout session created:", session.id);
-          res.json({ url: session.url });
-      } catch (e: any) {
-          console.error("Stripe Checkout Error:", e);
-          res.status(500).json({ error: e.message });
-      }
-  });
-
-  app.post("/api/stripe-webhook", async (req, res) => {
-      const sig = req.headers['stripe-signature'];
-      let event;
-      try {
-          event = stripe.webhooks.constructEvent((req as any).rawBody, sig!, process.env.STRIPE_WEBHOOK_SECRET!);
-      } catch (err: any) {
-          return res.status(400).send(`Webhook Error: ${err.message}`);
-      }
-
-      if (event.type === 'checkout.session.completed') {
-          console.log("Stripe webhook: session completed.");
-          const session = event.data.object as Stripe.Checkout.Session;
-          const userId = session.client_reference_id;
-          console.log("Stripe webhook: userId from session:", userId);
-
-          if (userId) {
-             // Retrieve line items to identify the purchased price
-             try {
-                const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-                console.log("Stripe webhook: lineItems retrieved:", lineItems.data.length);
-                const priceId = lineItems.data[0]?.price?.id;
-                console.log("Stripe webhook: priceId:", priceId);
-                
-                let plan = 'unknown';
-                if (priceId === PRICE_IDS.losse_scan) plan = 'Losse Scan';
-                if (priceId === PRICE_IDS.slimme_koper) plan = 'Slimme Koper';
-                if (priceId === PRICE_IDS.autohandelaar) plan = 'Autohandelaar';
-                
-                // Update user document to trigger re-fetch and UI change
-                console.log("Stripe webhook: Updating user document for:", userId, plan);
-                await setDoc(doc(db, 'gebruikers', userId), { 
-                    subscriptionPlan: plan,
-                    isPremium: true,
-                    updatedAt: serverTimestamp()
-                }, { merge: true });
-                console.log("Stripe webhook: User document updated successfully.");
-             } catch (error) {
-                 console.error("Stripe webhook error processing session:", error);
-             }
-          } else {
-              console.log("Stripe webhook: userId missing in session.");
-          }
-      }
-
-      res.json({ received: true });
-  });
 
 
 

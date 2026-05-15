@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useStore } from '@/src/store/useStore';
@@ -11,7 +11,16 @@ import { DashboardSettings } from '@/src/components/dashboard/DashboardSettings'
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isPremium, subscriptionPlan } = useStore();
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      setShowSuccess(true);
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const currentPath = location.pathname.split('/').pop() || 'dashboard';
 
@@ -37,6 +46,15 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen pt-[88px] relative z-10 w-full bg-black">
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-black border border-accent-green/50 p-8 rounded-2xl max-w-sm text-center shadow-2xl">
+            <h3 className="text-2xl font-bold text-white mb-4">Betaling Succesvol</h3>
+            <p className="text-gray-300 mb-6">Bedankt voor je aankoop! Je hebt nu direct toegang tot je pakket en alle bijbehorende functies.</p>
+            <Button onClick={() => setShowSuccess(false)} className="w-full">Sluiten</Button>
+          </div>
+        </div>
+      )}
       {/* Desktop Sidebar */}
       <aside className="w-64 hidden md:flex flex-col border-r border-white/10 p-6 bg-black relative">
         <div className="absolute top-0 left-0 w-32 h-32 bg-primary-dark/50 blur-3xl rounded-full pointer-events-none"></div>
