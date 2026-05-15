@@ -18,17 +18,26 @@ export const PricingPage: React.FC = () => {
   const { user, isLoggedIn, openAuthModal } = useStore();
   const navigate = useNavigate();
 
+  const [purchasing, setPurchasing] = React.useState<string | null>(null);
+
   const handlePurchase = async (title: string) => {
+    console.log("handlePurchase clicked for:", title);
     if (!isLoggedIn || !user) {
+      console.log("User not logged in, showing alert");
       alert("Log eerst in om een pakket aan te schaffen.");
       openAuthModal();
       return;
     }
 
     const priceId = PRICE_IDS[title];
-    if (!priceId) return;
+    if (!priceId) {
+      console.error("No priceId found for title:", title);
+      return;
+    }
 
+    setPurchasing(title);
     try {
+      console.log("Creating checkout session doc for priceId:", priceId);
       const docRef = await addDoc(
         collection(db, 'customers', user.uid, 'checkout_sessions'),
         {
@@ -39,15 +48,28 @@ export const PricingPage: React.FC = () => {
           allow_promotion_codes: true,
         }
       );
+      console.log("Doc created:", docRef.id, "Waiting for Stripe extension to populate URL...");
 
       onSnapshot(docRef, (snap) => {
         const data = snap.data() as any;
-        if (data?.error) { alert(data.error.message); }
-        if (data?.url) { window.location.assign(data.url); }
+        console.log("Snapshot update:", data);
+        if (data?.error) { 
+            console.error("Stripe extensions error:", data.error);
+            alert(data.error.message); 
+            setPurchasing(null);
+        }
+        if (data?.url) { 
+            console.log("Redirecting to Stripe:", data.url);
+            window.location.assign(data.url); 
+        }
+      }, (err) => {
+         console.error("onSnapshot failed:", err);
+         setPurchasing(null);
       });
     } catch (e: any) {
       console.error("Fout bij checkout:", e);
       alert("Er is iets misgegaan. Probeer het later opnieuw.");
+      setPurchasing(null);
     }
   };
   return (
@@ -89,7 +111,7 @@ export const PricingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
              ]}
-             btnText="Koop scan — €9,99"
+             btnText={purchasing === "Losse Scan" ? "Laden..." : "Koop scan — €9,99"}
              buttonStyle="outline"
              onClick={() => handlePurchase("Losse Scan")}
           />
@@ -109,7 +131,7 @@ export const PricingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
              ]}
-             btnText="Start nu — €19,99"
+             btnText={purchasing === "Slimme Koper" ? "Laden..." : "Start nu — €19,99"}
              featured={true}
              buttonStyle="primary"
              onClick={() => handlePurchase("Slimme Koper")}
@@ -129,7 +151,7 @@ export const PricingPage: React.FC = () => {
                { text: "Rapportgeschiedenis & export", included: true },
                { text: "Bulk analyse (meerdere URL's)", included: true },
              ]}
-             btnText="Start abonnement"
+             btnText={purchasing === "Autohandelaar" ? "Laden..." : "Start abonnement"}
              buttonStyle="outline-green"
              onClick={() => handlePurchase("Autohandelaar")}
           />

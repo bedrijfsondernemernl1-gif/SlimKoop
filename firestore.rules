@@ -61,19 +61,19 @@ service cloud.firestore {
     }
 
     // 4. Stripe Extension
-    match /customers/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
+    match /customers/{uid} {
+      allow read: if request.auth.uid == uid;
       
-      match /checkout_sessions/{sessionId} {
-        allow read, create: if isSignedIn() && request.auth.uid == userId;
+      match /checkout_sessions/{id} {
+        allow read, write: if request.auth.uid == uid;
       }
       
-      match /subscriptions/{subscriptionId} {
-        allow read: if isSignedIn() && request.auth.uid == userId;
+      match /subscriptions/{id} {
+        allow read: if request.auth.uid == uid;
       }
       
-      match /payments/{paymentId} {
-        allow read: if isSignedIn() && request.auth.uid == userId;
+      match /payments/{id} {
+        allow read: if request.auth.uid == uid;
       }
     }
 

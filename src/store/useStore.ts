@@ -117,6 +117,8 @@ export const useStore = create<StoreState>((set) => {
               const plan = snapshot.docs[0].data()?.items?.[0]?.price?.product?.name || 'Premium';
               set({ isPremium: true, subscriptionPlan: plan });
             }
+          }, (err) => {
+             console.error("Sub error:", err);
           });
           
           const paymentsQuery = query(
@@ -128,6 +130,8 @@ export const useStore = create<StoreState>((set) => {
             if (!snapshot.empty) {
               set({ isPremium: true, subscriptionPlan: 'Losse Scan' });
             }
+          }, (err) => {
+             console.error("Payment error:", err);
           });
 
         } catch (err) {
