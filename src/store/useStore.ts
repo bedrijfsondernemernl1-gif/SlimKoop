@@ -112,12 +112,9 @@ export const useStore = create<StoreState>((set) => {
       }
     }
 
-    const isPremiumAccount = user && user.email === 'ibrahimdiscord675@gmail.com' ? true : false;
-
     set({ 
       user: isValidLogin ? user : null,
       isLoggedIn: isValidLogin,
-      isPremium: isPremiumAccount,
       authLoading: false
     });
   });

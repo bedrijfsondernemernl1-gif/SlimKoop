@@ -22,6 +22,8 @@ interface HistoryItem {
 
 export const DashboardHistory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -87,10 +89,34 @@ export const DashboardHistory: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="h-12 bg-white/5 border-white/10 hover:bg-white/10 text-gray-300 gap-2 rounded-xl px-6">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
+          <div className="relative">
+            <Button 
+              variant="outline" 
+              className="h-12 bg-white/5 border-white/10 hover:bg-white/10 text-gray-300 gap-2 rounded-xl px-6"
+              onClick={() => setShowFilterMenu(!showFilterMenu)}
+            >
+              <Filter className="w-4 h-4" />
+              {filterStatus === 'all' ? 'Filter' : filterStatus === 'high' ? 'Score 70+' : filterStatus === 'medium' ? 'Score 50-69' : 'Score < 50'}
+            </Button>
+            {showFilterMenu && (
+              <div className="absolute right-0 top-14 z-50 bg-black/95 border border-white/10 rounded-xl shadow-2xl py-2 min-w-[180px] backdrop-blur-xl">
+                {[
+                  { value: 'all', label: 'Alles tonen' },
+                  { value: 'high', label: 'Score 70+ (Goed)' },
+                  { value: 'medium', label: 'Score 50-69' },
+                  { value: 'low', label: 'Score < 50 (Slecht)' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors ${filterStatus === opt.value ? 'text-accent-green font-medium' : 'text-gray-300'}`}
+                    onClick={() => { setFilterStatus(opt.value); setShowFilterMenu(false); }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -120,7 +146,14 @@ export const DashboardHistory: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {historyData.filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase())).map((row, i) => (
+                  {historyData.filter(item => {
+                    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesFilter = filterStatus === 'all' || 
+                      (filterStatus === 'high' && item.score >= 70) ||
+                      (filterStatus === 'medium' && item.score >= 50 && item.score < 70) ||
+                      (filterStatus === 'low' && item.score < 50);
+                    return matchesSearch && matchesFilter;
+                  }).map((row, i) => (
                     <motion.tr 
                       key={row.id}
                       initial={{ opacity: 0, y: 10 }}

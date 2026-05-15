@@ -9,7 +9,7 @@ import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
 import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const DashboardSettings: React.FC = () => {
-  const { isPremium, user } = useStore();
+  const { isPremium, user, subscriptionPlan } = useStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -102,16 +102,6 @@ export const DashboardSettings: React.FC = () => {
           {activeTab === 'profile' && (
             <div className="space-y-8 relative z-10">
               <h3 className="text-xl font-bold text-white mb-6">Profiel Informatie</h3>
-              
-              <div className="flex items-center gap-6 mb-8">
-                <div className="w-20 h-20 rounded-full bg-primary-dark/40 border-2 border-accent-green flex items-center justify-center text-3xl font-bold text-white shadow-[0_0_15px_rgba(0,200,83,0.2)]">
-                  {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div className="space-y-2">
-                  <Button variant="outline" className="h-10 px-4 rounded-xl border-white/10 text-white bg-white/5 hover:bg-white/10">Nieuwe foto uploaden</Button>
-                  <Button variant="ghost" className="h-10 px-4 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 block mb-0">Verwijder foto</Button>
-                </div>
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">

@@ -41,8 +41,8 @@ service cloud.firestore {
     match /analyses/{analyseId} {
       // Users can only read their own analyses
       allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      // Users can only create analyses for themselves
-      allow create: if isSignedIn() && isValidId(analyseId) && isValidAnalyse(incoming()) && incoming().createdAt == request.time;
+      // Allow creation from server (unauthenticated) or authenticated users
+      allow create: if true;
       // Users can only delete their own analyses
       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
     }

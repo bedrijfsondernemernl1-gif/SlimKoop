@@ -106,7 +106,7 @@ export const PricingPage: React.FC = () => {
           {/* Plan 2: Slimme Koper */}
           <PricingCard 
              title="Slimme Koper" 
-             price="€19.99" 
+             price="€19,99" 
              period=""
              description="De favoriete keuze voor wie meerdere auto's vergelijkt."
              badgeText="Meest Gekozen"
@@ -118,7 +118,7 @@ export const PricingPage: React.FC = () => {
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
              ]}
-             btnText="Start nu — €19.99"
+             btnText="Start nu — €19,99"
              featured={true}
              buttonStyle="primary"
              onClick={() => handlePurchase("Slimme Koper")}
@@ -127,7 +127,7 @@ export const PricingPage: React.FC = () => {
           {/* Plan 3: Autohandelaar */}
           <PricingCard 
              title="Autohandelaar" 
-             price="€29.99" 
+             price="€29" 
              period="/ maand"
              description="Voor wie wekelijks auto's beoordeelt en koopt."
              badgeText="Voor professionals"

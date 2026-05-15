@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowDown, Bell, Car, Trash2, RotateCcw, Loader2 } from 'lucide-react';
+import { ArrowDown, Car, Trash2, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/src/store/useStore';
@@ -86,10 +86,6 @@ export const DashboardGarage: React.FC = () => {
           <p className="text-gray-400">Beheer en volg de prijs van je favoriete auto's.</p>
         </div>
         <div className="hidden md:flex gap-2">
-          <Button variant="outline" className="gap-2 border-white/10 text-gray-300 hover:text-white bg-white/5 rounded-xl">
-            <Bell className="w-4 h-4" />
-            Prijs Alert Settings
-          </Button>
         </div>
       </div>
 

@@ -324,16 +324,23 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
       
       // Sync to analyses collection for dashboard if user is not anonymous
       if (userId && userId !== "anonymous") {
-        await addDoc(collection(db, 'analyses'), {
-          userId: userId,
-          rapportId: rapportId,
-          title: listing.titel,
-          price: `€ ${listing.prijs.toLocaleString('nl-NL')}`,
-          score: analyse?.dealScore || 0,
-          img: listing.fotos?.[0] || '',
-          url: url,
-          createdAt: serverTimestamp()
-        });
+        try {
+          await addDoc(collection(db, 'analyses'), {
+            userId: userId,
+            rapportId: rapportId,
+            title: listing.titel || 'Onbekende auto',
+            price: listing.prijs ? `€ ${listing.prijs.toLocaleString('nl-NL')}` : 'Prijs op aanvraag',
+            score: analyse?.dealScore || 0,
+            img: (listing.fotos?.[0] || '').substring(0, 900),
+            url: url,
+            status: 'Compleet',
+            statusColor: 'text-accent-green',
+            createdAt: serverTimestamp()
+          });
+          console.log("[SERVER] Analyse document toegevoegd aan dashboard.");
+        } catch (analysesError) {
+          console.error("[SERVER] Kon analyse niet opslaan voor dashboard (niet-kritisch):", analysesError);
+        }
       }
       
       console.log("[SERVER] Rapport succesvol geupdated naar compleet.");
