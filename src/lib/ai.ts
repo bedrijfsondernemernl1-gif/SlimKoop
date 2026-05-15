@@ -38,7 +38,7 @@ export interface PhotoAnalysisResult {
 
 function getAIClient() {
   let apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey === "MY_GEMINI_API_KEY" || !apiKey) {
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     try {
       const envContent = fs.readFileSync(path.resolve(process.cwd(), '.env'), 'utf-8');
       const match = envContent.match(/GEMINI_API_KEY=(.*)/);
@@ -46,6 +46,10 @@ function getAIClient() {
         apiKey = match[1].trim();
       }
     } catch(e) {}
+  }
+  // Fallback key
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+    apiKey = "AIzaSyCdwPe4DOv7G9t1lscqGWF-vf0LfKzZRp0";
   }
   return new GoogleGenAI({ apiKey });
 }

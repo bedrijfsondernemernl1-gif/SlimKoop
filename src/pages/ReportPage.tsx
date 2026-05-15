@@ -38,10 +38,21 @@ export const ReportPage: React.FC = () => {
     if (!id) return;
 
     let isPolling = true;
+    let retryCount = 0;
+    const MAX_404_RETRIES = 5;
 
     const fetchReport = async () => {
       try {
         const res = await fetch(`/api/rapport/${id}?isBetaald=${hasAccess}`);
+        
+        // Race condition: document nog niet aangemaakt in Firestore
+        if (res.status === 404 && isPolling && retryCount < MAX_404_RETRIES) {
+          retryCount++;
+          console.log(`Document nog niet gevonden, poging ${retryCount}/${MAX_404_RETRIES}...`);
+          setTimeout(fetchReport, 2000);
+          return;
+        }
+
         const data = await res.json();
         
         if (!res.ok) {
@@ -49,6 +60,7 @@ export const ReportPage: React.FC = () => {
         }
 
         if (isPolling) {
+          retryCount = 0; // Reset na succesvolle fetch
           setReportData(data);
           setError(null);
           setLoading(false);

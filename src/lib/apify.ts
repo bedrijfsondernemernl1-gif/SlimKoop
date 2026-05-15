@@ -92,6 +92,10 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     
     // Fallback naar titel als merk/model ontbreken
     const title = (scrapedData.title || scrapedData.name || "").toLowerCase();
+    const titleOriginal = scrapedData.title || scrapedData.name || "";
+    const description = (scrapedData.description || "").toLowerCase();
+    const fullText = title + " " + description;
+    
     if (!brand || !model) {
       const commonBrands = ['volkswagen', 'bmw', 'audi', 'mercedes', 'opel', 'ford', 'peugeot', 'renault', 'toyota', 'volvo', 'fiat', 'citroen', 'hyundai', 'kia', 'mazda', 'nissan', 'seat', 'skoda', 'suzuki', 'tesla'];
       
@@ -99,20 +103,102 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
       if (foundBrand && !brand) {
         brand = foundBrand.charAt(0).toUpperCase() + foundBrand.slice(1);
       }
+      // Try to extract model from title after brand
+      if (brand && !model) {
+        const brandIdx = title.indexOf(brand.toLowerCase());
+        if (brandIdx >= 0) {
+          const afterBrand = titleOriginal.substring(brandIdx + brand.length).trim().split(/\s+/);
+          if (afterBrand.length > 0 && afterBrand[0].length > 1) {
+            model = afterBrand[0];
+          }
+        }
+      }
     }
 
     let yearString = scrapedData.year || getAttribute(scrapedData, ['bouwjaar', 'year', 'datum eerste toelating']) || "0";
-    const year = extractNumber(yearString);
+    let year = extractNumber(yearString);
+    
+    // Fallback: parse bouwjaar uit titel (bijv "Fiat Panda 0.9 Twinair 44KW 2014 Wit")
+    if (!year || year < 1990 || year > 2030) {
+      const titleWords = titleOriginal.split(/\s+/);
+      for (const word of titleWords) {
+        const num = parseInt(word);
+        if (num >= 1990 && num <= 2026) { year = num; break; }
+      }
+    }
     
     let mileageString = scrapedData.mileage || getAttribute(scrapedData, ['kilometerstand', 'km', 'odo', 'tellerstand']) || "0";
-    const mileage = extractNumber(mileageString);
+    let mileage = extractNumber(mileageString);
+
+    // Fallback: parse kilometerstand uit description
+    if (!mileage || mileage === 0) {
+      const kmMatch = description.match(/(\d[\d.]*)\s*km/);
+      if (kmMatch) {
+        mileage = parseInt(kmMatch[1].replace(/\./g, '')) || 0;
+      }
+      // Also check for "kilometerstand: 123.456" pattern
+      if (!mileage) {
+        const kmMatch2 = description.match(/kilometerstand[:\s]+(\d[\d.]*)/);
+        if (kmMatch2) {
+          mileage = parseInt(kmMatch2[1].replace(/\./g, '')) || 0;
+        }
+      }
+    }
 
     const kentekenString = scrapedData.kenteken || getAttribute(scrapedData, ['kenteken', 'license plate', 'kentekenbewijs', 'plaat']) || "";
-    const kentekenStr = kentekenString.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    let kentekenStr = kentekenString.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     
-    const transmissie = getAttribute(scrapedData, ['transmissie', 'transmission', 'geschakeld', 'bak', 'automaat', 'handgeschakeld']) || "Onbekend";
-    const brandstof = getAttribute(scrapedData, ['brandstof', 'fuel', 'benzine', 'diesel', 'hybride', 'elektrisch']) || "Onbekend";
-    const carrosserie = getAttribute(scrapedData, ['carrosserie', 'body', 'carrosserievorm', 'type', 'vkv']) || "Onbekend";
+    // Fallback: parse kenteken uit title of description (NL formats: XX-999-X, 99-XXX-9, etc.)
+    if (!kentekenStr) {
+      const kentekenRegex = /\b([A-Z0-9]{1,3}[-\s]?[A-Z0-9]{2,3}[-\s]?[A-Z0-9]{1,3})\b/gi;
+      const allText = titleOriginal + " " + (scrapedData.description || "");
+      const matches = allText.match(kentekenRegex);
+      if (matches) {
+        for (const m of matches) {
+          const cleaned = m.replace(/[-\s]/g, '').toUpperCase();
+          // NL kenteken is altijd 6 tekens (letters + cijfers mix)
+          if (cleaned.length === 6 && /[A-Z]/.test(cleaned) && /[0-9]/.test(cleaned)) {
+            kentekenStr = cleaned;
+            break;
+          }
+        }
+      }
+    }
+    
+    let transmissie = getAttribute(scrapedData, ['transmissie', 'transmission', 'geschakeld', 'bak', 'automaat', 'handgeschakeld']) || "";
+    let brandstof = getAttribute(scrapedData, ['brandstof', 'fuel', 'benzine', 'diesel', 'hybride', 'elektrisch']) || "";
+    let carrosserie = getAttribute(scrapedData, ['carrosserie', 'body', 'carrosserievorm']) || "";
+
+    // Fallback: parse brandstof uit description/title
+    if (!brandstof || brandstof === 'Onbekend') {
+      const brandstofMatch = fullText.match(/(benzine|diesel|elektrisch|hybride|lpg|cng|plug-in|phev)/);
+      if (brandstofMatch) {
+        brandstof = brandstofMatch[1].charAt(0).toUpperCase() + brandstofMatch[1].slice(1);
+      } else {
+        brandstof = "Onbekend";
+      }
+    }
+
+    // Fallback: parse transmissie uit description/title
+    if (!transmissie || transmissie === 'Onbekend') {
+      const transMatch = fullText.match(/(handgeschakeld|automaat|automatisch|manueel|handmatig|schakel|dsg|cvt)/);
+      if (transMatch) {
+        const t = transMatch[1].toLowerCase();
+        transmissie = (t.includes('auto') || t.includes('dsg') || t.includes('cvt')) ? 'Automaat' : 'Handgeschakeld';
+      } else {
+        transmissie = "Onbekend";
+      }
+    }
+
+    // Filter onzin waarden uit carrosserie
+    if (!carrosserie || carrosserie.toLowerCase() === 'detail_result' || carrosserie.toLowerCase() === 'onbekend' || carrosserie.length > 30) {
+      const carMatch = fullText.match(/(hatchback|sedan|stationwagon|station|suv|mpv|cabrio|coupé|coupe|bus|bestel|pick-?up)/);
+      if (carMatch) {
+        carrosserie = carMatch[1].charAt(0).toUpperCase() + carMatch[1].slice(1);
+      } else {
+        carrosserie = "";
+      }
+    }
 
     // Verkoper info
     const seller = scrapedData.seller || {};
