@@ -348,10 +348,6 @@ export const ReportPage: React.FC = () => {
                <div className="flex flex-col gap-6">
                  {/* Images */}
                  <div className="flex flex-col gap-2 relative">
-                   <div className="absolute top-3 left-3 bg-white text-black px-2.5 py-1 rounded-md text-xs font-bold tracking-wide z-10 shadow-lg flex items-center gap-1">
-                     <BadgeCheck className="w-4 h-4" /> Marktplaats · {data.advertentieId}
-                   </div>
-                   
                    <div className="h-64 sm:h-80 bg-[#131B2A] rounded-2xl overflow-hidden shadow-inner border border-white/5 relative">
                      {data.photoUrls && data.photoUrls.length > 0 ? (
                        <img 

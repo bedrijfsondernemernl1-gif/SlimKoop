@@ -45,9 +45,116 @@ async function startServer() {
     }
   }));
 
-  // API routes
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+  app.post("/api/create-checkout-session", async (req, res) => {
+    const { priceId, userId, userEmail, mode } = req.body;
+
+    if (!priceId || !userId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+      // 1. Get or create customer in Stripe
+      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
+      let customerId = customers.data.length > 0 ? customers.data[0].id : null;
+
+      if (!customerId) {
+        const newCustomer = await stripe.customers.create({
+          email: userEmail,
+          metadata: { userId },
+        });
+        customerId = newCustomer.id;
+      }
+
+      // 2. Create Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card", "ideal"],
+        mode: mode === "subscription" ? "subscription" : "payment",
+        customer: customerId,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: `${req.headers.origin}/dashboard?success=true`,
+        cancel_url: `${req.headers.origin}/#prijzen`,
+        allow_promotion_codes: true,
+        metadata: {
+          userId,
+          priceId,
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("[SERVER] Stripe checkout error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const signature = req.headers["stripe-signature"] as string;
+    let event;
+
+    try {
+      if (process.env.STRIPE_WEBHOOK_SECRET) {
+        event = stripe.webhooks.constructEvent(
+          (req as any).rawBody,
+          signature,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+      } else {
+        // Fallback if no webhook secret (not recommended for production)
+        event = JSON.parse((req as any).rawBody.toString());
+      }
+    } catch (err: any) {
+      console.error("[SERVER] Webhook signature verification failed.", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.metadata?.userId;
+        const priceId = session.metadata?.priceId;
+        const customerId = session.customer as string;
+        const subscriptionId = session.subscription as string;
+
+        if (userId) {
+          let pakket = "free";
+          let permissies = "free";
+
+          if (priceId === "price_1TWzIHRsJS7Vz7uquwItCZSP") {
+            pakket = "Losse Scan";
+            permissies = "losse_scan";
+          } else if (priceId === "price_1TWzJoRsJS7Vz7uq0sMvxaLG") {
+            pakket = "Slimme Koper";
+            permissies = "slimme_koper";
+          } else if (priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ") {
+            pakket = "Autohandelaar";
+            permissies = "autohandelaar";
+          }
+
+          const userRef = doc(db, "gebruikers", userId);
+          await setDoc(userRef, {
+            subscriptionStatus: session.payment_status === "paid" ? "active" : "pending",
+            pakket: pakket,
+            permissies: permissies,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId || null,
+            betaalstatus: session.payment_status,
+            laatsteBetaling: serverTimestamp(),
+          }, { merge: true });
+          
+          console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
+        }
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("[SERVER] Webhook error:", error);
+      res.status(500).json({ error: "Webhook handler failed" });
+    }
   });
 
   app.post("/api/scrape-marktplaats", async (req, res) => {
@@ -124,6 +231,30 @@ async function startServer() {
 
     if (!url || !url.includes("marktplaats.nl")) {
       return res.status(400).json({ error: "Geldige Marktplaats URL is vereist" });
+    }
+    
+    // Check permissions / deduct single scans
+    if (userId && userId !== "anonymous") {
+      try {
+        const userDoc = await getDoc(doc(db, "gebruikers", userId));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
+          const isAdmin = adminEmails.includes(data.email || '');
+          const pakket = data.pakket || 'free';
+          
+          if (pakket === "Losse Scan" && !isAdmin) {
+            // Revert back to free after using the single scan
+            await setDoc(doc(db, "gebruikers", userId), { 
+              pakket: 'free', 
+              permissies: 'free', 
+              subscriptionStatus: 'free' 
+            }, { merge: true });
+          }
+        }
+      } catch (e) {
+        console.error("Error checking permissions", e);
+      }
     }
 
     try {
@@ -257,6 +388,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
       merk: listing.merk,
       model: listing.model,
       fotos: listing.fotos,
+      advertentieId: listing.advertentieId,
       verkoper: {
         naam: listing.verkoper,
         sinds: listing.verkoperSinds,

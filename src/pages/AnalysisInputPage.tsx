@@ -23,7 +23,7 @@ export const AnalysisInputPage: React.FC = () => {
           body: JSON.stringify({ url, userId: auth.currentUser?.uid })
         });
         const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && data.rapportId) {
           navigate(`/rapport/${data.rapportId}`);
         } else {
           alert('Fout bij analyseren: ' + (data.error || 'Onbekende fout'));

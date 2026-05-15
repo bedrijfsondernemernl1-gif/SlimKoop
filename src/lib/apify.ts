@@ -18,6 +18,7 @@ export interface MarktplaatsData {
   verkoperSinds: string;
   aantalAdvertenties: number;
   dagenOnline: number;
+  advertentieId?: string;
 }
 
 export interface VergelijkbaarResult {
@@ -138,6 +139,15 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     // Description: gebruik plain text versie
     const beschrijving = scrapedData.description || "";
 
+    // Extract advertentieId van URL (begint vaak met 'm' gevolgd door nummers in the path)
+    let advertentieId = "Niet beschikbaar";
+    const m = url.match(/\/([ma]\d{9,10})-/i) || url.match(/([ma]\d{9,10})/i);
+    if (m && m[1]) {
+      advertentieId = m[1];
+    } else if (scrapedData.id) {
+       advertentieId = scrapedData.id;
+    }
+
     const data: MarktplaatsData = {
       titel: scrapedData.title || "",
       prijs: prijs,
@@ -155,7 +165,8 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
       verkoperType: verkoperType,
       verkoperSinds: lidSinds,
       aantalAdvertenties: aantalAds,
-      dagenOnline: dagenOnline
+      dagenOnline: dagenOnline,
+      advertentieId: advertentieId
     };
 
     console.log(`[SCRAPER] Geëxtraheerd: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.kenteken} | ${data.brandstof}`);

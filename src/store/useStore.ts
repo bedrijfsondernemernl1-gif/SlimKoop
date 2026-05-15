@@ -54,6 +54,7 @@ interface StoreState {
   isLoggedIn: boolean;
   isPremium: boolean;
   subscriptionPlan: string | null;
+  permissies: string;
   isAuthModalOpen: boolean;
   user: User | null;
   authLoading: boolean;
@@ -91,48 +92,27 @@ export const useStore = create<StoreState>((set) => {
             await setDoc(userRef, {
               email: user.email,
               uid: user.uid,
-              aanmaakdatum: new Date().toISOString()
+              aanmaakdatum: new Date().toISOString(),
+              subscriptionStatus: 'free',
+              pakket: 'free',
+              permissies: 'free',
             }).catch(err => handleFirestoreError(err, OperationType.WRITE, `gebruikers/${user.uid}`));
           }
           
           unsubUserDoc = onSnapshot(userRef, (docSnap) => {
              if (docSnap.exists()) {
                  const data = docSnap.data();
-                 const adminPremium = user.email === 'ibrahimdiscord675@gmail.com';
-                 const plan = data.subscriptionPlan || null;
+                 const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
+                 const isAdmin = adminEmails.includes(user.email || '');
+                 const plan = data.pakket || 'free';
+                 const perms = data.permissies || 'free';
                  set({ 
-                     isPremium: Boolean(data.isPremium) || adminPremium,
-                     subscriptionPlan: plan
+                     isPremium: isAdmin || perms !== 'free',
+                     subscriptionPlan: isAdmin ? 'Autohandelaar' : plan,
+                     permissies: isAdmin ? 'autohandelaar' : perms
                  });
              }
           }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
-
-          const subsQuery = query(
-            collection(db, 'customers', user.uid, 'subscriptions'),
-            where('status', 'in', ['active', 'trialing'])
-          );
-          
-          unsubSub = onSnapshot(subsQuery, (snapshot) => {
-            if (!snapshot.empty) {
-              const plan = snapshot.docs[0].data()?.items?.[0]?.price?.product?.name || 'Premium';
-              set({ isPremium: true, subscriptionPlan: plan });
-            }
-          }, (err) => {
-             console.error("Sub error:", err);
-          });
-          
-          const paymentsQuery = query(
-            collection(db, 'customers', user.uid, 'payments'),
-            where('status', '==', 'succeeded')
-          );
-          
-          unsubPayment = onSnapshot(paymentsQuery, (snapshot) => {
-            if (!snapshot.empty) {
-              set({ isPremium: true, subscriptionPlan: 'Losse Scan' });
-            }
-          }, (err) => {
-             console.error("Payment error:", err);
-          });
 
         } catch (err) {
           console.error("Failed to sync user doc:", err);
@@ -151,16 +131,15 @@ export const useStore = create<StoreState>((set) => {
     isLoggedIn: false, // Default freemium user not logged in
     isPremium: false,
     subscriptionPlan: null,
+    permissies: 'free',
     isAuthModalOpen: false,
     user: null,
     authLoading: true,
     login: () => set({ isLoggedIn: true }), // Keeping this for manual overrides if needed
     logout: async () => {
       if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
-      if (unsubSub) { unsubSub(); unsubSub = null; }
-      if (unsubPayment) { unsubPayment(); unsubPayment = null; }
       await signOut(auth);
-      set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, user: null });
+      set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, permissies: 'free', user: null });
     },
     upgrade: () => set({ isPremium: true, isLoggedIn: true }),
     openAuthModal: () => set({ isAuthModalOpen: true }),

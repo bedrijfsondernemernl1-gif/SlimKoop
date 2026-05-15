@@ -77,7 +77,7 @@ export const DashboardOverview: React.FC = () => {
 
     setAnalyzing(true);
     try {
-      const response = await fetch('/api/analyze', {
+      const response = await fetch('/api/analyseer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,17 +88,20 @@ export const DashboardOverview: React.FC = () => {
         }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Analyse mislukt');
+        throw new Error(data.error || 'Analyse mislukt');
       }
 
-      const data = await response.json();
       if (data.rapportId) {
         navigate(`/rapport/${data.rapportId}`);
+      } else if (data.error) {
+         throw new Error(data.error);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error analyzing car:", error);
-      alert("Er is iets misgegaan bij het opstarten van de analyse.");
+      alert(error.message || "Er is iets misgegaan bij het opstarten van de analyse.");
     } finally {
       setAnalyzing(false);
     }

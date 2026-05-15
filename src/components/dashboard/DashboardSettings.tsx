@@ -9,7 +9,7 @@ import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
 import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const DashboardSettings: React.FC = () => {
-  const { isPremium, user } = useStore();
+  const { isPremium, subscriptionPlan, user } = useStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -134,17 +134,17 @@ export const DashboardSettings: React.FC = () => {
                       Huidig Plan
                     </div>
                     <h4 className="text-2xl font-bold text-white mb-1">
-                      {user?.email === 'ibrahimdiscord675@gmail.com' ? 'Autohandelaar Licentie' : (isPremium ? 'SlimKoop Unlimited' : 'Gratis Account')}
+                      {isPremium ? (subscriptionPlan || 'Abonnement') : 'Gratis Account'}
                     </h4>
                     <p className="text-gray-400">
-                      {user?.email === 'ibrahimdiscord675@gmail.com' ? 'Speciale toegang verleend door beheerder.' : (isPremium ? 'Actief abonnement via Stripe.' : 'Beperkte toegang. Upgrade voor volledige inzichten.')}
+                      {isPremium ? 'Actief abonnement via Stripe.' : 'Beperkte toegang. Upgrade voor volledige inzichten.'}
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-heading font-bold text-white">
-                      {user?.email === 'ibrahimdiscord675@gmail.com' ? 'Verleend' : (isPremium ? '€19' : '€0')}
+                      {isPremium ? (subscriptionPlan === 'Autohandelaar' ? '€29' : (subscriptionPlan === 'Losse Scan' ? '€9,99' : '€19,99')) : '€0'}
                     </div>
-                    <div className="text-gray-500 text-sm">{user?.email === 'ibrahimdiscord675@gmail.com' ? '' : 'per maand'}</div>
+                    <div className="text-gray-500 text-sm">per maand</div>
                   </div>
                 </div>
                 

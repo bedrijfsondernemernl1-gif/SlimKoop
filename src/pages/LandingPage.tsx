@@ -45,35 +45,28 @@ export const LandingPage: React.FC = () => {
 
     setPurchasing(title);
     try {
-      console.log("Creating checkout session doc for priceId:", priceId);
-      const docRef = await addDoc(
-        collection(db, 'customers', user.uid, 'checkout_sessions'),
-        {
-          mode: priceId === 'price_1TWzLoRsJS7Vz7uqcB7DF5qQ' ? 'subscription' : 'payment',
-          price: priceId,
-          success_url: window.location.origin + '/dashboard?success=true',
-          cancel_url: window.location.origin + '/#prijzen',
-          allow_promotion_codes: true,
-        }
-      );
-      console.log("Doc created:", docRef.id, "Waiting for Stripe extension to populate URL...");
-
-      onSnapshot(docRef, (snap) => {
-        const data = snap.data() as any;
-        console.log("Snapshot update:", data);
-        if (data?.error) { 
-            console.error("Stripe extensions error:", data.error);
-            alert(data.error.message); 
-            setPurchasing(null);
-        }
-        if (data?.url) { 
-            console.log("Redirecting to Stripe:", data.url);
-            window.location.assign(data.url); 
-        }
-      }, (err) => {
-         console.error("onSnapshot failed:", err);
-         setPurchasing(null);
+      console.log("Creating checkout session via API for priceId:", priceId);
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          priceId, 
+          userId: user.uid, 
+          userEmail: user.email,
+          mode: priceId === 'price_1TWzLoRsJS7Vz7uqcB7DF5qQ' ? 'subscription' : 'payment'
+        }),
       });
+
+      const data = await response.json();
+      
+      if (data?.error) { 
+          console.error("Stripe API error:", data.error);
+          alert(data.error); 
+          setPurchasing(null);
+      } else if (data?.url) { 
+          console.log("Redirecting to Stripe:", data.url);
+          window.location.assign(data.url); 
+      }
     } catch (e: any) {
       console.error("Fout bij checkout:", e);
       alert("Er is iets misgegaan. Probeer het later opnieuw.");
