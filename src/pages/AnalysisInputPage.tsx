@@ -68,6 +68,7 @@ export const AnalysisInputPage: React.FC = () => {
            <div className="flex items-center justify-center gap-6 mb-8 text-sm font-bold text-gray-500 uppercase tracking-wider">
               <span className="text-white">Ondersteunde platforms:</span>
               <span className="flex items-center gap-1.5 text-orange-400"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
+              <span className="flex items-center gap-1.5 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-400"></span> AutoScout24</span>
            </div>
 
              <form onSubmit={handleAnalyze} className="space-y-6">
@@ -79,7 +80,7 @@ export const AnalysisInputPage: React.FC = () => {
                         type="url"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://www.marktplaats.nl/v/auto-s/..." 
+                        placeholder="https://www.marktplaats.nl/v/auto-s/... of autoscout24.com/..." 
                         className="pl-14 h-16 bg-black/50 border border-white/10 text-white rounded-xl focus-visible:ring-accent-green focus-visible:border-transparent text-lg shadow-inner"
                         required
                       />

@@ -181,7 +181,7 @@ export const LandingPage: React.FC = () => {
           </motion.h1>
           
           <motion.p variants={itemVariants} className="text-gray-300 text-lg md:text-xl mb-12 max-w-2xl mx-auto font-light leading-relaxed">
-            Plak een Marktplaats-link. Ontvang binnen 60 seconden een AI-rapport met DealScore, rode vlaggen en een onderhandelingsscript.
+            Plak een Marktplaats of AutoScout24 link. Ontvang binnen 60 seconden een AI-rapport met DealScore, rode vlaggen en een onderhandelingsscript.
           </motion.p>
           
           <motion.form variants={itemVariants} onSubmit={handleAnalyze} className="flex flex-col gap-4 items-center w-full max-w-2xl mx-auto relative z-20">
@@ -191,7 +191,7 @@ export const LandingPage: React.FC = () => {
                 <Search className="absolute left-6 h-6 w-6 text-gray-400" />
                 <Input 
                   type="url" 
-                  placeholder="https://www.marktplaats.nl/v/..." 
+                  placeholder="https://www.marktplaats.nl/v/... of autoscout24.com/..." 
                   className="pl-16 pr-6 h-20 w-full bg-transparent border-0 text-lg text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
@@ -254,7 +254,7 @@ export const LandingPage: React.FC = () => {
             { 
               step: '1', 
               icon: LinkIcon, 
-              title: "Plak de Marktplaats-link", 
+              title: "Plak de autolink", 
               desc: "Kopieer de URL van de advertentie die je op het oog hebt."
             },
             { 
@@ -446,7 +446,7 @@ export const LandingPage: React.FC = () => {
          <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-12 text-center">Veelgestelde vragen</h2>
          <Accordion type="single" collapsible className="w-full space-y-4">
            {[
-             { q: "Werkt het alleen voor Marktplaats?", a: "Ja, momenteel ondersteunen we Marktplaats volledig." },
+             { q: "Werkt het alleen voor Marktplaats?", a: "Nee, we ondersteunen momenteel zowel Marktplaats als AutoScout24." },
              { q: "Hoe nauwkeurig is de prijsanalyse?", a: "We vergelijken met 10–20 actuele vergelijkbare advertenties in heel Nederland op het moment van analyse." },
              { q: "Is mijn data veilig?", a: "We slaan alleen de analyseresultaten op, niet je persoonlijke gegevens. Je hoeft zelfs geen account te maken voor je eerste rapport." },
              { q: "Kan ik het rapport delen?", a: "Ja, elk rapport heeft een unieke deelbare link die je via WhatsApp of e-mail kunt sturen." },

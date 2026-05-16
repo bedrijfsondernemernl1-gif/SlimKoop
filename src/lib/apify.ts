@@ -213,7 +213,8 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
         const title = (item.title || "").toLowerCase();
         
         // Moet modelnaam bevatten (om brede Marktplaats zoekresultaten af te vangen)
-        if (modelWords.length > 0 && !modelWords.some(w => title.includes(w))) {
+        const cleanTitle = title.replace(/-/g, ' ');
+        if (modelWords.length > 0 && !modelWords.every(w => cleanTitle.includes(w))) {
             return false;
         }
 
@@ -250,6 +251,108 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     return vergelijkbaar;
   } catch (error) {
     console.error("Fout tijdens scrapeVergelijkbaar:", error);
+    return [];
+  }
+}
+
+export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | null> {
+  try {
+    const client = getApifyClient();
+    const actorId = 'Dckez3uXbF6dh6dMe';
+
+    const run = await client.actor(actorId).call({
+      urls: [{ url }],
+      maxResults: 1,
+      includeDetails: true,
+      countries: ["NL"]
+    });
+
+    const datasetClient = client.dataset(run.defaultDatasetId!);
+    const { items } = await datasetClient.listItems();
+    const item: any = items[0] || {};
+
+    if (!item || !item.title) {
+      console.log("[SCRAPER] Geen data ontvangen van AutoScout24");
+      return null;
+    }
+
+    console.log("[SCRAPER] AutoScout24 Raw data keys:", Object.keys(item));
+
+    const price = parseInt(item.price) || 0;
+    const mileage = parseInt(item.mileageKm) || 0;
+    const firstRegYear = item.firstRegistration ? parseInt(item.firstRegistration.split('-')[0]) || parseInt(item.firstRegistration.split('/')[1]) || 0 : 0;
+    let daysOnline = 0;
+    if (item.createdAt) {
+       daysOnline = Math.floor((new Date().getTime() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    const data: MarktplaatsData = {
+      titel: item.title || "",
+      prijs: price,
+      beschrijving: (item.description || "").replace(/<[^>]+>/g, ''),
+      fotos: item.images || [],
+      kenteken: "",
+      kilometerstand: mileage,
+      bouwjaar: firstRegYear,
+      brandstof: item.fuelType || "Onbekend",
+      transmissie: item.transmission === "Manual" ? "Handgeschakeld" : (item.transmission === "Automatic" ? "Automaat" : item.transmission || "Onbekend"),
+      carrosserie: item.bodyType || "",
+      merk: item.make || "",
+      model: item.model || item.modelGroup || "",
+      verkoper: item.sellerName || "Onbekend",
+      verkoperType: item.sellerType || "Onbekend",
+      verkoperSinds: "Onbekend",
+      aantalAdvertenties: 0,
+      dagenOnline: daysOnline,
+      advertentieId: String(item.id || "Niet beschikbaar")
+    };
+
+    console.log(`[SCRAPER] Geëxtraheerd AutoScout24: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.brandstof}`);
+    return data;
+  } catch (error) {
+    console.error("Fout tijdens scrapeAutoScout24:", error);
+    return null;
+  }
+}
+
+export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string, jaar: number): Promise<VergelijkbaarResult[]> {
+  if (!merk || !model) {
+    console.log("[SCRAPER] Geen merk of model voor vergelijkbaar zoeken op AutoScout");
+    return [];
+  }
+
+  try {
+    const client = getApifyClient();
+    const actorId = 'Dckez3uXbF6dh6dMe';
+
+    const makeSlug = merk.toLowerCase().replace(/\s+/g, '-');
+    const modelSlug = model.toLowerCase().replace(/\s+/g, '-');
+
+    const run = await client.actor(actorId).call({
+      make: makeSlug,
+      model: modelSlug,
+      countries: ["NL"],
+      yearFrom: jaar > 1900 ? jaar - 1 : undefined,
+      yearTo: jaar > 1900 ? jaar + 1 : undefined,
+      maxResults: 15,
+      compact: true
+    });
+
+    const datasetClient = client.dataset(run.defaultDatasetId!);
+    const { items } = await datasetClient.listItems();
+
+    const vergelijkbaar: VergelijkbaarResult[] = items.map((item: any) => ({
+      titel: item.title || "",
+      prijs: parseInt(item.price) || 0,
+      km: parseInt(item.mileageKm) || 0,
+      jaar: item.firstRegistration ? parseInt(item.firstRegistration.split('-')[0]) || parseInt(item.firstRegistration.split('/')[1]) || 0 : 0,
+      url: item.url || ""
+    }));
+
+    console.log(`[SCRAPER] ${vergelijkbaar.length} vergelijkbare auto's gevonden via AutoScout24`);
+    return vergelijkbaar;
+  } catch (error) {
+    console.error("Fout tijdens scrapeAutoScout24Vergelijkbaar:", error);
     return [];
   }
 }

@@ -3,21 +3,23 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
-import { scrapeMarktplaats, scrapeVergelijkbaar } from './src/lib/apify';
+import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar } from './src/lib/apify';
 import { checkRDW } from './src/lib/rdw';
 import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
 
-import admin from "firebase-admin";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-    credential: admin.credential.applicationDefault()
-  });
-}
-const adminDb = admin.firestore();
-adminDb.settings({ databaseId: firebaseConfig.firestoreDatabaseId });
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const adminDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+
+// Sign in server bot
+signInWithEmailAndPassword(auth, "admin_server_bot@slimkoop.nl", "ServerSuperPassword123!")
+  .then(() => console.log("[SERVER] Logged in as Server Bot for Firestore access."))
+  .catch((err) => console.error("[SERVER] Failed to login Server Bot:", err));
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const PRICE_IDS = {
@@ -67,15 +69,15 @@ async function startServer() {
             permissies = "autohandelaar";
           }
 
-          const userRef = adminDb.collection("gebruikers").doc(userId);
-          await userRef.set({
+          const userRef = doc(adminDb, "gebruikers", userId);
+          await setDoc(userRef, {
             subscriptionStatus: "active",
             pakket: pakket,
             permissies: permissies,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
-            laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
+            laatsteBetaling: serverTimestamp(),
           }, { merge: true }).catch(err => console.error("Admin DB set failed:", err));
           
           return res.json({ success: true, updated: true, pakket, permissies });
@@ -178,15 +180,15 @@ async function startServer() {
             permissies = "autohandelaar";
           }
 
-          const userRef = adminDb.collection("gebruikers").doc(userId);
-          await userRef.set({
+          const userRef = doc(adminDb, "gebruikers", userId);
+          await setDoc(userRef, {
             subscriptionStatus: session.payment_status === "paid" ? "active" : "pending",
             pakket: pakket,
             permissies: permissies,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
-            laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
+            laatsteBetaling: serverTimestamp(),
           }, { merge: true });
           
           console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
@@ -198,16 +200,17 @@ async function startServer() {
         
         if (isCanceledOrDeleted) {
           try {
-            const usersSnapshot = await adminDb.collection("gebruikers").where("stripeCustomerId", "==", customerId).get();
+            const q = query(collection(adminDb, "gebruikers"), where("stripeCustomerId", "==", customerId));
+            const usersSnapshot = await getDocs(q);
             if (!usersSnapshot.empty) {
-              const userDoc = usersSnapshot.docs[0];
-              await userDoc.ref.set({
+              const userDocRef = usersSnapshot.docs[0].ref;
+              await setDoc(userDocRef, {
                 subscriptionStatus: 'free',
                 pakket: 'free',
                 permissies: 'free',
                 stripeSubscriptionId: null
               }, { merge: true });
-              console.log(`[SERVER] Successfully downgraded user ${userDoc.id} to free layout because subscription was canceled/deleted`);
+              console.log(`[SERVER] Successfully downgraded user ${usersSnapshot.docs[0].id} to free layout because subscription was canceled/deleted`);
             }
           } catch (error) {
              console.error("[SERVER] Error downgrading user after subscription cancel:", error);
@@ -224,13 +227,24 @@ async function startServer() {
 
   app.post("/api/scrape-marktplaats", async (req, res) => {
     const { url } = req.body;
-    if (!url || !url.includes("marktplaats.nl")) {
-      return res.status(400).json({ error: "Geldige Marktplaats URL is vereist" });
+    if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {
+      return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
     }
 
     try {
       console.log(`[SERVER] Start scraping for URL: ${url}`);
-      const listing = await scrapeMarktplaats(url);
+      
+      let listing;
+      let vergelijkbaarPromise;
+
+      if (url.includes('autoscout24')) {
+        listing = await scrapeAutoScout24(url);
+        if (listing) vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+      } else {
+        listing = await scrapeMarktplaats(url);
+        if (listing) vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+      }
+
       if (!listing) {
         return res.status(404).json({ error: 'Kon de advertentie niet ophalen.' });
       }
@@ -238,7 +252,7 @@ async function startServer() {
       console.log(`[SERVER] Scraped listing: ${listing.titel}, fetching parallels...`);
       
       const [vergelijkbaar, rdw] = await Promise.all([
-        scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar).catch(() => []),
+        vergelijkbaarPromise || Promise.resolve([]),
         checkRDW(listing.kenteken).catch(() => null)
       ]);
 
@@ -260,17 +274,17 @@ async function startServer() {
     if (!rapportId) return res.status(400).json({ error: "rapportId is vereist" });
 
     try {
-      const rapportRef = adminDb.collection('rapporten').doc(rapportId);
-      await rapportRef.update({
+      const rapportRef = doc(adminDb, 'rapporten', rapportId);
+      await updateDoc(rapportRef, {
         ...data,
         ...analyses,
         status: 'compleet',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: serverTimestamp()
       });
 
       // Sync to analyses collection for dashboard if user is not admin
       if (userId && userId !== "anonymous") {
-        await adminDb.collection('analyses').add({
+        await addDoc(collection(adminDb, 'analyses'), {
           userId: userId,
           rapportId: rapportId,
           title: data.autoNaam || data.titel,
@@ -280,7 +294,7 @@ async function startServer() {
           url: data.url,
           status: 'Voltooid',
           statusColor: 'text-accent-green',
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: serverTimestamp()
         });
       }
 
@@ -294,15 +308,15 @@ async function startServer() {
   app.post("/api/analyseer", async (req, res) => {
     const { url, userId } = req.body;
 
-    if (!url || !url.includes("marktplaats.nl")) {
-      return res.status(400).json({ error: "Geldige Marktplaats URL is vereist" });
+    if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {
+      return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
     }
     
     // Check permissions / deduct single scans
     if (userId && userId !== "anonymous") {
       try {
-        const userDoc = await adminDb.collection("gebruikers").doc(userId).get();
-        if (userDoc.exists) {
+        const userDoc = await getDoc(doc(adminDb, "gebruikers", userId));
+        if (userDoc.exists()) {
           const data = userDoc.data() as any;
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
           const isAdmin = adminEmails.includes(data.email || '');
@@ -310,7 +324,7 @@ async function startServer() {
           
           if (pakket === "Losse Scan" && !isAdmin) {
             // Revert back to free after using the single scan
-            await adminDb.collection("gebruikers").doc(userId).set({ 
+            await setDoc(doc(adminDb, "gebruikers", userId), { 
               pakket: 'free', 
               permissies: 'free', 
               subscriptionStatus: 'free' 
@@ -323,11 +337,11 @@ async function startServer() {
     }
 
     try {
-      const docRef = await adminDb.collection('rapporten').add({
+      const docRef = await addDoc(collection(adminDb, 'rapporten'), {
         userId: userId || "anonymous",
         url: url,
         status: "verwerking",
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: serverTimestamp()
       });
 
       // Start background process
@@ -371,8 +385,8 @@ async function startServer() {
       const { isBetaald } = req.query;
       const isPaid = isBetaald === 'true';
 
-      const docSnap = await adminDb.collection('rapporten').doc(rapportId).get();
-      if (!docSnap.exists) {
+      const docSnap = await getDoc(doc(adminDb, 'rapporten', rapportId));
+      if (!docSnap.exists()) {
         return res.status(404).json({ error: "Rapport niet gevonden" });
       }
 
@@ -430,20 +444,30 @@ async function startServer() {
 async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
   try {
     // ── FASE 1: SCRAPING ──
-    const rapportRef = adminDb.collection('rapporten').doc(rapportId);
-    await rapportRef.update({ status: 'scraping' });
+    const rapportRef = doc(adminDb, 'rapporten', rapportId);
+    await updateDoc(rapportRef, { status: 'scraping' });
     console.log(`[SCRAPING] Listing at URL: ${url}`);
     
-    const listing = await scrapeMarktplaats(url);
+    let listing;
+    let vergelijkbaarPromise;
+
+    if (url.includes('autoscout24')) {
+      listing = await scrapeAutoScout24(url);
+      if (listing) vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+    } else {
+      listing = await scrapeMarktplaats(url);
+      if (listing) vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+    }
+
     if (!listing) {
       console.error(`[SCRAPING] Failed for URL: ${url}`);
-      await rapportRef.update({ status: 'fout', error: 'Kon de advertentie niet ophalen.' });
+    await updateDoc(rapportRef, { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
       return;
     }
     
     console.log(`[SCRAPING] Success: ${listing.titel} (${listing.kenteken})`);
 
-    await rapportRef.update({ 
+    await updateDoc(rapportRef, { 
       autoNaam: listing.titel,
       vraagprijs: listing.prijs,
       kilometerstand: listing.kilometerstand,
@@ -466,11 +490,11 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     });
 
     // ── FASE 2: PARALLEL OPHALEN ──
-    await rapportRef.update({ status: 'vergelijken' });
+    await updateDoc(rapportRef, { status: 'vergelijken' });
     console.log(`[PARALLEL] Start tasks voor ${listing.kenteken}`);
 
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
-      scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar),
+      vergelijkbaarPromise || Promise.resolve([]),
       checkRDW(listing.kenteken),
       analyseerFotos(listing.fotos)
     ]);
@@ -482,7 +506,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     console.log(`[PARALLEL] Collected data: ${vergelijkbareAutos.length} parallels, RDW: ${!!rdw}, Fotos: ${fotos.fotos?.length || 0}`);
 
     // ── FASE 3: GEMINI ANALYSE ──
-    await rapportRef.update({ status: 'analyseren' });
+    await updateDoc(rapportRef, { status: 'analyseren' });
     
     let analyse;
     try {
@@ -491,7 +515,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
       console.error("[GEMINI] EXCEPTION:", e.message);
-      await rapportRef.update({ 
+      await updateDoc(rapportRef, { 
         status: 'fout', 
         error: `AI Analyse fout: ${e.message}` 
       });
@@ -500,7 +524,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
     if (!analyse) {
       console.error("[GEMINI] No result returned.");
-      await rapportRef.update({ 
+      await updateDoc(rapportRef, { 
         status: 'fout', 
         error: 'Gemini retourneerde geen resultaat. Check API key.' 
       });
@@ -508,9 +532,9 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     }
 
     // ── FASE 4: ALLES OPSLAAN ──
-    await rapportRef.update({ status: 'afronden' });
+    await updateDoc(rapportRef, { status: 'afronden' });
 
-    await rapportRef.update({
+    await updateDoc(rapportRef, {
         dealScore: analyse.dealScore || 0,
         verdict: analyse.verdict || 'onbekend',
         eerlijkePrijs: analyse.eerlijkePrijs || 0,
@@ -528,12 +552,12 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
         fotoAnalyse: fotos.fotos || [],
         ontbrekendeFotos: fotos.ontbrekendeFotos || [],
         status: 'compleet',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: serverTimestamp()
     });
     
     // Sync to analyses collection for dashboard if user is not anonymous
     if (userId && userId !== "anonymous") {
-        await adminDb.collection('analyses').add({
+        await addDoc(collection(adminDb, 'analyses'), {
             userId: userId,
             rapportId: rapportId,
             title: listing.titel,
@@ -543,7 +567,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
             url: url,
             status: 'Voltooid',
             statusColor: 'text-accent-green',
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
+            createdAt: serverTimestamp()
         });
     }
     
@@ -551,7 +575,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
   } catch (error: any) {
     console.error("[ERROR] In background task:", error);
-    await adminDb.collection('rapporten').doc(rapportId).update({ 
+    await updateDoc(doc(adminDb, 'rapporten', rapportId), { 
         status: 'fout', 
         error: error.message || 'Onbekende fout' 
     });

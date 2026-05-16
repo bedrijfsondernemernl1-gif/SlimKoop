@@ -188,7 +188,7 @@ export const ReportPage: React.FC = () => {
            </div>
            <div>
              <h2 className="text-3xl font-heading font-extrabold text-white mb-3 tracking-tight">Auto wordt geanalyseerd...</h2>
-             <p className="text-gray-400 text-lg">Onze AI verzamelt nu alle gegevens van Marktplaats en RDW.</p>
+             <p className="text-gray-400 text-lg">Onze AI verzamelt nu alle gegevens van {reportData?.url?.includes('autoscout') ? 'AutoScout24' : 'Marktplaats'} en RDW.</p>
            </div>
            
            {/* Stappen weergave */}
@@ -713,7 +713,7 @@ export const ReportPage: React.FC = () => {
                                  <td className="py-4 px-6 text-gray-400">{auto.jaar || auto.bouwjaar}</td>
                                  <td className="py-4 px-6 text-gray-400">{(auto.km || auto.kilometerstand)?.toLocaleString()}</td>
                                  <td className="py-4 px-6 font-bold text-right text-white">€ {auto.prijs?.toLocaleString()}</td>
-                                 <td className="py-4 px-6 text-gray-400">Marktplaats</td>
+                                 <td className="py-4 px-6 text-gray-400">{((auto.url || auto.link || reportData?.url || "").includes("autoscout")) ? "AutoScout24" : "Marktplaats"}</td>
                                  <td className="py-4 px-6 text-right">
                                    <a href={auto.url || auto.link} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
                                  </td>

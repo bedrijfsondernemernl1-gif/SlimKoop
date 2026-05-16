@@ -144,7 +144,9 @@ export const DashboardSettings: React.FC = () => {
                     <div className="text-3xl font-heading font-bold text-white">
                       {isPremium ? (subscriptionPlan === 'Autohandelaar' ? '€29' : (subscriptionPlan === 'Losse Scan' ? '€9,99' : '€19,99')) : '€0'}
                     </div>
-                    <div className="text-gray-500 text-sm">per maand</div>
+                    <div className="text-gray-500 text-sm">
+                      {subscriptionPlan === 'Autohandelaar' ? 'per maand' : (isPremium ? 'eenmalig' : '')}
+                    </div>
                   </div>
                 </div>
                 
