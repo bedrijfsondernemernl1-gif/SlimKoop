@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ShaderBackground } from './components/ShaderBackground';
 import { Navbar } from './components/Navbar';
 import { LandingPage } from './pages/LandingPage';
@@ -10,6 +10,8 @@ import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
 import { AboutPage } from './pages/AboutPage';
 import { AnalysisInputPage } from './pages/AnalysisInputPage';
+import { useStore } from './store/useStore';
+import { Loader2 } from 'lucide-react';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -19,6 +21,24 @@ function ScrollToTop() {
   }, [pathname]);
 
   return null;
+}
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn, authLoading } = useStore();
+  
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -35,7 +55,14 @@ export default function App() {
           <Route path="/prijzen" element={<PricingPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/over-ons" element={<AboutPage />} />
-          <Route path="/dashboard/*" element={<Dashboard />} />
+          <Route 
+            path="/dashboard/*" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/rapport/:id" element={<ReportPage />} />
         </Routes>
       </div>
