@@ -16,8 +16,19 @@ export const Dashboard: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
+    const sessionId = searchParams.get('session_id');
+    const isSuccess = searchParams.get('success');
+
+    if (isSuccess === 'true') {
       setShowSuccess(true);
+      if (sessionId) {
+        fetch(`/api/verify-checkout-session?session_id=${sessionId}`)
+          .then(res => res.json())
+          .then(data => {
+            console.log("Session verified:", data);
+          })
+          .catch(err => console.error("Verify session error:", err));
+      }
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);

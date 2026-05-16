@@ -7,11 +7,8 @@ import { scrapeMarktplaats, scrapeVergelijkbaar } from './src/lib/apify';
 import { checkRDW } from './src/lib/rdw';
 import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
 
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, updateDoc, doc, serverTimestamp, getDoc, setDoc } from "firebase/firestore";
-import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
-
 import admin from "firebase-admin";
+import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -21,9 +18,6 @@ if (!admin.apps.length) {
 }
 const adminDb = admin.firestore();
 adminDb.settings({ databaseId: firebaseConfig.firestoreDatabaseId });
-
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const PRICE_IDS = {
@@ -44,6 +38,55 @@ async function startServer() {
         }
     }
   }));
+
+  app.get("/api/verify-checkout-session", async (req, res) => {
+    const { session_id } = req.query;
+    if (!session_id || typeof session_id !== "string") {
+      return res.status(400).json({ error: "Missing session_id" });
+    }
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      if (session.payment_status === "paid") {
+        const userId = session.metadata?.userId;
+        const priceId = session.metadata?.priceId;
+        const customerId = session.customer as string;
+        const subscriptionId = session.subscription as string;
+
+        if (userId) {
+          let pakket = "free";
+          let permissies = "free";
+
+          if (priceId === "price_1TWzIHRsJS7Vz7uquwItCZSP") {
+            pakket = "Losse Scan";
+            permissies = "losse_scan";
+          } else if (priceId === "price_1TWzJoRsJS7Vz7uq0sMvxaLG") {
+            pakket = "Slimme Koper";
+            permissies = "slimme_koper";
+          } else if (priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ") {
+            pakket = "Autohandelaar";
+            permissies = "autohandelaar";
+          }
+
+          const userRef = adminDb.collection("gebruikers").doc(userId);
+          await userRef.set({
+            subscriptionStatus: "active",
+            pakket: pakket,
+            permissies: permissies,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId || null,
+            betaalstatus: session.payment_status,
+            laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+          
+          return res.json({ success: true, updated: true, pakket });
+        }
+      }
+      res.json({ success: true, updated: false });
+    } catch (err: any) {
+      console.error("[SERVER] Verify session error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   app.post("/api/create-checkout-session", async (req, res) => {
     const { priceId, userId, userEmail, mode } = req.body;
@@ -76,7 +119,7 @@ async function startServer() {
             quantity: 1,
           },
         ],
-        success_url: `${req.headers.origin}/dashboard?success=true`,
+        success_url: `${req.headers.origin}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.origin}/#prijzen`,
         allow_promotion_codes: true,
         metadata: {
@@ -135,15 +178,15 @@ async function startServer() {
             permissies = "autohandelaar";
           }
 
-          const userRef = doc(db, "gebruikers", userId);
-          await setDoc(userRef, {
+          const userRef = adminDb.collection("gebruikers").doc(userId);
+          await userRef.set({
             subscriptionStatus: session.payment_status === "paid" ? "active" : "pending",
             pakket: pakket,
             permissies: permissies,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
-            laatsteBetaling: serverTimestamp(),
+            laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
           
           console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
@@ -195,17 +238,17 @@ async function startServer() {
     if (!rapportId) return res.status(400).json({ error: "rapportId is vereist" });
 
     try {
-      const rapportRef = doc(db, 'rapporten', rapportId);
-      await updateDoc(rapportRef, {
+      const rapportRef = adminDb.collection('rapporten').doc(rapportId);
+      await rapportRef.update({
         ...data,
         ...analyses,
         status: 'compleet',
-        updatedAt: serverTimestamp()
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      // Sync to analyses collection for dashboard if user is not anonymous
+      // Sync to analyses collection for dashboard if user is not admin
       if (userId && userId !== "anonymous") {
-        await addDoc(collection(db, 'analyses'), {
+        await adminDb.collection('analyses').add({
           userId: userId,
           rapportId: rapportId,
           title: data.autoNaam || data.titel,
@@ -215,7 +258,7 @@ async function startServer() {
           url: data.url,
           status: 'Voltooid',
           statusColor: 'text-accent-green',
-          createdAt: serverTimestamp()
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
       }
 
@@ -236,16 +279,16 @@ async function startServer() {
     // Check permissions / deduct single scans
     if (userId && userId !== "anonymous") {
       try {
-        const userDoc = await getDoc(doc(db, "gebruikers", userId));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
+        const userDoc = await adminDb.collection("gebruikers").doc(userId).get();
+        if (userDoc.exists) {
+          const data = userDoc.data() as any;
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
           const isAdmin = adminEmails.includes(data.email || '');
           const pakket = data.pakket || 'free';
           
           if (pakket === "Losse Scan" && !isAdmin) {
             // Revert back to free after using the single scan
-            await setDoc(doc(db, "gebruikers", userId), { 
+            await adminDb.collection("gebruikers").doc(userId).set({ 
               pakket: 'free', 
               permissies: 'free', 
               subscriptionStatus: 'free' 
@@ -258,11 +301,11 @@ async function startServer() {
     }
 
     try {
-      const docRef = await addDoc(collection(db, 'rapporten'), {
+      const docRef = await adminDb.collection('rapporten').add({
         userId: userId || "anonymous",
         url: url,
         status: "verwerking",
-        createdAt: serverTimestamp()
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       // Start background process
@@ -306,12 +349,12 @@ async function startServer() {
       const { isBetaald } = req.query;
       const isPaid = isBetaald === 'true';
 
-      const docSnap = await getDoc(doc(db, 'rapporten', rapportId));
-      if (!docSnap.exists()) {
+      const docSnap = await adminDb.collection('rapporten').doc(rapportId).get();
+      if (!docSnap.exists) {
         return res.status(404).json({ error: "Rapport niet gevonden" });
       }
 
-      const rawData = docSnap.data();
+      const rawData = docSnap.data() as any;
 
       // Ensure some base fields are always returned, mostly for loading screen
       if (!['verwerking', 'scraping', 'vergelijken', 'analyseren', 'afronden', 'ai_analyseren', 'compleet', 'fout'].includes(rawData.status)) {
@@ -365,19 +408,20 @@ async function startServer() {
 async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
   try {
     // ── FASE 1: SCRAPING ──
-    await updateDoc(doc(db, 'rapporten', rapportId), { status: 'scraping' });
+    const rapportRef = adminDb.collection('rapporten').doc(rapportId);
+    await rapportRef.update({ status: 'scraping' });
     console.log(`[SCRAPING] Listing at URL: ${url}`);
     
     const listing = await scrapeMarktplaats(url);
     if (!listing) {
       console.error(`[SCRAPING] Failed for URL: ${url}`);
-      await updateDoc(doc(db, 'rapporten', rapportId), { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
+      await rapportRef.update({ status: 'fout', error: 'Kon de advertentie niet ophalen.' });
       return;
     }
     
     console.log(`[SCRAPING] Success: ${listing.titel} (${listing.kenteken})`);
 
-    await updateDoc(doc(db, 'rapporten', rapportId), { 
+    await rapportRef.update({ 
       autoNaam: listing.titel,
       vraagprijs: listing.prijs,
       kilometerstand: listing.kilometerstand,
@@ -400,7 +444,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     });
 
     // ── FASE 2: PARALLEL OPHALEN ──
-    await updateDoc(doc(db, 'rapporten', rapportId), { status: 'vergelijken' });
+    await rapportRef.update({ status: 'vergelijken' });
     console.log(`[PARALLEL] Start tasks voor ${listing.kenteken}`);
 
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
@@ -416,7 +460,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     console.log(`[PARALLEL] Collected data: ${vergelijkbareAutos.length} parallels, RDW: ${!!rdw}, Fotos: ${fotos.fotos?.length || 0}`);
 
     // ── FASE 3: GEMINI ANALYSE ──
-    await updateDoc(doc(db, 'rapporten', rapportId), { status: 'analyseren' });
+    await rapportRef.update({ status: 'analyseren' });
     
     let analyse;
     try {
@@ -425,7 +469,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
       console.error("[GEMINI] EXCEPTION:", e.message);
-      await updateDoc(doc(db, 'rapporten', rapportId), { 
+      await rapportRef.update({ 
         status: 'fout', 
         error: `AI Analyse fout: ${e.message}` 
       });
@@ -434,7 +478,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
     if (!analyse) {
       console.error("[GEMINI] No result returned.");
-      await updateDoc(doc(db, 'rapporten', rapportId), { 
+      await rapportRef.update({ 
         status: 'fout', 
         error: 'Gemini retourneerde geen resultaat. Check API key.' 
       });
@@ -442,9 +486,9 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     }
 
     // ── FASE 4: ALLES OPSLAAN ──
-    await updateDoc(doc(db, 'rapporten', rapportId), { status: 'afronden' });
+    await rapportRef.update({ status: 'afronden' });
 
-    await updateDoc(doc(db, 'rapporten', rapportId), {
+    await rapportRef.update({
         dealScore: analyse.dealScore || 0,
         verdict: analyse.verdict || 'onbekend',
         eerlijkePrijs: analyse.eerlijkePrijs || 0,
@@ -462,12 +506,12 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
         fotoAnalyse: fotos.fotos || [],
         ontbrekendeFotos: fotos.ontbrekendeFotos || [],
         status: 'compleet',
-        updatedAt: serverTimestamp()
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     
     // Sync to analyses collection for dashboard if user is not anonymous
     if (userId && userId !== "anonymous") {
-        await addDoc(collection(db, 'analyses'), {
+        await adminDb.collection('analyses').add({
             userId: userId,
             rapportId: rapportId,
             title: listing.titel,
@@ -477,7 +521,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
             url: url,
             status: 'Voltooid',
             statusColor: 'text-accent-green',
-            createdAt: serverTimestamp()
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
     }
     
@@ -485,7 +529,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
   } catch (error: any) {
     console.error("[ERROR] In background task:", error);
-    await updateDoc(doc(db, 'rapporten', rapportId), { 
+    await adminDb.collection('rapporten').doc(rapportId).update({ 
         status: 'fout', 
         error: error.message || 'Onbekende fout' 
     });
