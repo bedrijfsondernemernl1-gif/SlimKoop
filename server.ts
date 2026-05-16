@@ -76,9 +76,9 @@ async function startServer() {
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
             laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
-          }, { merge: true });
+          }, { merge: true }).catch(err => console.error("Admin DB set failed:", err));
           
-          return res.json({ success: true, updated: true, pakket });
+          return res.json({ success: true, updated: true, pakket, permissies });
         }
       }
       res.json({ success: true, updated: false });

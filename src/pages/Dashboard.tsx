@@ -3,6 +3,8 @@ import { Routes, Route, useNavigate, useLocation, useSearchParams } from 'react-
 import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useStore } from '@/src/store/useStore';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, auth } from '@/src/lib/firebase';
 import { DashboardOverview } from '@/src/components/dashboard/DashboardOverview';
 import { DashboardGarage } from '@/src/components/dashboard/DashboardGarage';
 import { DashboardHistory } from '@/src/components/dashboard/DashboardHistory';
@@ -24,8 +26,18 @@ export const Dashboard: React.FC = () => {
       if (sessionId) {
         fetch(`/api/verify-checkout-session?session_id=${sessionId}`)
           .then(res => res.json())
-          .then(data => {
+          .then(async (data) => {
             console.log("Session verified:", data);
+            if (data.success && data.pakket) {
+              if (auth.currentUser) {
+                const userRef = doc(db, 'gebruikers', auth.currentUser.uid);
+                await setDoc(userRef, {
+                  subscriptionStatus: 'active',
+                  pakket: data.pakket,
+                  permissies: data.permissies || (data.pakket.toLowerCase() === 'autohandelaar' ? 'autohandelaar' : (data.pakket.toLowerCase() === 'slimme koper' ? 'slimme_koper' : 'losse_scan')),
+                }, { merge: true }).catch(err => console.error("Client DB set fallback failed:", err));
+              }
+            }
           })
           .catch(err => console.error("Verify session error:", err));
       }
