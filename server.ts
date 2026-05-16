@@ -225,6 +225,39 @@ async function startServer() {
     }
   });
 
+  app.post("/api/sync-subscription", async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId required" });
+    
+    try {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) return res.status(404).json({ error: "User not found" });
+
+      const userData = userSnap.data();
+      const subId = userData.stripeSubscriptionId;
+      if (!subId) return res.json({ status: 'no_subscription', user: userData });
+
+      const subscription = await stripe.subscriptions.retrieve(subId);
+      const isCanceledOrDeleted = subscription.status === "canceled" || subscription.status === "unpaid" || subscription.cancel_at_period_end;
+      
+      if (isCanceledOrDeleted && userData.pakket !== 'free') {
+        await setDoc(userRef, {
+          subscriptionStatus: 'free',
+          pakket: 'free',
+          permissies: 'free',
+          stripeSubscriptionId: null
+        }, { merge: true });
+        return res.json({ status: 'downgraded' });
+      }
+
+      res.json({ status: 'active', subscription: subscription.status });
+    } catch (error: any) {
+      console.error("[SERVER] Sync subscription error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/scrape-marktplaats", async (req, res) => {
     const { url } = req.body;
     if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {

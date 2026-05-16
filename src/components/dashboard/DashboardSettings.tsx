@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Bell, CreditCard, Shield, Moon, Trash2, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
@@ -17,6 +17,33 @@ export const DashboardSettings: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    // Proactively sync subscription when returning to settings tab
+    const syncSubscription = async () => {
+      if (user?.uid) {
+        try {
+          await fetch('/api/sync-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.uid })
+          });
+        } catch (e) {}
+      }
+    };
+    syncSubscription();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncSubscription();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
 
   const handlePasswordReset = async () => {
     if (!user?.email) return;

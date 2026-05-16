@@ -117,6 +117,17 @@ export const useStore = create<StoreState>((set) => {
         } catch (err) {
           console.error("Failed to sync user doc:", err);
         }
+
+        // Proactively sync subscription with Stripe
+        try {
+          await fetch('/api/sync-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.uid })
+          });
+        } catch(e) {
+          console.error("Failed to sync Stripe subscription:", e);
+        }
       }
     }
 
