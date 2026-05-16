@@ -160,11 +160,6 @@ export const ContactPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="glass-panel border-white/10 p-6 rounded-2xl bg-white/[0.02]">
-                <h3 className="text-white font-semibold mb-2">Samenwerken?</h3>
-                <p className="text-sm text-gray-400 mb-4">Ben je een autodealer of heb je een handelsplatform en wil je SlimKoop integreren?</p>
-                <Button variant="outline" className="w-full text-white border-white/20 hover:bg-white/10 rounded-xl">Word Partner</Button>
-              </div>
             </div>
           </div>
         </motion.div>

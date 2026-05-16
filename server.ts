@@ -191,6 +191,28 @@ async function startServer() {
           
           console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
         }
+      } else if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        const isCanceledOrDeleted = event.type === "customer.subscription.deleted" || subscription.status === "canceled" || subscription.status === "unpaid" || subscription.cancel_at_period_end;
+        
+        if (isCanceledOrDeleted) {
+          try {
+            const usersSnapshot = await adminDb.collection("gebruikers").where("stripeCustomerId", "==", customerId).get();
+            if (!usersSnapshot.empty) {
+              const userDoc = usersSnapshot.docs[0];
+              await userDoc.ref.set({
+                subscriptionStatus: 'free',
+                pakket: 'free',
+                permissies: 'free',
+                stripeSubscriptionId: null
+              }, { merge: true });
+              console.log(`[SERVER] Successfully downgraded user ${userDoc.id} to free layout because subscription was canceled/deleted`);
+            }
+          } catch (error) {
+             console.error("[SERVER] Error downgrading user after subscription cancel:", error);
+          }
+        }
       }
 
       res.json({ received: true });

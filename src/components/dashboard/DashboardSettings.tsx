@@ -151,15 +151,10 @@ export const DashboardSettings: React.FC = () => {
                 <div className="flex gap-3 relative z-10">
                   <Button 
                     className="bg-white text-black hover:bg-gray-200 font-semibold rounded-xl flex-1"
-                    onClick={() => !isPremium && navigate('/prijzen')}
+                    onClick={() => isPremium ? window.open('https://billing.stripe.com/p/login/bJe4gBfEA966adC2Ha1ck00', '_blank') : navigate('/prijzen')}
                   >
                     {isPremium ? 'Lidmaatschap Beheren' : 'Upgrade nu'}
                   </Button>
-                  {isPremium && (
-                    <Button variant="outline" className="border-white/10 text-gray-300 hover:text-white bg-white/5 rounded-xl flex-1">
-                      Facturen
-                    </Button>
-                  )}
                 </div>
               </div>
 
@@ -179,9 +174,6 @@ export const DashboardSettings: React.FC = () => {
                   </div>
                 </div>
               )}
-              <p className="text-sm text-gray-500 mt-8">
-                Wil je je lidmaatschap annuleren? Neem dan contact met ons op via de <a href="/contact" className="text-accent-green hover:underline">contactpagina</a>.
-              </p>
             </div>
           )}
 

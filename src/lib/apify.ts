@@ -178,8 +178,8 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
 }
 
 export async function scrapeVergelijkbaar(merk: string, model: string, jaar: number): Promise<VergelijkbaarResult[]> {
-  if (!merk) {
-    console.log("[SCRAPER] Geen merk voor vergelijkbaar zoeken");
+  if (!merk || !model) {
+    console.log("[SCRAPER] Geen merk of model voor vergelijkbaar zoeken");
     return [];
   }
 
@@ -189,7 +189,11 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     
     // Bouw Marktplaats zoek-URL
     const merkSlug = merk.toLowerCase().replace(/\s+/g, '-');
-    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/#f:10882|constructionYearFrom:${jaar > 1900 ? jaar - 2 : ''}|constructionYearTo:${jaar > 1900 ? jaar + 2 : ''}`;
+    const modelSearch = encodeURIComponent(model.toLowerCase());
+    const yearFrom = jaar > 1900 ? jaar - 1 : '';
+    const yearTo = jaar > 1900 ? jaar + 1 : '';
+    
+    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/#f:10882|offeredSince:Altijd|constructionYearFrom:${yearFrom}|constructionYearTo:${yearTo}|searchInTitleAndDescription:true|searchQuery:${modelSearch}`;
     
     console.log(`[SCRAPER] Vergelijkbaar zoeken via URL: ${searchUrl}`);
 
@@ -201,12 +205,25 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
 
+    const modelWords = model.toLowerCase().split(' ').filter(w => w.length > 1);
+
     const vergelijkbaar: VergelijkbaarResult[] = items
       .filter((item: any) => {
         // Filter niet-relevante items
         const title = (item.title || "").toLowerCase();
-        const blacklist = ['gezocht', 'inkoop', 'onderdelen', 'demontage'];
+        
+        // Moet modelnaam bevatten (om brede Marktplaats zoekresultaten af te vangen)
+        if (modelWords.length > 0 && !modelWords.some(w => title.includes(w))) {
+            return false;
+        }
+
+        const blacklist = ['gezocht', 'inkoop', 'onderdelen', 'demontage', 'export', 'defect', 'schade'];
         if (blacklist.some(w => title.includes(w))) return false;
+        
+        // Betaalde advertenties of auto's zonder prijs negeren (als prijs <= 0)
+        const prijs = item.price?.priceCents ? Math.round(item.price.priceCents / 100) : 0;
+        if (prijs <= 0) return false;
+
         return true;
       })
       .slice(0, 10)
