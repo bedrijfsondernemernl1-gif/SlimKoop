@@ -105,7 +105,7 @@ export const Dashboard: React.FC = () => {
               {isPremium ? (subscriptionPlan || 'Pro Abonnement') : 'Gratis Account'}
             </p>
             <p className="text-gray-400 mb-4 text-xs">
-              {isPremium ? 'Je hebt premium voordelen.' : 'Upgrade voor meer inzicht.'}
+              {isPremium ? (permissies === 'slimme_koper' ? `Nog ${useStore.getState().scansOver} premium scans over.` : 'Je hebt premium voordelen.') : 'Upgrade voor meer inzicht.'}
             </p>
             <Button 
               variant={isPremium ? "outline" : "default"} 

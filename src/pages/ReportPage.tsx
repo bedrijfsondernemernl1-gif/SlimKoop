@@ -10,17 +10,17 @@ import { db } from '../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 const TABS = [
-  { id: 'overzicht', label: 'Overzicht', locked: false },
-  { id: 'prijs', label: 'Prijs', locked: true },
-  { id: 'vlaggen', label: 'Risico\'s', locked: true },
-  { id: 'foto', label: 'Foto Analyse', locked: true },
-  { id: 'script', label: 'Onderhandelen', locked: true }
+  { id: 'overzicht', label: 'Overzicht', minTier: 'free' },
+  { id: 'prijs', label: 'Prijs', minTier: 'losse_scan' },
+  { id: 'vlaggen', label: 'Risico\'s', minTier: 'losse_scan' },
+  { id: 'foto', label: 'Foto Analyse', minTier: 'slimme_koper' },
+  { id: 'script', label: 'Onderhandelen', minTier: 'slimme_koper' }
 ] as const;
 
 export const ReportPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPremium } = useStore();
+  const { isPremium, permissies } = useStore();
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['id']>('overzicht');
   
   const [reportData, setReportData] = useState<any>(null);
@@ -34,7 +34,8 @@ export const ReportPage: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const controls = useAnimation();
 
-  const hasAccess = isPremium;
+  const hasPaidAccess = isPremium || (reportData?.tier && reportData?.tier !== 'free');
+  const hasFullAccess = hasPaidAccess && (permissies === 'slimme_koper' || permissies === 'autohandelaar' || reportData?.tier === 'slimme_koper' || reportData?.tier === 'autohandelaar');
 
   useEffect(() => {
     if (!id) return;
@@ -43,7 +44,7 @@ export const ReportPage: React.FC = () => {
 
     const fetchReport = async () => {
       try {
-        const res = await fetch(`/api/rapport/${id}?isBetaald=${hasAccess}`);
+        const res = await fetch(`/api/rapport/${id}?isBetaald=${isPremium}&permissies=${permissies}`);
         const data = await res.json();
         
         if (res.status === 404 && isPolling) {
@@ -82,7 +83,7 @@ export const ReportPage: React.FC = () => {
     return () => {
       isPolling = false;
     };
-  }, [id, hasAccess]);
+  }, [id, isPremium, permissies]);
 
   useEffect(() => {
     if (reportData?.dealScore) {
@@ -271,7 +272,7 @@ export const ReportPage: React.FC = () => {
       if (navigator.share && window.self === window.top) {
         await navigator.share({
           title: data.autoNaam,
-          text: `Check dit Slimkoop rapport voor de ${data.autoNaam}`,
+          text: `Check dit OcassionScan rapport voor de ${data.autoNaam}`,
           url: window.location.href,
         });
       } else {
@@ -306,9 +307,25 @@ export const ReportPage: React.FC = () => {
     }
   };
 
-  const handleMijnRapportenClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigate('/dashboard');
+  const getTabLocked = (tabId: string) => {
+    const tab = TABS.find(t => t.id === tabId);
+    if (!tab) return false;
+    if (tab.minTier === 'free') return false;
+    
+    // Check if the report itself is unlocked for this session or if user has active plan
+    // If the data returned has valid content for the tab, it's not locked.
+    // However, we want to show the LOCK icon if they don't have the TIER.
+    
+    if (tab.minTier === 'losse_scan') {
+      return !isPremium && permissies === 'free' && reportData?.tier === 'free';
+    }
+    
+    if (tab.minTier === 'slimme_koper') {
+      const perms = reportData?.tier || permissies;
+      return perms !== 'slimme_koper' && perms !== 'autohandelaar' && !['slimme_koper', 'autohandelaar'].includes(permissies);
+    }
+    
+    return false;
   };
 
   return (
@@ -426,7 +443,7 @@ export const ReportPage: React.FC = () => {
           {/* RIGHT COLUMN */}
           <div className="flex flex-col h-full gap-6">
             <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-8 shadow-xl flex flex-col items-center text-center">
-              <div className="text-gray-400 font-bold tracking-[0.2em] uppercase text-xs mb-8">SLIMKOOP SCORE</div>
+              <div className="text-gray-400 font-bold tracking-[0.2em] uppercase text-xs mb-8">OCASSIONSCAN SCORE</div>
               
               {/* Circular Score */}
               <div className="relative w-48 h-48 mb-6">
@@ -464,7 +481,7 @@ export const ReportPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center text-gray-300">
                   <span>Eerlijke Prijs</span>
-                  {hasAccess ? (
+                  {hasPaidAccess ? (
                     <span className="font-bold text-accent-green text-lg">€ {data.eerlijkePrijs.toLocaleString('nl-NL')}</span>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -473,15 +490,15 @@ export const ReportPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className={`flex justify-between items-center bg-accent-green/10 p-4 rounded-xl mt-4 border border-accent-green/20 ${!hasAccess ? 'grayscale opacity-50' : ''}`}>
+                <div className={`flex justify-between items-center bg-accent-green/10 p-4 rounded-xl mt-4 border border-accent-green/20 ${!hasPaidAccess ? 'grayscale opacity-50' : ''}`}>
                   <span className="text-gray-200 font-bold uppercase text-xs tracking-wider">Directe Winst</span>
-                  {hasAccess ? (
+                  {hasPaidAccess ? (
                     <span className="font-black text-accent-green text-xl">+ € {(data.eerlijkePrijs - data.vraagprijs).toLocaleString('nl-NL')}</span>
                   ) : (
                     <span className="font-black text-gray-500 text-xl blur-sm select-none">+ € x.xxx</span>
                   )}
                 </div>
-                {!hasAccess && (
+                {!hasPaidAccess && (
                   <Button 
                     className="w-full mt-4 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm"
                     onClick={() => navigate('/prijzen')}
@@ -521,6 +538,7 @@ export const ReportPage: React.FC = () => {
           <div className="flex gap-1">
             {TABS.map((tab) => {
               const isSelected = activeTab === tab.id;
+              const isLocked = getTabLocked(tab.id);
               return (
                 <button
                   key={tab.id}
@@ -532,7 +550,7 @@ export const ReportPage: React.FC = () => {
                   }`}
                 >
                   {tab.label}
-                  {tab.locked && !hasAccess && <Lock className={`w-3.5 h-3.5 ${isSelected ? 'text-accent-green' : 'text-gray-500'}`} />}
+                  {isLocked && <Lock className={`w-3.5 h-3.5 ${isSelected ? 'text-accent-green' : 'text-gray-500'}`} />}
                 </button>
               )
             })}
@@ -569,10 +587,10 @@ export const ReportPage: React.FC = () => {
                     <h3 className="text-xl font-bold text-white">Aandachtspunten</h3>
                   </div>
                   <ul className="space-y-4">
-                    {data.aandachtspunten.slice(0, hasAccess ? undefined : 2).map((punt: string, i: number) => (
+                    {data.aandachtspunten.slice(0, hasPaidAccess ? undefined : 2).map((punt: string, i: number) => (
                       <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-amber-500 mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
                     ))}
-                    {!hasAccess && data.aandachtspunten.length > 2 && (
+                    {!hasPaidAccess && data.aandachtspunten.length > 2 && (
                       <>
                         <li className="flex gap-3 text-gray-300 items-start opacity-40 blur-[2px] select-none">
                           <span className="text-amber-500 mt-0.5 font-bold">•</span> 
@@ -889,24 +907,27 @@ export const ReportPage: React.FC = () => {
                </div>
 
                {/* PAYWALL OVERLAY */}
-               {!hasAccess && (
+               {((['prijs', 'vlaggen'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
+                   (['foto', 'script'].indexOf(activeTab) !== -1 && !hasFullAccess)) && (
                  <div className="absolute inset-x-0 bottom-0 top-0 z-50 flex items-center justify-center backdrop-blur-md rounded-3xl overflow-hidden pointer-events-auto">
                    <div className="absolute inset-0 bg-[#050B14]/80 pointer-events-none"></div>
                    <Card className="bg-[#0A111F] border-accent-green/30 rounded-3xl p-8 shadow-2xl max-w-md w-[calc(100%-2rem)] text-center relative z-10 mx-auto">
                      <div className="w-16 h-16 bg-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
                        <Lock className="w-8 h-8 text-accent-green" />
                      </div>
-                     <h3 className="text-2xl font-bold text-white mb-4">Ontgrendel het volledige rapport</h3>
+                     <h3 className="text-2xl font-bold text-white mb-4">Ontgrendel deze sectie</h3>
                      <p className="text-gray-400 mb-8">
-                       Krijg direct toegang tot prijsanalyse, alle rode vlaggen, foto analyse en het onderhandelscript.
+                       {['foto', 'script'].indexOf(activeTab) !== -1
+                          ? "Krijg direct toegang tot AI Foto Analyse en het Onderhandelingsscript met een premium abonnement."
+                          : "Krijg direct toegang tot Prijsanalyse en alle Risico's met een losse scan of premium abonnement."}
                      </p>
                      <Button 
                        className="w-full bg-accent-green hover:bg-accent-green/80 text-black font-bold h-12 rounded-xl mb-4"
                        onClick={() => navigate('/prijzen')}
                      >
-                       Upgrade naar Premium
+                       Bekijk Pakketten
                      </Button>
-                     <p className="text-xs text-gray-500">Altijd direct opzegbaar.</p>
+                     <p className="text-xs text-gray-500">Kies wat bij jou past.</p>
                    </Card>
                  </div>
                )}

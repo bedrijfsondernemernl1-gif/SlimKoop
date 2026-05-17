@@ -55,6 +55,7 @@ interface StoreState {
   isPremium: boolean;
   subscriptionPlan: string | null;
   permissies: string;
+  scansOver: number;
   isAuthModalOpen: boolean;
   user: User | null;
   authLoading: boolean;
@@ -143,6 +144,7 @@ export const useStore = create<StoreState>((set) => {
     isPremium: false,
     subscriptionPlan: null,
     permissies: 'free',
+    scansOver: 0,
     isAuthModalOpen: false,
     user: null,
     authLoading: true,
@@ -150,7 +152,7 @@ export const useStore = create<StoreState>((set) => {
     logout: async () => {
       if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
       await signOut(auth);
-      set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, permissies: 'free', user: null });
+      set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, permissies: 'free', scansOver: 0, user: null });
     },
     upgrade: () => set({ isPremium: true, isLoggedIn: true }),
     openAuthModal: () => set({ isAuthModalOpen: true }),

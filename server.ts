@@ -17,7 +17,7 @@ const auth = getAuth(firebaseApp);
 const adminDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 // Sign in server bot
-signInWithEmailAndPassword(auth, "admin_server_bot@slimkoop.nl", "ServerSuperPassword123!")
+signInWithEmailAndPassword(auth, "admin_server_bot@ocassionscan.nl", "ServerSuperPassword123!")
   .then(() => console.log("[SERVER] Logged in as Server Bot for Firestore access."))
   .catch((err) => console.error("[SERVER] Failed to login Server Bot:", err));
 
@@ -78,6 +78,7 @@ async function startServer() {
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
             laatsteBetaling: serverTimestamp(),
+            scansOver: permissies === 'slimme_koper' ? 3 : 0
           }, { merge: true }).catch(err => console.error("Admin DB set failed:", err));
           
           return res.json({ success: true, updated: true, pakket, permissies });
@@ -189,6 +190,7 @@ async function startServer() {
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
             laatsteBetaling: serverTimestamp(),
+            scansOver: permissies === 'slimme_koper' ? 3 : 0
           }, { merge: true });
           
           console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
@@ -346,6 +348,7 @@ async function startServer() {
     }
     
     // Check permissions / deduct single scans
+    let reportTier = 'free';
     if (userId && userId !== "anonymous") {
       try {
         const userDoc = await getDoc(doc(adminDb, "gebruikers", userId));
@@ -354,7 +357,24 @@ async function startServer() {
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
           const isAdmin = adminEmails.includes(data.email || '');
           const pakket = data.pakket || 'free';
+          const perms = data.permissies || 'free';
+          let scansOver = data.scansOver || 0;
           
+          if (perms === 'slimme_koper' && !isAdmin) {
+            if (scansOver > 0) {
+              reportTier = 'slimme_koper';
+              // Duct one scan
+              await setDoc(doc(adminDb, "gebruikers", userId), { 
+                scansOver: scansOver - 1
+              }, { merge: true });
+            } else {
+              // No scans left, treat as free
+              reportTier = 'free';
+            }
+          } else {
+            reportTier = isAdmin ? 'autohandelaar' : perms;
+          }
+
           if (pakket === "Losse Scan" && !isAdmin) {
             // Revert back to free after using the single scan
             await setDoc(doc(adminDb, "gebruikers", userId), { 
@@ -374,6 +394,7 @@ async function startServer() {
         userId: userId || "anonymous",
         url: url,
         status: "verwerking",
+        tier: reportTier,
         createdAt: serverTimestamp()
       });
 
@@ -415,8 +436,9 @@ async function startServer() {
   app.get("/api/rapport/:id", async (req, res) => {
     try {
       const rapportId = req.params.id;
-      const { isBetaald } = req.query;
-      const isPaid = isBetaald === 'true';
+      const { isBetaald, permissies } = req.query;
+      const isPaidUser = isBetaald === 'true';
+      const userPerms = permissies || 'free';
 
       const docSnap = await getDoc(doc(adminDb, 'rapporten', rapportId));
       if (!docSnap.exists()) {
@@ -424,14 +446,19 @@ async function startServer() {
       }
 
       const rawData = docSnap.data() as any;
+      const reportTier = rawData.tier || 'free';
 
-      // Ensure some base fields are always returned, mostly for loading screen
-      if (!['verwerking', 'scraping', 'vergelijken', 'analyseren', 'afronden', 'ai_analyseren', 'compleet', 'fout'].includes(rawData.status)) {
-        return res.status(400).json({ error: "Ongeldige status" });
-      }
+      // Access is granted if:
+      // 1. User is currently paid (subscription)
+      // 2. Report itself was generated with a paid tier
+      const hasAccess = isPaidUser || reportTier !== 'free';
+      const effectivePerms = (reportTier !== 'free' && reportTier !== 'autohandelaar' && userPerms === 'free') ? reportTier : userPerms; 
+      // Note: effectivePerms is a bit complex, let's simplify.
+      
+      const tier = (reportTier !== 'free') ? reportTier : userPerms;
 
-      if (!isPaid && rawData.status === 'compleet') {
-        // Redact premium fields
+      if (!hasAccess && rawData.status === 'compleet') {
+        // Redact premium fields for free users
         return res.json({
           ...rawData,
           rodeVlaggen: rawData.rodeVlaggen ? rawData.rodeVlaggen.slice(0, 1) : [],
@@ -443,8 +470,18 @@ async function startServer() {
         });
       }
 
-      return res.json(rawData);
+      if (tier === 'losse_scan' && rawData.status === 'compleet') {
+        // Losse scan user: Has Prijs & Risico's, but NO Foto Analyse or Script.
+        return res.json({
+          ...rawData,
+          fotoAnalyse: [],
+          onderhandelingsScript: null,
+          openingsBod: null,
+          onderhandelingsTips: []
+        });
+      }
 
+      return res.json(rawData);
     } catch (e: any) {
       console.error(e);
       res.status(500).json({ error: e.message || "Interne fout" });

@@ -69,7 +69,7 @@ export const Navbar: React.FC = () => {
               <div className="text-primary group-hover:text-primary/80 transition-all duration-500 flex items-center justify-center bg-gradient-to-br from-primary-dark via-primary-dark to-black p-2.5 rounded-xl border border-white/10 shadow-[inset_0_0_20px_rgba(0,200,83,0.15)] group-hover:shadow-[inset_0_0_30px_rgba(0,200,83,0.3)] group-hover:scale-105">
                 <ShieldCheck width="22" height="22" className="text-accent-green" strokeWidth={2.5} />
               </div>
-              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm group-hover:tracking-normal transition-all duration-500">Slim<span className="text-accent-green">Koop</span></span>
+              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm group-hover:tracking-normal transition-all duration-500">Ocassion<span className="text-accent-green">Scan</span></span>
             </Link>
             
             {/* Desktop Navigation Center */}

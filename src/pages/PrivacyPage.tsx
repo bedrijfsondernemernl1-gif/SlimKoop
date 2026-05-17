@@ -17,7 +17,7 @@ export const PrivacyPage: React.FC = () => {
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6">Privacybeleid</h1>
             <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto">
-              Bij SlimKoop nemen we de bescherming van jouw persoonlijke gegevens uiterst serieus.
+              Bij OcassionScan nemen we de bescherming van jouw persoonlijke gegevens uiterst serieus.
             </p>
           </div>
 
@@ -67,7 +67,7 @@ export const PrivacyPage: React.FC = () => {
               <section>
                 <h2 className="text-2xl font-bold text-white mb-4">4. Cookies</h2>
                 <p>
-                  SlimKoop maakt gebruik van functionele cookies om de gebruikerservaring te verbeteren en om te onthouden of je bent ingelogd. Je kunt cookies via jouw browserinstellingen uitschakelen, maar houd er rekening mee dat sommige onderdelen van de website dan mogelijk niet meer optimaal functioneren.
+                  OcassionScan maakt gebruik van functionele cookies om de gebruikerservaring te verbeteren en om te onthouden of je bent ingelogd. Je kunt cookies via jouw browserinstellingen uitschakelen, maar houd er rekening mee dat sommige onderdelen van de website dan mogelijk niet meer optimaal functioneren.
                 </p>
               </section>
 
