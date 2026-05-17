@@ -105,7 +105,12 @@ export const DashboardGarage: React.FC = () => {
                  className="group glass-panel rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative flex flex-col hover:border-white/20 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)]"
                >
                   <div className="relative h-48 bg-black overflow-hidden group-hover:h-44 transition-all duration-300 cursor-pointer" onClick={() => navigate(`/rapport/${car.rapportId}`)}>
-                    <img src={car.img} alt={car.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700 ease-out" />
+                    <img 
+                      src={car.img ? (car.img.includes('marktplaats.com') ? car.img + '?rule=ecg_mp_eps$_86.jpg' : car.img) : ''} 
+                      alt={car.title} 
+                      className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700 ease-out" 
+                      loading="lazy"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent pointer-events-none"></div>
                     
                     {/* Badge Deal Score */}

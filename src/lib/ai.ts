@@ -149,8 +149,13 @@ export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisR
 
     const fetchedImages = await Promise.all(
       urlsToUse.map(async (url) => {
+        if (!url || !url.startsWith('http')) {
+          console.warn(`Ongeldige foto URL overgeslagen: ${url}`);
+          return null;
+        }
         try {
           const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           const arrayBuffer = await res.arrayBuffer();
           const base64data = Buffer.from(arrayBuffer).toString('base64');
           const mimeType = res.headers.get("content-type") || "image/jpeg";
@@ -216,12 +221,17 @@ Response JSON formaat:
       let cleaned = photoData.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
       
-      // Map URLs back if Gemini forgot them or got them wrong
+      // Map URLs back correctly based on order
       if (parsed.fotos) {
-        parsed.fotos = parsed.fotos.map((f: any, i: number) => ({
-          ...f,
-          url: f.url || (validImages[i] ? validImages[i].url : "")
-        }));
+        parsed.fotos = parsed.fotos.map((f: any, i: number) => {
+          // Gemini might hallucinate 'input_file_0.png' etc.
+          // We must use the actual URL we sent.
+          const originalUrl = validImages[i] ? validImages[i].url : (f.url || "");
+          return {
+            ...f,
+            url: originalUrl
+          };
+        });
       }
       
       return parsed;

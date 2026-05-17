@@ -78,7 +78,9 @@ async function startServer() {
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
             laatsteBetaling: serverTimestamp(),
-            scansOver: permissies === 'slimme_koper' ? 3 : 0
+            scansGebruikt: 0,
+            scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
+            scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
           }, { merge: true }).catch(err => console.error("Admin DB set failed:", err));
           
           return res.json({ success: true, updated: true, pakket, permissies });
@@ -190,7 +192,9 @@ async function startServer() {
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
             laatsteBetaling: serverTimestamp(),
-            scansOver: permissies === 'slimme_koper' ? 3 : 0
+            scansGebruikt: 0,
+            scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
+            scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
           }, { merge: true });
           
           console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
@@ -347,7 +351,7 @@ async function startServer() {
       return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
     }
     
-    // Check permissions / deduct single scans
+    // Check permissions / deduct scans
     let reportTier = 'free';
     if (userId && userId !== "anonymous") {
       try {
@@ -356,33 +360,36 @@ async function startServer() {
         if (userDoc.exists()) {
           const data = userDoc.data() as any;
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
-          const isAdmin = adminEmails.includes(data.email || '');
-          const pakket = data.pakket || 'free';
-          const perms = data.permissies || 'free';
-          let scansOver = data.scansOver || 0;
+          const isAdmin = adminEmails.includes((data.email || '').toLowerCase());
           
-          if (perms === 'slimme_koper' && !isAdmin) {
-            if (scansOver > 0) {
-              reportTier = 'slimme_koper';
-              // Duct one scan
-              await setDoc(userRef, { 
-                scansOver: scansOver - 1
-              }, { merge: true });
+          if (isAdmin) {
+            reportTier = 'autohandelaar';
+          } else {
+            const scansGebruikt = data.scansGebruikt || 0;
+            const scanLimiet = data.scanLimiet || 0;
+            const permissies = data.permissies || 'free';
+            const pakket = data.pakket || 'free';
+
+            // Check if limit is reached
+            if (pakket !== 'free') {
+              if (scansGebruikt >= scanLimiet) {
+                // If limit reached, downgrade to free tier for this scan
+                reportTier = 'free';
+                // Add a flag to the response so frontend can notify the user
+                var limitReached = true;
+              } else {
+                // Determine tier based on permissies
+                reportTier = permissies;
+                
+                // Increment scansGebruikt only if it's a premium scan
+                await setDoc(userRef, { 
+                  scansGebruikt: scansGebruikt + 1,
+                  scansOver: Math.max(0, scanLimiet - (scansGebruikt + 1))
+                }, { merge: true });
+              }
             } else {
-              // No scans left, treat as free
               reportTier = 'free';
             }
-          } else {
-            reportTier = isAdmin ? 'autohandelaar' : perms;
-          }
-
-          if (pakket === "Losse Scan" && !isAdmin) {
-            // Revert back to free after using the single scan
-            await setDoc(userRef, { 
-              pakket: 'free', 
-              permissies: 'free', 
-              subscriptionStatus: 'free' 
-            }, { merge: true });
           }
         }
       } catch (e) {
@@ -396,6 +403,7 @@ async function startServer() {
         url: url,
         status: "verwerking",
         tier: reportTier,
+        limitReached: (typeof limitReached !== 'undefined' ? true : false),
         createdAt: serverTimestamp()
       });
 
@@ -404,7 +412,8 @@ async function startServer() {
 
       return res.json({
         success: true,
-        rapportId: docRef.id
+        rapportId: docRef.id,
+        limitReached: (typeof limitReached !== 'undefined' ? true : false)
       });
 
     } catch (error: any) {
@@ -417,7 +426,7 @@ async function startServer() {
   app.get("/api/proxy-image", async (req, res) => {
     try {
       const imageUrl = req.query.url;
-      if (!imageUrl || typeof imageUrl !== 'string') {
+      if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.startsWith('http')) {
         return res.status(400).send("Geen geldige URL");
       }
       const response = await fetch(imageUrl);
@@ -448,18 +457,25 @@ async function startServer() {
 
       const rawData = docSnap.data() as any;
       const reportTier = rawData.tier || 'free';
+      const userEmail = (req.query.email as string) || ''; // Wait, we should probably check admin by email if possible
+
+      const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
+      const isAdmin = adminEmails.includes(userEmail.toLowerCase());
 
       // Access is granted if:
-      // 1. User is currently paid (subscription)
-      // 2. Report itself was generated with a paid tier
-      const hasAccess = isPaidUser || reportTier !== 'free';
-      const effectivePerms = (reportTier !== 'free' && reportTier !== 'autohandelaar' && userPerms === 'free') ? reportTier : userPerms; 
-      // Note: effectivePerms is a bit complex, let's simplify.
+      // 1. Report itself was generated with a paid tier
+      // 2. User has unlimited access (autohandelaar)
+      // 3. User is admin
+      const isUnlimited = isAdmin || userPerms === 'autohandelaar';
+      const isPremiumReport = reportTier !== 'free';
       
-      const tier = (reportTier !== 'free') ? reportTier : userPerms;
+      const hasFullAccess = isUnlimited || isPremiumReport;
+      
+      // Tier determines features shown
+      const tier = isUnlimited ? 'autohandelaar' : (isPremiumReport ? reportTier : 'free');
 
-      if (!hasAccess && rawData.status === 'compleet') {
-        // Redact premium fields for free users
+      if (!hasFullAccess && rawData.status === 'compleet') {
+        // Redact premium fields for users without access to this report's tier
         return res.json({
           ...rawData,
           rodeVlaggen: rawData.rodeVlaggen ? rawData.rodeVlaggen.slice(0, 1) : [],

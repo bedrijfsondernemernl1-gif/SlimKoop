@@ -52,7 +52,7 @@ export const AnalysisInputPage: React.FC = () => {
              <ShieldCheck className="w-4 h-4 text-accent-green" />
              AI-Analyse
           </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6 tracking-tight">Klaar om de waarheid te zien?</h1>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6 tracking-tight">Klaar om de waarheid te zien?</h1>
           <p className="text-xl text-gray-400 font-light">
              Plak de link en we laten je direct weten of je voor een gouden deal staat, of beter weg kunt rennen.
           </p>

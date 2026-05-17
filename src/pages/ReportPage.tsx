@@ -20,7 +20,7 @@ const TABS = [
 export const ReportPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPremium, permissies } = useStore();
+  const { isPremium, permissies, user } = useStore();
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['id']>('overzicht');
   
   const [reportData, setReportData] = useState<any>(null);
@@ -34,8 +34,11 @@ export const ReportPage: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const controls = useAnimation();
 
-  const hasPaidAccess = isPremium || (reportData?.tier && reportData?.tier !== 'free');
-  const hasFullAccess = hasPaidAccess && (permissies === 'slimme_koper' || permissies === 'autohandelaar' || reportData?.tier === 'slimme_koper' || reportData?.tier === 'autohandelaar');
+  // Access check for local UI masking (server also redacts)
+  const isUnlimited = permissies === 'autohandelaar';
+  const hasPremiumReport = !!(reportData?.tier && reportData?.tier !== 'free');
+  const hasFullAccess = isUnlimited || hasPremiumReport;
+  const hasPaidAccess = hasFullAccess; // Users with 0 scans see free reports as free.
 
   useEffect(() => {
     if (!id) return;
@@ -44,7 +47,8 @@ export const ReportPage: React.FC = () => {
 
     const fetchReport = async () => {
       try {
-        const res = await fetch(`/api/rapport/${id}?isBetaald=${isPremium}&permissies=${permissies}`);
+        const emailParam = user?.email ? `&email=${encodeURIComponent(user.email)}` : '';
+        const res = await fetch(`/api/rapport/${id}?isBetaald=${isPremium}&permissies=${permissies}${emailParam}`);
         const data = await res.json();
         
         if (res.status === 404 && isPolling) {
@@ -361,6 +365,26 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
+        {/* LIMIT REACHED WARNING */}
+        {reportData?.limitReached && (
+          <div className="mb-8 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in slide-in-from-top-4">
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-6 h-6 text-amber-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-bold text-sm">Je hebt al je premium scans gebruikt.</p>
+              <p className="text-amber-200/70 text-xs">Dit rapport bevat beperkte informatie (gratis versie). Upgrade je pakket voor volledige AI analyse.</p>
+            </div>
+            <Button 
+               size="sm" 
+               className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-8 text-xs rounded-lg hidden sm:flex"
+               onClick={() => navigate('/prijzen')}
+            >
+              Bundel opwaarderen
+            </Button>
+          </div>
+        )}
+
         {/* TOP SECTION: 2 COLUMNS */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 items-start">
           
@@ -451,7 +475,7 @@ export const ReportPage: React.FC = () => {
               <div className="text-gray-400 font-bold tracking-[0.2em] uppercase text-xs mb-8">OCASSIONSCAN SCORE</div>
               
               {/* Circular Score */}
-              <div className="relative w-48 h-48 mb-6">
+              <div className="relative w-32 h-32 sm:w-48 sm:h-48 mb-6">
                 <div className="absolute inset-0 bg-accent-green/5 rounded-full blur-[30px]"></div>
                 <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
@@ -469,7 +493,7 @@ export const ReportPage: React.FC = () => {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center border-4 border-accent-green/20 rounded-full m-[8px] bg-[#131B2A]/50">
-                  <span className="text-6xl font-heading font-extrabold text-white">{gaugeValue}</span>
+                  <span className="text-4xl sm:text-6xl font-heading font-extrabold text-white">{gaugeValue}</span>
                 </div>
               </div>
 
@@ -821,14 +845,12 @@ export const ReportPage: React.FC = () => {
                            <div key={i} className="group">
                              <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
                                <img 
-                                  src={`/api/proxy-image?url=${encodeURIComponent(foto.url)}`} 
+                                  src={`/api/proxy-image?url=${encodeURIComponent(foto.url || '')}`} 
                                   alt={foto.label} 
                                   className="w-full h-full object-cover" 
                                   referrerPolicy="no-referrer" 
                                   crossOrigin="anonymous"
-                                  onError={(e) => {
-                                      (e.target as HTMLImageElement).parentElement!.style.display = 'none';
-                                  }}
+                                  loading="lazy"
                                 />
                                
                                <div className="absolute right-3 bottom-3 shadow-lg">

@@ -173,7 +173,7 @@ export const LandingPage: React.FC = () => {
             <span className="text-sm font-medium text-white">AI-gedreven autoanalyse</span>
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-4xl md:text-6xl lg:text-7xl font-heading font-extrabold tracking-tight mb-8 leading-tight text-white flex flex-col items-center">
+          <motion.h1 variants={itemVariants} className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-heading font-extrabold tracking-tight mb-8 leading-tight text-white flex flex-col items-center">
             <span>AI die jou beschermt</span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">
                tegen slechte auto's.

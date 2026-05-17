@@ -55,6 +55,8 @@ interface StoreState {
   isPremium: boolean;
   subscriptionPlan: string | null;
   permissies: string;
+  scansGebruikt: number;
+  scanLimiet: number;
   scansOver: number;
   isAuthModalOpen: boolean;
   user: User | null;
@@ -96,15 +98,19 @@ export const useStore = create<StoreState>((set) => {
         unsubUserDoc = onSnapshot(userRef, (docSnap) => {
            if (docSnap.exists()) {
                const data = docSnap.data();
-               const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com'];
-               const isAdmin = adminEmails.includes(user.email || '');
+               const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
+               const isAdmin = adminEmails.includes((user.email || '').toLowerCase());
                const plan = data.pakket || 'free';
                const perms = data.permissies || 'free';
+               const sG = data.scansGebruikt || 0;
+               const sL = data.scanLimiet || 0;
                set({ 
                    isPremium: isAdmin || perms !== 'free',
                    subscriptionPlan: isAdmin ? 'Autohandelaar' : plan,
                    permissies: isAdmin ? 'autohandelaar' : perms,
-                   scansOver: data.scansOver || 0
+                   scansGebruikt: sG,
+                   scanLimiet: isAdmin ? 999 : sL,
+                   scansOver: isAdmin ? 999 : Math.max(0, sL - sG)
                });
            }
         }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
@@ -137,6 +143,8 @@ export const useStore = create<StoreState>((set) => {
     isPremium: false,
     subscriptionPlan: null,
     permissies: 'free',
+    scansGebruikt: 0,
+    scanLimiet: 0,
     scansOver: 0,
     isAuthModalOpen: false,
     user: null,
@@ -145,7 +153,16 @@ export const useStore = create<StoreState>((set) => {
     logout: async () => {
       if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
       await signOut(auth);
-      set({ isLoggedIn: false, isPremium: false, subscriptionPlan: null, permissies: 'free', scansOver: 0, user: null });
+      set({ 
+        isLoggedIn: false, 
+        isPremium: false, 
+        subscriptionPlan: null, 
+        permissies: 'free', 
+        scansGebruikt: 0,
+        scanLimiet: 0,
+        scansOver: 0, 
+        user: null 
+      });
     },
     upgrade: () => set({ isPremium: true, isLoggedIn: true }),
     openAuthModal: () => set({ isAuthModalOpen: true }),

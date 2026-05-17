@@ -1,19 +1,29 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ShaderBackground } from './components/ShaderBackground';
 import { Navbar } from './components/Navbar';
-import { LandingPage } from './pages/LandingPage';
-import { Dashboard } from './pages/Dashboard';
-import { ReportPage } from './pages/ReportPage';
-import { HowItWorksPage } from './pages/HowItWorksPage';
-import { PricingPage } from './pages/PricingPage';
-import { ContactPage } from './pages/ContactPage';
-import { AboutPage } from './pages/AboutPage';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { TermsPage } from './pages/TermsPage';
-import { AnalysisInputPage } from './pages/AnalysisInputPage';
 import { useStore } from './store/useStore';
 import { Loader2 } from 'lucide-react';
+
+// Lazy load pages
+const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const ReportPage = lazy(() => import('./pages/ReportPage').then(m => ({ default: m.ReportPage })));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage').then(m => ({ default: m.HowItWorksPage })));
+const PricingPage = lazy(() => import('./pages/PricingPage').then(m => ({ default: m.PricingPage })));
+const ContactPage = lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
+const AnalysisInputPage = lazy(() => import('./pages/AnalysisInputPage').then(m => ({ default: m.AnalysisInputPage })));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary opacity-20" />
+    </div>
+  );
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -50,25 +60,27 @@ export default function App() {
       <div className="min-h-screen text-foreground font-sans">
         <ShaderBackground />
         <Navbar />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/analyseer" element={<AnalysisInputPage />} />
-          <Route path="/hoe-het-werkt" element={<HowItWorksPage />} />
-          <Route path="/prijzen" element={<PricingPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/over-ons" element={<AboutPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/voorwaarden" element={<TermsPage />} />
-          <Route 
-            path="/dashboard/*" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="/rapport/:id" element={<ReportPage />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/analyseer" element={<AnalysisInputPage />} />
+            <Route path="/hoe-het-werkt" element={<HowItWorksPage />} />
+            <Route path="/prijzen" element={<PricingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/over-ons" element={<AboutPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/voorwaarden" element={<TermsPage />} />
+            <Route 
+              path="/dashboard/*" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="/rapport/:id" element={<ReportPage />} />
+          </Routes>
+        </Suspense>
       </div>
     </Router>
   );
