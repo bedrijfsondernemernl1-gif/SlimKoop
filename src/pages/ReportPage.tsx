@@ -351,7 +351,7 @@ export const ReportPage: React.FC = () => {
                    <div className="h-64 sm:h-80 bg-[#131B2A] rounded-2xl overflow-hidden shadow-inner border border-white/5 relative">
                      {data.photoUrls && data.photoUrls.length > 0 ? (
                        <img 
-                          src={data.photoUrls[0]} 
+                          src={`/api/proxy-image?url=${encodeURIComponent(data.photoUrls[0])}`} 
                           alt="Exterieur" 
                           className="w-full h-full object-cover" 
                           referrerPolicy="no-referrer" 
@@ -368,7 +368,7 @@ export const ReportPage: React.FC = () => {
                      <div className="h-24 bg-[#131B2A] rounded-xl overflow-hidden border border-white/5">
                        {data.photoUrls && data.photoUrls.length > 1 ? (
                          <img 
-                            src={data.photoUrls[1]} 
+                            src={`/api/proxy-image?url=${encodeURIComponent(data.photoUrls[1])}`} 
                             alt="Interieur 1" 
                             className="w-full h-full object-cover" 
                             referrerPolicy="no-referrer" 
@@ -384,7 +384,7 @@ export const ReportPage: React.FC = () => {
                      <div className="h-24 bg-[#131B2A] rounded-xl overflow-hidden relative group cursor-pointer border border-white/5">
                        {data.photoUrls && data.photoUrls.length > 2 ? (
                          <img 
-                            src={data.photoUrls[2]} 
+                            src={`/api/proxy-image?url=${encodeURIComponent(data.photoUrls[2])}`} 
                             alt="Interieur 2" 
                             className="w-full h-full object-cover opacity-50 transition-opacity group-hover:opacity-60" 
                             referrerPolicy="no-referrer" 
@@ -793,12 +793,12 @@ export const ReportPage: React.FC = () => {
                          <Camera className="w-5 h-5 text-gray-400" /> AI Foto Analyse
                        </h3>
                        
-                       <div className="grid sm:grid-cols-2 gap-6 mb-10">
+                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                          {data.fotoAnalyse.map((foto: any, i: number) => (
                            <div key={i} className="group">
                              <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
                                <img 
-                                  src={foto.url} 
+                                  src={`/api/proxy-image?url=${encodeURIComponent(foto.url)}`} 
                                   alt={foto.label} 
                                   className="w-full h-full object-cover" 
                                   referrerPolicy="no-referrer" 

@@ -9,6 +9,8 @@ import { HowItWorksPage } from './pages/HowItWorksPage';
 import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
 import { AboutPage } from './pages/AboutPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
 import { AnalysisInputPage } from './pages/AnalysisInputPage';
 import { useStore } from './store/useStore';
 import { Loader2 } from 'lucide-react';
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="/prijzen" element={<PricingPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/over-ons" element={<AboutPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/voorwaarden" element={<TermsPage />} />
           <Route 
             path="/dashboard/*" 
             element={
