@@ -98,7 +98,7 @@ export const useStore = create<StoreState>((set) => {
         unsubUserDoc = onSnapshot(userRef, (docSnap) => {
            if (docSnap.exists()) {
                const data = docSnap.data();
-               const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
+               const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
                const isAdmin = adminEmails.includes((user.email || '').toLowerCase());
                const plan = data.pakket || 'free';
                const perms = data.permissies || 'free';

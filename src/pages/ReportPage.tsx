@@ -20,7 +20,11 @@ const TABS = [
 export const ReportPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isPremium, permissies, user } = useStore();
+  
+  const isPremium = useStore(state => state.isPremium);
+  const permissies = useStore(state => state.permissies);
+  const user = useStore(state => state.user);
+
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['id']>('overzicht');
   
   const [reportData, setReportData] = useState<any>(null);
@@ -276,7 +280,7 @@ export const ReportPage: React.FC = () => {
       if (navigator.share && window.self === window.top) {
         await navigator.share({
           title: data.autoNaam,
-          text: `Check dit OcassionScan rapport voor de ${data.autoNaam}`,
+          text: `Check dit OccasionScan rapport voor de ${data.autoNaam}`,
           url: window.location.href,
         });
       } else {
@@ -453,8 +457,8 @@ export const ReportPage: React.FC = () => {
 
                  {/* Car Info */}
                  <div className="mt-2">
-                   <h1 className="text-3xl lg:text-4xl font-heading font-extrabold text-white mb-2 leading-tight">{data.autoNaam}</h1>
-                   <div className="text-4xl lg:text-5xl font-black text-accent-green mb-6 mt-4 tracking-tight drop-shadow-md">
+                   <h1 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-extrabold text-white mb-2 leading-tight">{data.autoNaam}</h1>
+                   <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-accent-green mb-6 mt-4 tracking-tight drop-shadow-md">
                      € {data.vraagprijs.toLocaleString('nl-NL')}
                    </div>
                    <div className="flex flex-wrap gap-2">
@@ -472,7 +476,7 @@ export const ReportPage: React.FC = () => {
           {/* RIGHT COLUMN */}
           <div className="flex flex-col h-full gap-6">
             <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-8 shadow-xl flex flex-col items-center text-center">
-              <div className="text-gray-400 font-bold tracking-[0.2em] uppercase text-xs mb-8">OCASSIONSCAN SCORE</div>
+              <div className="text-gray-400 font-bold tracking-[0.2em] uppercase text-xs mb-8">OCCASIONSCAN SCORE</div>
               
               {/* Circular Score */}
               <div className="relative w-32 h-32 sm:w-48 sm:h-48 mb-6">
@@ -585,383 +589,381 @@ export const ReportPage: React.FC = () => {
             })}
           </div>
         </div>
-
-        {/* TAB CONTENTS (With Paywall logic) */}
-        <div className="relative min-h-[400px]">
-          
-          {/* TAB 1: OVERZICHT */}
-          {activeTab === 'overzicht' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                
-                <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-accent-green/10 flex items-center justify-center border border-accent-green/20">
-                      <CheckCircle className="w-5 h-5 text-accent-green" />
+            {/* TAB CONTENTS (With Paywall logic) */}
+        <div className="relative min-h-[500px]">
+          <AnimatePresence mode="wait">
+            {activeTab === 'overzicht' ? (
+              <motion.div 
+                key="overzicht"
+                initial={{ opacity: 0, x: -20 }} 
+                animate={{ opacity: 1, x: 0 }} 
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-full bg-accent-green/10 flex items-center justify-center border border-accent-green/20">
+                        <CheckCircle className="w-5 h-5 text-accent-green" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white">Positieve Punten</h3>
                     </div>
-                    <h3 className="text-xl font-bold text-white">Positieve Punten</h3>
-                  </div>
-                  <ul className="space-y-4">
-                    {data.positievePunten.map((punt: string, i: number) => (
-                      <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-accent-green mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
-                    ))}
-                  </ul>
-                </Card>
+                    <ul className="space-y-4">
+                      {data.positievePunten.map((punt: string, i: number) => (
+                        <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-accent-green mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
+                      ))}
+                    </ul>
+                  </Card>
 
-                <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                      <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                        <AlertTriangle className="w-5 h-5 text-amber-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white">Aandachtspunten</h3>
                     </div>
-                    <h3 className="text-xl font-bold text-white">Aandachtspunten</h3>
-                  </div>
-                  <ul className="space-y-4">
-                    {data.aandachtspunten.slice(0, hasPaidAccess ? undefined : 2).map((punt: string, i: number) => (
-                      <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-amber-500 mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
-                    ))}
-                    {!hasPaidAccess && data.aandachtspunten.length > 2 && (
-                      <>
-                        <li className="flex gap-3 text-gray-300 items-start opacity-40 blur-[2px] select-none">
-                          <span className="text-amber-500 mt-0.5 font-bold">•</span> 
-                          <span className="leading-relaxed">Verborgen aandachtspunt wegens gratis account</span>
-                        </li>
-                        <div className="pt-2 text-center">
-                          <button onClick={() => navigate('/prijzen')} className="text-xs font-bold text-accent-green bg-accent-green/10 px-3 py-1.5 rounded-full border border-accent-green/20 hover:bg-accent-green/20 transition-colors">
-                            <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                            Toon alle {data.aandachtspunten.length} punten
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </ul>
-                </Card>
-
-              </div>
-
-              <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Verkoper Info</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
-                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
-                  <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.actieveAdvertenties} actieve advertenties</div>
+                    <ul className="space-y-4">
+                      {data.aandachtspunten.slice(0, hasPaidAccess ? undefined : 2).map((punt: string, i: number) => (
+                        <li key={i} className="flex gap-3 text-gray-300 items-start"><span className="text-amber-500 mt-0.5 font-bold">•</span> <span className="leading-relaxed">{punt}</span></li>
+                      ))}
+                      {!hasPaidAccess && data.aandachtspunten.length > 2 && (
+                        <>
+                          <li className="flex gap-3 text-gray-300 items-start opacity-40 blur-[2px] select-none">
+                            <span className="text-amber-500 mt-0.5 font-bold">•</span> 
+                            <span className="leading-relaxed">Verborgen aandachtspunt wegens gratis account</span>
+                          </li>
+                          <div className="pt-2 text-center">
+                            <button onClick={() => navigate('/prijzen')} className="text-xs font-bold text-accent-green bg-accent-green/10 px-3 py-1.5 rounded-full border border-accent-green/20 hover:bg-accent-green/20 transition-colors">
+                              <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+                              Toon alle {data.aandachtspunten.length} punten
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </ul>
+                  </Card>
                 </div>
-              </Card>
-            </motion.div>
-          )}
 
-          {/* TAB CONTENT WRAPPER FOR PAYWALLED TABS */}
-          {activeTab !== 'overzicht' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative h-full">
-               
-               <div>
-                 
-                 {/* TAB 2: PRIJS */}
-                 {activeTab === 'prijs' && (() => {
-                   const vPr = data.vraagprijs;
-                   const gPr = data.eerlijkePrijs;
-                   const minPr = Math.round(gPr * 0.85);
-                   const maxPr = Math.round(gPr * 1.15);
-                   const calculatePosition = (val: number) => {
-                     if (val < minPr) return 0;
-                     if (val > maxPr) return 100;
-                     return ((val - minPr) / (maxPr - minPr)) * 100;
-                   };
-                   const vPos = calculatePosition(vPr);
-                   const gPos = calculatePosition(gPr);
-                   
-                   const km = data.kilometerstand;
-                   const yearsInt = new Date().getFullYear() - (data.bouwjaar || new Date().getFullYear());
-                   const years = yearsInt > 0 ? yearsInt : 1;
-                   const avgKmPerYear = Math.round(km / years);
-                   const normalMax = 18000;
-                   const normalMin = 10000;
-                   const isKmNormal = avgKmPerYear >= normalMin && avgKmPerYear <= normalMax;
-                   const kmStatusText = isKmNormal ? "✓ Normaal" : (avgKmPerYear > normalMax ? "Hoog" : "Laag");
-                   const kmPercent = Math.min((avgKmPerYear / normalMax) * 100, 100);
+                <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Verkoper Info</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
+                    <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
+                    <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.actieveAdvertenties} actieve advertenties</div>
+                  </div>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key={activeTab}
+                initial={{ opacity: 0, x: -20 }} 
+                animate={{ opacity: 1, x: 0 }} 
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+                className="relative h-full"
+              >
+                <div>
+                  {/* TAB 2: PRIJS */}
+                  {activeTab === 'prijs' && (() => {
+                    const vPr = data.vraagprijs;
+                    const gPr = data.eerlijkePrijs;
+                    const minPr = Math.round(gPr * 0.85);
+                    const maxPr = Math.round(gPr * 1.15);
+                    const calculatePosition = (val: number) => {
+                      if (val < minPr) return 0;
+                      if (val > maxPr) return 100;
+                      return ((val - minPr) / (maxPr - minPr)) * 100;
+                    };
+                    const vPos = calculatePosition(vPr);
+                    const gPos = calculatePosition(gPr);
+                    
+                    const km = data.kilometerstand;
+                    const yearsInt = new Date().getFullYear() - (data.bouwjaar || new Date().getFullYear());
+                    const years = yearsInt > 0 ? yearsInt : 1;
+                    const avgKmPerYear = Math.round(km / years);
+                    const normalMax = 18000;
+                    const normalMin = 10000;
+                    const isKmNormal = avgKmPerYear >= normalMin && avgKmPerYear <= normalMax;
+                    const kmStatusText = isKmNormal ? "✓ Normaal" : (avgKmPerYear > normalMax ? "Hoog" : "Laag");
+                    const kmPercent = Math.min((avgKmPerYear / normalMax) * 100, 100);
 
-                   return (
-                   <div className="space-y-6">
-                     <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                       <h3 className="text-xl font-bold text-white mb-8">Prijsanalyse & Waardebepaling</h3>
-                       
-                       <div className="mb-10 px-2 max-w-4xl mx-auto">
-                         <div className="flex justify-between text-sm text-gray-400 mb-3 font-bold uppercase tracking-wider">
-                           <span>Min € {minPr.toLocaleString('nl-NL')}</span>
-                           <span>Max € {maxPr.toLocaleString('nl-NL')}</span>
-                         </div>
-                         <div className="relative h-4 bg-[#131B2A] rounded-full border border-white/5 shadow-inner">
-                           <div className="absolute top-0 bottom-0 left-[0%] bg-accent-green/20 rounded-l-full" style={{width: `${gPos}%`}}></div>
-                           <div className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-amber-500 border-4 border-[#0A111F] rounded-full z-20 shadow-lg group" style={{left: `${vPos}%`, transform: 'translate(-50%, -50%)'}}>
-                             <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black px-3 py-1 rounded text-xs font-bold text-amber-500 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Vraagprijs</div>
-                           </div>
-                           <div className="absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-white z-10 rounded-full group cursor-help" style={{left: `${gPos}%`, transform: 'translate(-50%, -50%)'}}>
-                             <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black px-3 py-1 rounded text-xs font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Gemiddelde</div>
-                           </div>
-                         </div>
-                         <div className="flex justify-between items-center text-sm mt-5">
-                           <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500 border border-amber-400"></div> <span className="text-gray-300 font-medium">Vraagprijs (€ {vPr.toLocaleString('nl-NL')})</span></div>
-                           <div className="flex items-center gap-2"><div className="w-1.5 h-4 bg-white rounded-full"></div> <span className="text-gray-300 font-medium">Marktgemiddelde (€ {gPr.toLocaleString('nl-NL')})</span></div>
-                         </div>
-                       </div>
+                    return (
+                      <div className="space-y-6">
+                        <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                          <h3 className="text-lg sm:text-xl font-bold text-white mb-8">Prijsanalyse & Waardebepaling</h3>
+                          
+                          <div className="mb-10 px-2 max-w-4xl mx-auto">
+                            <div className="flex justify-between text-sm text-gray-400 mb-3 font-bold uppercase tracking-wider">
+                              <span>Min € {minPr.toLocaleString('nl-NL')}</span>
+                              <span>Max € {maxPr.toLocaleString('nl-NL')}</span>
+                            </div>
+                            <div className="relative h-4 bg-[#131B2A] rounded-full border border-white/5 shadow-inner">
+                              <div className="absolute top-0 bottom-0 left-[0%] bg-accent-green/20 rounded-l-full" style={{width: `${gPos}%`}}></div>
+                              <div className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-amber-500 border-4 border-[#0A111F] rounded-full z-20 shadow-lg group" style={{left: `${vPos}%`, transform: 'translate(-50%, -50%)'}}>
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black px-3 py-1 rounded text-xs font-bold text-amber-500 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Vraagprijs</div>
+                              </div>
+                              <div className="absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-white z-10 rounded-full group cursor-help" style={{left: `${gPos}%`, transform: 'translate(-50%, -50%)'}}>
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black px-3 py-1 rounded text-xs font-bold text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">Gemiddelde</div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm mt-5 gap-4">
+                              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500 border border-amber-400"></div> <span className="text-gray-300 font-medium">Vraagprijs (€ {vPr.toLocaleString('nl-NL')})</span></div>
+                              <div className="flex items-center gap-2"><div className="w-1.5 h-4 bg-white rounded-full"></div> <span className="text-gray-300 font-medium">Marktgemiddelde (€ {gPr.toLocaleString('nl-NL')})</span></div>
+                            </div>
+                          </div>
 
-                       <div className={`border rounded-2xl p-6 mb-10 flex items-start sm:items-center gap-4 ${data.vraagprijs <= data.eerlijkePrijs ? 'bg-accent-green/10 border-accent-green/20' : 'bg-red-500/10 border-red-500/20'}`}>
-                         <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${data.vraagprijs <= data.eerlijkePrijs ? 'bg-accent-green/20' : 'bg-red-500/20'}`}>
-                           {data.vraagprijs <= data.eerlijkePrijs ? <CheckCircle className="w-6 h-6 text-accent-green" /> : <AlertCircle className="w-6 h-6 text-red-500" />}
-                         </div>
-                         <div>
-                           <p className={`font-bold text-lg md:text-xl ${data.vraagprijs <= data.eerlijkePrijs ? 'text-accent-green' : 'text-red-500'}`}>
-                             {data.vraagprijs === data.eerlijkePrijs ? "Deze auto is precies geprijsd volgens marktwaarde" : (
-                               data.vraagprijs < data.eerlijkePrijs 
-                                 ? `Deze auto is € ${(data.eerlijkePrijs - data.vraagprijs).toLocaleString('nl-NL')} goedkoper dan vergelijkbare modellen`
-                                 : `Deze auto is € ${(data.vraagprijs - data.eerlijkePrijs).toLocaleString('nl-NL')} duurder dan vergelijkbare modellen`
-                             )}
-                           </p>
-                           <p className="text-sm text-gray-300 mt-1">
-                             {data.vraagprijs <= data.eerlijkePrijs 
-                               ? 'Je betaalt minder dan de huidige marktwaarde. Een uitstekende uitgangspositie.' 
-                               : 'Let op! Je betaalt meer dan de huidige marktgemiddelde. Ruimte voor onderhandeling.'}
-                           </p>
-                         </div>
-                       </div>
+                          <div className={`border rounded-2xl p-6 mb-10 flex items-start sm:items-center gap-4 ${data.vraagprijs <= data.eerlijkePrijs ? 'bg-accent-green/10 border-accent-green/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${data.vraagprijs <= data.eerlijkePrijs ? 'bg-accent-green/20' : 'bg-red-500/20'}`}>
+                              {data.vraagprijs <= data.eerlijkePrijs ? <CheckCircle className="w-6 h-6 text-accent-green" /> : <AlertCircle className="w-6 h-6 text-red-500" />}
+                            </div>
+                            <div>
+                              <p className={`font-bold text-lg md:text-xl ${data.vraagprijs <= data.eerlijkePrijs ? 'text-accent-green' : 'text-red-500'}`}>
+                                {data.vraagprijs === data.eerlijkePrijs ? "Deze auto is precies geprijsd volgens marktwaarde" : (
+                                  data.vraagprijs < data.eerlijkePrijs 
+                                    ? `Deze auto is € ${(data.eerlijkePrijs - data.vraagprijs).toLocaleString('nl-NL')} goedkoper dan vergelijkbare modellen`
+                                    : `Deze auto is € ${(data.vraagprijs - data.eerlijkePrijs).toLocaleString('nl-NL')} duurder dan vergelijkbare modellen`
+                                )}
+                              </p>
+                              <p className="text-sm text-gray-300 mt-1">
+                                {data.vraagprijs <= data.eerlijkePrijs 
+                                  ? 'Je betaalt minder dan de huidige marktwaarde. Een uitstekende uitgangspositie.' 
+                                  : 'Let op! Je betaalt meer dan de huidige marktgemiddelde. Ruimte voor onderhandeling.'}
+                              </p>
+                            </div>
+                          </div>
 
-                       <h4 className="text-lg font-bold text-white mb-4">Kilometerstand Check</h4>
-                       <div className="bg-[#131B2A] border border-white/5 rounded-2xl p-6 mb-10">
-                         <div className="flex justify-between items-end mb-4">
-                           <div>
-                             <p className="text-gray-300 text-sm md:text-base">{km.toLocaleString('nl-NL')} km in {years} jaar = gemiddeld <span className="text-white font-bold">{avgKmPerYear.toLocaleString('nl-NL')} km/jaar</span></p>
-                           </div>
-                           <div className={`px-3 py-1 rounded-md font-bold text-sm tracking-wide ${isKmNormal ? 'bg-accent-green/20 text-accent-green' : 'bg-amber-500/20 text-amber-500'}`}>{kmStatusText}</div>
-                         </div>
-                         <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                           <div className={`h-full ${isKmNormal ? 'bg-gradient-to-r from-accent-green/50 to-accent-green' : 'bg-gradient-to-r from-amber-500/50 to-amber-500'}`} style={{width: `${kmPercent}%`}}></div>
-                         </div>
-                         <p className="text-xs text-gray-500 mt-3">Normaal bereik voor dit type auto is 10.000 - 18.000 km per jaar.</p>
-                       </div>
+                          <h4 className="text-lg font-bold text-white mb-4">Kilometerstand Check</h4>
+                          <div className="bg-[#131B2A] border border-white/5 rounded-2xl p-6 mb-10">
+                            <div className="flex justify-between items-end mb-4">
+                              <div>
+                                <p className="text-gray-300 text-sm md:text-base">{km.toLocaleString('nl-NL')} km in {years} jaar = gemiddeld <span className="text-white font-bold">{avgKmPerYear.toLocaleString('nl-NL')} km/jaar</span></p>
+                              </div>
+                              <div className={`px-3 py-1 rounded-md font-bold text-sm tracking-wide ${isKmNormal ? 'bg-accent-green/20 text-accent-green' : 'bg-amber-500/20 text-amber-500'}`}>{kmStatusText}</div>
+                            </div>
+                            <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 shadow-inner">
+                              <div className={`h-full ${isKmNormal ? 'bg-gradient-to-r from-accent-green/50 to-accent-green' : 'bg-gradient-to-r from-amber-500/50 to-amber-500'}`} style={{width: `${kmPercent}%`}}></div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-3">Normaal bereik voor dit type auto is 10.000 - 18.000 km per jaar.</p>
+                          </div>
 
-                       <h4 className="text-lg font-bold text-white mb-4">Vergelijkbare Advertenties (Markt)</h4>
-                       <div className="overflow-x-auto rounded-2xl border border-white/5">
-                         <table className="w-full text-left text-sm whitespace-nowrap bg-[#131B2A]">
-                           <thead>
-                             <tr className="border-b border-white/5 text-gray-400 bg-black/40 text-xs uppercase tracking-wider font-bold">
-                               <th className="py-4 px-6">Auto</th>
-                               <th className="py-4 px-6">Jaar</th>
-                               <th className="py-4 px-6">KM</th>
-                               <th className="py-4 px-6 text-right">Prijs</th>
-                               <th className="py-4 px-6">Bron</th>
-                               <th className="py-4 px-6"></th>
-                             </tr>
-                           </thead>
-                           <tbody className="divide-y divide-white/5">
-                             {data.vergelijkbareAutos.map((auto: any, i: number) => (
-                               <tr key={i} className={auto.isCurrent ? "bg-accent-green/5 border-l-4 border-l-accent-green" : ""}>
-                                 <td className={`py-4 px-6 font-bold ${auto.isCurrent ? "text-accent-green" : "text-gray-200"}`}>
-                                   {auto.naam || auto.titel} {auto.isCurrent && <span className="text-xs ml-2 bg-accent-green/20 px-2 py-0.5 rounded text-accent-green">Vraagprijs</span>}
-                                 </td>
-                                 <td className="py-4 px-6 text-gray-400">{auto.jaar || auto.bouwjaar}</td>
-                                 <td className="py-4 px-6 text-gray-400">{(auto.km || auto.kilometerstand)?.toLocaleString()}</td>
-                                 <td className="py-4 px-6 font-bold text-right text-white">€ {auto.prijs?.toLocaleString()}</td>
-                                 <td className="py-4 px-6 text-gray-400">{((auto.url || auto.link || reportData?.url || "").includes("autoscout")) ? "AutoScout24" : "Marktplaats"}</td>
-                                 <td className="py-4 px-6 text-right">
-                                   <a href={auto.url || auto.link} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
-                                 </td>
-                               </tr>
-                             ))}
-                           </tbody>
-                         </table>
-                       </div>
+                          <h4 className="text-lg font-bold text-white mb-4">Vergelijkbare Advertenties (Markt)</h4>
+                          <div className="overflow-x-auto rounded-2xl border border-white/5">
+                            <table className="w-full text-left text-sm whitespace-nowrap bg-[#131B2A]">
+                              <thead>
+                                <tr className="border-b border-white/5 text-gray-400 bg-black/40 text-xs uppercase tracking-wider font-bold">
+                                  <th className="py-4 px-6">Auto</th>
+                                  <th className="py-4 px-6">Jaar</th>
+                                  <th className="py-4 px-6">KM</th>
+                                  <th className="py-4 px-6 text-right">Prijs</th>
+                                  <th className="py-4 px-6">Bron</th>
+                                  <th className="py-4 px-6"></th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                {data.vergelijkbareAutos.map((auto: any, i: number) => (
+                                  <tr key={i} className={auto.isCurrent ? "bg-accent-green/5 border-l-4 border-l-accent-green" : ""}>
+                                    <td className={`py-4 px-6 font-bold ${auto.isCurrent ? "text-accent-green" : "text-gray-200"}`}>
+                                      {auto.naam || auto.titel} {auto.isCurrent && <span className="text-xs ml-2 bg-accent-green/20 px-2 py-0.5 rounded text-accent-green">Vraagprijs</span>}
+                                    </td>
+                                    <td className="py-4 px-6 text-gray-400">{auto.jaar || auto.bouwjaar}</td>
+                                    <td className="py-4 px-6 text-gray-400">{(auto.km || auto.kilometerstand)?.toLocaleString()}</td>
+                                    <td className="py-4 px-6 font-bold text-right text-white">€ {auto.prijs?.toLocaleString()}</td>
+                                    <td className="py-4 px-6 text-gray-400">{((auto.url || auto.link || "").includes("autoscout")) ? "AutoScout24" : "Marktplaats"}</td>
+                                    <td className="py-4 px-6 text-right">
+                                      <a href={auto.url || auto.link} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </Card>
+                      </div>
+                    );
+                  })()}
 
-                     </Card>
-                   </div>
-                 );})()}
+                  {/* TAB 3: RISICO'S */}
+                  {activeTab === 'vlaggen' && (
+                    <div className="space-y-6">
+                      <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                             <ShieldAlert className="w-6 h-6 text-red-500" /> Risico Analyse
+                          </h3>
+                          <div className="bg-red-500/10 border border-red-500/20 text-red-500 font-bold px-4 py-1.5 rounded-full text-sm">
+                            {data.rodeVlaggen.length} rode vlaggen gevonden
+                          </div>
+                        </div>
 
-                 {/* TAB 3: RISICO'S */}
-                 {activeTab === 'vlaggen' && (
-                   <div className="space-y-6">
-                     <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                       
-                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            <ShieldAlert className="w-6 h-6 text-red-500" /> Risico Analyse
-                         </h3>
-                         <div className="bg-red-500/10 border border-red-500/20 text-red-500 font-bold px-4 py-1.5 rounded-full text-sm">
-                           {data.rodeVlaggen.length} rode vlaggen gevonden
-                         </div>
-                       </div>
+                        <div className="space-y-4 mb-10">
+                          {data.rodeVlaggen.map((vlag: any, i: number) => {
+                            let badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+                            if(vlag.ernst === 'middel') badgeClass = "bg-amber-500/10 text-amber-500 border-amber-500/20";
+                            if(vlag.ernst === 'laag') badgeClass = "bg-accent-green/10 text-accent-green border-accent-green/20";
+                            
+                            return (
+                              <div key={i} className="flex flex-col sm:flex-row gap-5 p-5 rounded-2xl border border-white/5 bg-[#131B2A] items-start transition-colors hover:bg-white/5">
+                                <div className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest border ${badgeClass} shrink-0 w-24 text-center mt-1`}>
+                                  {vlag.ernst}
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-white text-base mb-1.5">{vlag.titel}</h4>
+                                  <p className="text-gray-400 text-sm leading-relaxed">{vlag.uitleg}</p>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
 
-                       <div className="space-y-4 mb-10">
-                         {data.rodeVlaggen.map((vlag: any, i: number) => {
-                           let badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
-                           if(vlag.ernst === 'middel') badgeClass = "bg-amber-500/10 text-amber-500 border-amber-500/20";
-                           if(vlag.ernst === 'laag') badgeClass = "bg-accent-green/10 text-accent-green border-accent-green/20";
-                           
-                           return (
-                             <div key={i} className="flex flex-col sm:flex-row gap-5 p-5 rounded-2xl border border-white/5 bg-[#131B2A] items-start transition-colors hover:bg-white/5">
-                               <div className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest border ${badgeClass} shrink-0 w-24 text-center mt-1`}>
-                                 {vlag.ernst}
-                               </div>
-                               <div>
-                                 <h4 className="font-bold text-white text-base mb-1.5">{vlag.titel}</h4>
-                                 <p className="text-gray-400 text-sm leading-relaxed">{vlag.uitleg}</p>
-                               </div>
-                             </div>
-                           )
-                         })}
-                       </div>
+                        <h4 className="text-lg font-bold text-white mb-4">Advertentie Analyse</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Online Sinds</p>
+                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.onlineSinds || "Onbekend"}</p>
+                          </div>
+                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Beschrijving</p>
+                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.volledigheid || "Onbekend"}</p>
+                          </div>
+                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Prijswijzigingen</p>
+                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.prijsWijzigingen || "Onbekend"}</p>
+                          </div>
+                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Taalgebruik</p>
+                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.taalgebruik || "Onbekend"}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
 
-                       <h4 className="text-lg font-bold text-white mb-4">Advertentie Analyse</h4>
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                         <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
-                           <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Online Sinds</p>
-                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.onlineSinds || "Onbekend"}</p>
-                         </div>
-                         <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
-                           <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Beschrijving</p>
-                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.volledigheid || "Onbekend"}</p>
-                         </div>
-                         <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
-                           <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Prijswijzigingen</p>
-                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.prijsWijzigingen || "Onbekend"}</p>
-                         </div>
-                         <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
-                           <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Taalgebruik</p>
-                           <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.taalgebruik || "Onbekend"}</p>
-                         </div>
-                       </div>
+                  {/* TAB 4: FOTO ANALYSE */}
+                  {activeTab === 'foto' && (
+                    <div className="space-y-6">
+                      <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                        <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
+                          <Camera className="w-5 h-5 text-gray-400" /> AI Foto Analyse
+                        </h3>
+                        
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                          {data.fotoAnalyse.map((foto: any, i: number) => (
+                            <div key={i} className="group">
+                              <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
+                                <img 
+                                   src={`/api/proxy-image?url=${encodeURIComponent(foto.url || '')}`} 
+                                   alt={foto.label} 
+                                   className="w-full h-full object-cover" 
+                                   referrerPolicy="no-referrer" 
+                                   crossOrigin="anonymous"
+                                   loading="lazy"
+                                 />
+                                
+                                <div className="absolute right-3 bottom-3 shadow-lg">
+                                  {foto.ernst === 'ok' && <div className="bg-accent-green text-black rounded-full p-2"><CheckCircle className="w-4 h-4" /></div>}
+                                  {(foto.ernst === 'waarschuwing' || foto.ernst === 'middel') && <div className="bg-amber-500 text-black rounded-full p-2"><AlertTriangle className="w-4 h-4" /></div>}
+                                  {(foto.ernst === 'probleem' || foto.ernst === 'hoog') && <div className="bg-red-500 text-white rounded-full p-2"><XCircle className="w-4 h-4" /></div>}
+                                </div>
+                              </div>
+                              <h4 className="font-bold text-white text-base mb-1">{foto.label}</h4>
+                              <p className="text-sm text-gray-400">{foto.bevinding}</p>
+                            </div>
+                          ))}
+                        </div>
 
-                     </Card>
-                   </div>
-                 )}
+                        <div className="border border-red-500/30 bg-red-500/10 rounded-2xl p-6 lg:p-8">
+                          <h4 className="flex items-center gap-3 text-red-400 font-bold mb-4 text-sm uppercase tracking-wide">
+                            <XCircle className="w-5 h-5" /> Ontbrekende foto's — vraag hier altijd om:
+                          </h4>
+                          <ul className="space-y-3 pl-1">
+                            {data.ontbrekendeFotos.map((item: string, i: number) => (
+                              <li key={i} className="flex gap-3 text-gray-200 text-sm items-center font-medium">
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,1)]"></div> {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
 
-                 {/* TAB 4: FOTO ANALYSE */}
-                 {activeTab === 'foto' && (
-                   <div className="space-y-6">
-                     <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                       <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
-                         <Camera className="w-5 h-5 text-gray-400" /> AI Foto Analyse
-                       </h3>
-                       
-                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                         {data.fotoAnalyse.map((foto: any, i: number) => (
-                           <div key={i} className="group">
-                             <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
-                               <img 
-                                  src={`/api/proxy-image?url=${encodeURIComponent(foto.url || '')}`} 
-                                  alt={foto.label} 
-                                  className="w-full h-full object-cover" 
-                                  referrerPolicy="no-referrer" 
-                                  crossOrigin="anonymous"
-                                  loading="lazy"
-                                />
-                               
-                               <div className="absolute right-3 bottom-3 shadow-lg">
-                                 {foto.ernst === 'ok' && <div className="bg-accent-green text-black rounded-full p-2"><CheckCircle className="w-4 h-4" /></div>}
-                                 {(foto.ernst === 'waarschuwing' || foto.ernst === 'middel') && <div className="bg-amber-500 text-black rounded-full p-2"><AlertTriangle className="w-4 h-4" /></div>}
-                                 {(foto.ernst === 'probleem' || foto.ernst === 'hoog') && <div className="bg-red-500 text-white rounded-full p-2"><XCircle className="w-4 h-4" /></div>}
-                               </div>
-                             </div>
-                             <h4 className="font-bold text-white text-base mb-1">{foto.label}</h4>
-                             <p className="text-sm text-gray-400">{foto.bevinding}</p>
-                           </div>
-                         ))}
-                       </div>
+                  {/* TAB 5: ONDERHANDELEN */}
+                  {activeTab === 'script' && (
+                    <div className="space-y-6">
+                      <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                        <div className="text-center mb-10 pt-4">
+                          <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mb-4">Aanbevolen Openingsbod</p>
+                          <p className="text-5xl md:text-7xl font-heading font-extrabold text-accent-green mb-6 drop-shadow-md">€ {data.openingsBod.toLocaleString('nl-NL')}</p>
+                          <p className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full text-sm text-gray-300 font-medium">
+                            € {(data.vraagprijs - data.openingsBod).toLocaleString('nl-NL')} onder vraagprijs
+                          </p>
+                        </div>
 
-                       {/* Missing Photos */}
-                       <div className="border border-red-500/30 bg-red-500/10 rounded-2xl p-6 lg:p-8">
-                         <h4 className="flex items-center gap-3 text-red-400 font-bold mb-4 text-sm uppercase tracking-wide">
-                           <XCircle className="w-5 h-5" /> Ontbrekende foto's — vraag hier altijd om:
-                         </h4>
-                         <ul className="space-y-3 pl-1">
-                           {data.ontbrekendeFotos.map((item: string, i: number) => (
-                             <li key={i} className="flex gap-3 text-gray-200 text-sm items-center font-medium">
-                               <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,1)]"></div> {item}
-                             </li>
-                           ))}
-                         </ul>
-                       </div>
+                        <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 relative mt-12 mb-10 overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)]">
+                          <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
+                          <div className="p-6 md:p-8">
+                            <h4 className="flex items-center gap-2 text-amber-500 font-bold mb-6 text-lg">
+                              <FileText className="w-5 h-5" /> Jouw persoonlijke script
+                            </h4>
+                            <div className="bg-black p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
+                              "{data.onderhandelingsScript}"
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                              <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">
+                                {copied ? <Check className="w-5 h-5 mr-2 text-accent-green" /> : <Copy className="w-5 h-5 mr-2" />} Kopiëren
+                              </Button>
+                              <Button className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl h-14 font-bold border-transparent">
+                                <MessageCircle className="w-5 h-5 mr-2" /> Verstuur via WhatsApp
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
 
-                     </Card>
-                   </div>
-                 )}
+                        <h4 className="font-bold text-white mb-6 text-lg">Onderhandelingstips</h4>
+                        <div className="grid gap-3">
+                          {data.onderhandelingsTips.map((tip: string, i: number) => (
+                            <div key={i} className="bg-[#131B2A] border border-white/5 rounded-xl p-5 flex gap-4 items-center">
+                              <div className="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center shrink-0">
+                                <div className="w-2 h-2 rounded-full bg-accent-green"></div>
+                              </div>
+                              <span className="text-gray-300 text-sm md:text-base font-medium">{tip}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+                </div>
 
-                 {/* TAB 5: ONDERHANDELEN */}
-                 {activeTab === 'script' && (
-                   <div className="space-y-6">
-                     <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                       
-                       <div className="text-center mb-10 pt-4">
-                         <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mb-4">Aanbevolen Openingsbod</p>
-                         <p className="text-5xl md:text-7xl font-heading font-extrabold text-accent-green mb-6 drop-shadow-md">€ {data.openingsBod.toLocaleString('nl-NL')}</p>
-                         <p className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full text-sm text-gray-300 font-medium">
-                           € {(data.vraagprijs - data.openingsBod).toLocaleString('nl-NL')} onder vraagprijs
-                         </p>
-                       </div>
-
-                       <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 relative mt-12 mb-10 overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-                         <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
-                         <div className="p-6 md:p-8">
-                           <h4 className="flex items-center gap-2 text-amber-500 font-bold mb-6 text-lg">
-                             <FileText className="w-5 h-5" /> Jouw persoonlijke script
-                           </h4>
-                           <div className="bg-black p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
-                             "{data.onderhandelingsScript}"
-                           </div>
-                           <div className="flex flex-col sm:flex-row gap-4">
-                             <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">
-                               {copied ? <Check className="w-5 h-5 mr-2 text-accent-green" /> : <Copy className="w-5 h-5 mr-2" />} Kopiëren
-                             </Button>
-                             <Button className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl h-14 font-bold border-transparent">
-                               <MessageCircle className="w-5 h-5 mr-2" /> Verstuur via WhatsApp
-                             </Button>
-                           </div>
-                         </div>
-                       </div>
-
-                       <h4 className="font-bold text-white mb-6 text-lg">Onderhandelingstips</h4>
-                       <div className="grid gap-3">
-                         {data.onderhandelingsTips.map((tip: string, i: number) => (
-                           <div key={i} className="bg-[#131B2A] border border-white/5 rounded-xl p-5 flex gap-4 items-center">
-                             <div className="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center shrink-0">
-                               <div className="w-2 h-2 rounded-full bg-accent-green"></div>
-                             </div>
-                             <span className="text-gray-300 text-sm md:text-base font-medium">{tip}</span>
-                           </div>
-                         ))}
-                       </div>
-
-                     </Card>
-                   </div>
-                 )}
-               </div>
-
-               {/* PAYWALL OVERLAY */}
-               {((['prijs', 'vlaggen'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
-                   (['foto', 'script'].indexOf(activeTab) !== -1 && !hasFullAccess)) && (
-                 <div className="absolute inset-x-0 bottom-0 top-0 z-50 flex items-center justify-center backdrop-blur-md rounded-3xl overflow-hidden pointer-events-auto">
-                   <div className="absolute inset-0 bg-[#050B14]/80 pointer-events-none"></div>
-                   <Card className="bg-[#0A111F] border-accent-green/30 rounded-3xl p-8 shadow-2xl max-w-md w-[calc(100%-2rem)] text-center relative z-10 mx-auto">
-                     <div className="w-16 h-16 bg-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                       <Lock className="w-8 h-8 text-accent-green" />
-                     </div>
-                     <h3 className="text-2xl font-bold text-white mb-4">Ontgrendel deze sectie</h3>
-                     <p className="text-gray-400 mb-8">
-                       {['foto', 'script'].indexOf(activeTab) !== -1
-                          ? "Krijg direct toegang tot AI Foto Analyse en het Onderhandelingsscript met een premium abonnement."
-                          : "Krijg direct toegang tot Prijsanalyse en alle Risico's met een losse scan of premium abonnement."}
-                     </p>
-                     <Button 
-                       className="w-full bg-accent-green hover:bg-accent-green/80 text-black font-bold h-12 rounded-xl mb-4"
-                       onClick={() => navigate('/prijzen')}
-                     >
-                       Bekijk Pakketten
-                     </Button>
-                     <p className="text-xs text-gray-500">Kies wat bij jou past.</p>
-                   </Card>
-                 </div>
-               )}
-
-            </motion.div>
-          )}
-
+                {/* PAYWALL OVERLAY */}
+                {((['prijs', 'vlaggen'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
+                    (['foto', 'script'].indexOf(activeTab) !== -1 && !hasFullAccess)) && (
+                  <div className="absolute inset-x-0 bottom-0 top-0 z-50 flex items-center justify-center backdrop-blur-md rounded-3xl overflow-hidden pointer-events-auto">
+                    <div className="absolute inset-0 bg-[#050B14]/80 pointer-events-none"></div>
+                    <Card className="bg-[#0A111F] border-accent-green/30 rounded-3xl p-8 shadow-2xl max-w-md w-[calc(100%-2rem)] text-center relative z-10 mx-auto">
+                      <div className="w-16 h-16 bg-accent-green/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-8 h-8 text-accent-green" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-white mb-4">Ontgrendel deze sectie</h3>
+                      <p className="text-gray-400 mb-8">
+                        {['foto', 'script'].indexOf(activeTab) !== -1
+                           ? "Krijg direct toegang tot AI Foto Analyse en het Onderhandelingsscript met een premium abonnement."
+                           : "Krijg direct toegang tot Prijsanalyse en alle Risico's met een losse scan of premium abonnement."}
+                      </p>
+                      <Button 
+                        className="w-full bg-accent-green hover:bg-accent-green/80 text-black font-bold h-12 rounded-xl mb-4"
+                        onClick={() => navigate('/prijzen')}
+                      >
+                        Bekijk Pakketten
+                      </Button>
+                      <p className="text-xs text-gray-500">Kies wat bij jou past.</p>
+                    </Card>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
       

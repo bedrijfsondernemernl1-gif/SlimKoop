@@ -7,7 +7,12 @@ import { useStore } from '@/src/store/useStore';
 import { AuthModal } from './AuthModal';
 
 export const Navbar: React.FC = () => {
-  const { isLoggedIn, logout, isAuthModalOpen, openAuthModal, closeAuthModal } = useStore();
+  const isLoggedIn = useStore(state => state.isLoggedIn);
+  const logout = useStore(state => state.logout);
+  const isAuthModalOpen = useStore(state => state.isAuthModalOpen);
+  const openAuthModal = useStore(state => state.openAuthModal);
+  const closeAuthModal = useStore(state => state.closeAuthModal);
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -69,7 +74,7 @@ export const Navbar: React.FC = () => {
               <div className="text-primary group-hover:text-primary/80 transition-all duration-500 flex items-center justify-center bg-gradient-to-br from-primary-dark via-primary-dark to-black p-2.5 rounded-xl border border-white/10 shadow-[inset_0_0_20px_rgba(0,200,83,0.15)] group-hover:shadow-[inset_0_0_30px_rgba(0,200,83,0.3)] group-hover:scale-105">
                 <ShieldCheck width="22" height="22" className="text-accent-green" strokeWidth={2.5} />
               </div>
-              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm group-hover:tracking-normal transition-all duration-500">Ocassion<span className="text-accent-green">Scan</span></span>
+              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm group-hover:tracking-normal transition-all duration-500">Occasion<span className="text-accent-green">Scan</span></span>
             </Link>
             
             {/* Desktop Navigation Center */}

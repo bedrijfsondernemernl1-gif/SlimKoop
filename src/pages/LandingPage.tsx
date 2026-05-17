@@ -23,7 +23,10 @@ export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const { user, isLoggedIn, openAuthModal } = useStore();
+  
+  const user = useStore(state => state.user);
+  const isLoggedIn = useStore(state => state.isLoggedIn);
+  const openAuthModal = useStore(state => state.openAuthModal);
   
   const [purchasing, setPurchasing] = useState<string | null>(null);
 

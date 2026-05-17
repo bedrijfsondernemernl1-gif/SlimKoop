@@ -13,7 +13,7 @@ export const Footer: React.FC = () => {
               <div className="text-primary transition-all duration-300 flex items-center justify-center bg-gradient-to-br from-primary-dark via-primary-dark to-black p-2.5 rounded-xl border border-white/10 shadow-[inset_0_0_20px_rgba(0,200,83,0.15)] group-hover:shadow-[inset_0_0_25px_rgba(0,200,83,0.25)]">
                 <ShieldCheck width="22" height="22" className="text-accent-green" strokeWidth={2.5} />
               </div>
-              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm">Ocassion<span className="text-accent-green">Scan</span></span>
+              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm">Occasion<span className="text-accent-green">Scan</span></span>
             </Link>
             <p className="text-gray-400 font-light max-w-sm mb-6">
               AI-gedreven autotaxaties en risico-analyses. Wij beschermen kopers tegen miskopen en verborgen gebreken met data.
@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
         </div>
         
         <div className="border-t border-white/10 mt-16 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-gray-500 text-sm">© {new Date().getFullYear()} OcassionScan. Alle rechten voorbehouden.</p>
+          <p className="text-gray-500 text-sm">© {new Date().getFullYear()} OccasionScan. Alle rechten voorbehouden.</p>
           <div className="flex items-center gap-4 text-sm text-gray-500">
             KVK: 12345678
           </div>

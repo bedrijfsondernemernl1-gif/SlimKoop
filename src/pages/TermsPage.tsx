@@ -17,7 +17,7 @@ export const TermsPage: React.FC = () => {
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6">Algemene Voorwaarden</h1>
             <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto">
-              Lees deze voorwaarden zorgvuldig door voordat je gebruikmaakt van OcassionScan.
+              Lees deze voorwaarden zorgvuldig door voordat je gebruikmaakt van OccasionScan.
             </p>
           </div>
 
@@ -27,10 +27,10 @@ export const TermsPage: React.FC = () => {
               <section>
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
                   <FileText className="w-6 h-6 text-accent-green" />
-                  1. Diensten van OcassionScan
+                  1. Diensten van OccasionScan
                 </h2>
                 <p>
-                  OcassionScan biedt een platform voor de analyse van tweedehands voertuigen op basis van online advertenties en openbare data. De resultaten zijn bedoeld als hulpmiddel en advies, niet als bindende taxatie of garantie op de staat van een voertuig.
+                  OccasionScan biedt een platform voor de analyse van tweedehands voertuigen op basis van online advertenties en openbare data. De resultaten zijn bedoeld als hulpmiddel en advies, niet als bindende taxatie of garantie op de staat van een voertuig.
                 </p>
               </section>
 
@@ -44,8 +44,8 @@ export const TermsPage: React.FC = () => {
                 </p>
                 <ul className="list-disc ml-6 mt-3 space-y-2">
                   <li>Je verstrekt alleen correcte gegevens bij het aanmaken van een account.</li>
-                  <li>Je gebruikt het platform niet voor illegale doeleinden of om de systemen van OcassionScan te overbelasten.</li>
-                  <li>Het is niet toegestaan om geautomatiseerde scripts te gebruiken om data van OcassionScan te scrapen zonder uitdrukkelijke toestemming.</li>
+                  <li>Je gebruikt het platform niet voor illegale doeleinden of om de systemen van OccasionScan te overbelasten.</li>
+                  <li>Het is niet toegestaan om geautomatiseerde scripts te gebruiken om data van OccasionScan te scrapen zonder uitdrukkelijke toestemming.</li>
                 </ul>
               </section>
 
@@ -55,7 +55,7 @@ export const TermsPage: React.FC = () => {
                   3. Disclaimer & Aansprakelijkheid
                 </h2>
                 <p>
-                  Hoewel onze AI-modellen met de grootste zorg zijn samengesteld, kan OcassionScan niet aansprakelijk worden gesteld voor:
+                  Hoewel onze AI-modellen met de grootste zorg zijn samengesteld, kan OccasionScan niet aansprakelijk worden gesteld voor:
                 </p>
                 <ul className="list-disc ml-6 mt-3 space-y-2">
                   <li>Financiële verliezen naar aanleiding van een voertuigaankoop.</li>
@@ -74,7 +74,7 @@ export const TermsPage: React.FC = () => {
               <section>
                 <h2 className="text-2xl font-bold text-white mb-4">5. Intellectueel Eigendom</h2>
                 <p>
-                  Alle inhoud op deze website, inclusief de AI-algoritmen en de gegenereerde rapporten, is eigendom van OcassionScan en mag niet zonder toestemming worden gekopieerd of gedistribueerd.
+                  Alle inhoud op deze website, inclusief de AI-algoritmen en de gegenereerde rapporten, is eigendom van OccasionScan en mag niet zonder toestemming worden gekopieerd of gedistribueerd.
                 </p>
               </section>
 

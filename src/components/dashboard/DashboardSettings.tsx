@@ -215,7 +215,7 @@ export const DashboardSettings: React.FC = () => {
                   { title: "Prijsdalingen", desc: "Mail mij zodra een auto in mijn garage in prijs daalt." },
                   { title: "Nieuwe Rapportages", desc: "Bevestiging en samenvatting zodra een AI rapport klaar is." },
                   { title: "Systeem Updates", desc: "Blijf op de hoogte van nieuwe functies en verbeteringen." },
-                  { title: "Marketing & Aanbiedingen", desc: "Occassionele mails met kortingscodes en unieke data-inzichten." }
+                  { title: "Marketing & Aanbiedingen", desc: "Occasionele mails met kortingscodes en unieke data-inzichten." }
                 ].map((item, i) => (
                   <div key={i} className="flex items-start justify-between pb-6 border-b border-white/5 last:border-0 last:pb-0">
                     <div className="pr-8">

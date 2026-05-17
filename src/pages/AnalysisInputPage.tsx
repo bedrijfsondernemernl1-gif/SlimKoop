@@ -64,11 +64,12 @@ export const AnalysisInputPage: React.FC = () => {
            transition={{ delay: 0.1 }}
            className="w-full max-w-2xl glass-panel border-white/10 rounded-3xl p-8 shadow-2xl relative bg-black/60 backdrop-blur-2xl"
         >
-           {/* Platform badges */}
-           <div className="flex items-center justify-center gap-6 mb-8 text-sm font-bold text-gray-500 uppercase tracking-wider">
-              <span className="text-white">Ondersteunde platforms:</span>
-              <span className="flex items-center gap-1.5 text-orange-400"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
-              <span className="flex items-center gap-1.5 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-400"></span> AutoScout24</span>
+           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-8 text-[10px] sm:text-sm font-bold text-gray-500 uppercase tracking-wider">
+              <span className="text-white whitespace-nowrap">Ondersteunde platforms:</span>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <span className="flex items-center gap-1.5 text-orange-400 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
+                <span className="flex items-center gap-1.5 text-blue-400 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-blue-400"></span> AutoScout24</span>
+              </div>
            </div>
 
              <form onSubmit={handleAnalyze} className="space-y-6">

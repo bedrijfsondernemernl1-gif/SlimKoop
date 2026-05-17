@@ -131,7 +131,7 @@ export const ContactPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-white font-semibold mb-1">E-mail</h3>
-                      <p className="text-gray-400 text-sm">support@ocassionscan.nl</p>
+                      <p className="text-gray-400 text-sm">support@occasionscan.nl</p>
                       <p className="text-gray-500 text-xs mt-1">We streven ernaar binnen 24 uur te reageren.</p>
                     </div>
                   </div>

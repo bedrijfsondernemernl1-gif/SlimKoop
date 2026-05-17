@@ -17,7 +17,7 @@ const auth = getAuth(firebaseApp);
 const adminDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 // Sign in server bot
-signInWithEmailAndPassword(auth, "admin_server_bot@ocassionscan.nl", "ServerSuperPassword123!")
+signInWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSuperPassword123!")
   .then(() => console.log("[SERVER] Logged in as Server Bot for Firestore access."))
   .catch((err) => console.error("[SERVER] Failed to login Server Bot:", err));
 
@@ -359,7 +359,7 @@ async function startServer() {
         const userDoc = await getDoc(userRef);
         if (userDoc.exists()) {
           const data = userDoc.data() as any;
-          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
+          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
           const isAdmin = adminEmails.includes((data.email || '').toLowerCase());
           
           if (isAdmin) {
@@ -372,10 +372,10 @@ async function startServer() {
 
             // Check if limit is reached
             if (pakket !== 'free') {
-              if (scansGebruikt >= scanLimiet) {
+              if (scansGebruikt >= scanLimiet && scanLimiet < 999) {
                 // If limit reached, downgrade to free tier for this scan
                 reportTier = 'free';
-                // Add a flag to the response so frontend can notify the user
+                // Add a flag to the response
                 var limitReached = true;
               } else {
                 // Determine tier based on permissies
@@ -459,7 +459,7 @@ async function startServer() {
       const reportTier = rawData.tier || 'free';
       const userEmail = (req.query.email as string) || ''; // Wait, we should probably check admin by email if possible
 
-      const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
+      const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
       const isAdmin = adminEmails.includes(userEmail.toLowerCase());
 
       // Access is granted if:

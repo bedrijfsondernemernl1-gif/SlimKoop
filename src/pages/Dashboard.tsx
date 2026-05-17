@@ -14,7 +14,12 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isPremium, subscriptionPlan, permissies, scansOver } = useStore();
+  
+  const isPremium = useStore(state => state.isPremium);
+  const subscriptionPlan = useStore(state => state.subscriptionPlan);
+  const permissies = useStore(state => state.permissies);
+  const scansOver = useStore(state => state.scansOver);
+  
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {

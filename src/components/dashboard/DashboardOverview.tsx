@@ -194,7 +194,7 @@ export const DashboardOverview: React.FC = () => {
                 <div className="flex gap-6 items-center w-full">
                     <div className="hidden sm:block w-20 h-16 bg-black/60 rounded-xl overflow-hidden border border-white/10 shrink-0">
                       <img 
-                        src={car.img ? (car.img.includes('marktplaats.com') ? car.img + '?rule=ecg_mp_eps$_86.jpg' : car.img) : ''} 
+                        src={car.img ? (car.img.includes('marktplaats.nl') || car.img.includes('marktplaats.com') ? car.img + (car.img.includes('?') ? '&' : '?') + 'rule=ecg_mp_eps$_86.jpg' : car.img) : ''} 
                         alt={car.title} 
                         className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
                         loading="lazy"

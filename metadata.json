@@ -1,5 +1,5 @@
 {
-  "name": "OcassionScan",
+  "name": "OccasionScan",
   "description": "AI-aangedreven marktplaats analyse tool voor tweedehands auto's.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

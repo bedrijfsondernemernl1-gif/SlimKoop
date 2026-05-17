@@ -15,7 +15,7 @@ export const AboutPage: React.FC = () => {
           className="max-w-4xl mx-auto"
         >
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6">Over OcassionScan</h1>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6">Over OccasionScan</h1>
             <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto">
               Wij maken de verborgen patronen in de tweedehands automarkt zichtbaar, zodat jij altijd met een voorsprong onderhandelt.
             </p>
@@ -28,7 +28,7 @@ export const AboutPage: React.FC = () => {
                 De tweedehands automarkt is van oudsher ondoorzichtig. Verkopers weten vaak meer dan kopers, en als consument is het moeilijk om razendsnel in te schatten of een vraagprijs écht marktconform is.
               </p>
               <p>
-                Dat is waarom we <strong className="text-white">OcassionScan</strong> zijn gestart. Door miljoenen datapunten en geavanceerde AI te combineren, kunnen we in seconden een auto scannen zoals een expert dat zou doen. We kijken naar historische afschrijvingen, prijstrends in de markt, roestpatronen op foto's en kleine signalen in de beschrijving die duiden op een slechte deal.
+                Dat is waarom we <strong className="text-white">OccasionScan</strong> zijn gestart. Door miljoenen datapunten en geavanceerde AI te combineren, kunnen we in seconden een auto scannen zoals een expert dat zou doen. We kijken naar historische afschrijvingen, prijstrends in de markt, roestpatronen op foto's en kleine signalen in de beschrijving die duiden op een slechte deal.
               </p>
               <p>
                 Onze missie is simpel: <span className="text-accent-green font-semibold">jou beschermen tegen miskopen en je de munitie geven om de beste prijs te onderhandelen.</span>

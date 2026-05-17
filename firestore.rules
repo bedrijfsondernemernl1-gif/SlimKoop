@@ -37,14 +37,14 @@ service cloud.firestore {
         request.auth.token.email == 'ibrahimdiscord675@gmail.com' || 
         request.auth.token.email == 'sblzakelijk@gmail.com' || 
         request.auth.token.email == 'bedrijfsondernemernl1@gmail.com' ||
-        request.auth.token.email == 'admin_server_bot@ocassionscan.nl'
+        request.auth.token.email == 'admin_server_bot@occasionscan.nl'
       );
     }
 
     function isServerAdmin() {
       return request.auth != null && (
         request.auth.uid == '8fUk6gV6ZuUVQHvsRu5WY8YRWYF2' || 
-        request.auth.token.email == 'admin_server_bot@ocassionscan.nl'
+        request.auth.token.email == 'admin_server_bot@occasionscan.nl'
       );
     }
 
