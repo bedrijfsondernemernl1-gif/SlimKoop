@@ -351,10 +351,11 @@ async function startServer() {
     let reportTier = 'free';
     if (userId && userId !== "anonymous") {
       try {
-        const userDoc = await getDoc(doc(adminDb, "gebruikers", userId));
+        const userRef = doc(adminDb, "gebruikers", userId);
+        const userDoc = await getDoc(userRef);
         if (userDoc.exists()) {
           const data = userDoc.data() as any;
-          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
+          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@ocassionscan.nl'];
           const isAdmin = adminEmails.includes(data.email || '');
           const pakket = data.pakket || 'free';
           const perms = data.permissies || 'free';
@@ -364,7 +365,7 @@ async function startServer() {
             if (scansOver > 0) {
               reportTier = 'slimme_koper';
               // Duct one scan
-              await setDoc(doc(adminDb, "gebruikers", userId), { 
+              await setDoc(userRef, { 
                 scansOver: scansOver - 1
               }, { merge: true });
             } else {
@@ -377,7 +378,7 @@ async function startServer() {
 
           if (pakket === "Losse Scan" && !isAdmin) {
             // Revert back to free after using the single scan
-            await setDoc(doc(adminDb, "gebruikers", userId), { 
+            await setDoc(userRef, { 
               pakket: 'free', 
               permissies: 'free', 
               subscriptionStatus: 'free' 
@@ -438,7 +439,7 @@ async function startServer() {
       const rapportId = req.params.id;
       const { isBetaald, permissies } = req.query;
       const isPaidUser = isBetaald === 'true';
-      const userPerms = permissies || 'free';
+      const userPerms = (permissies as string) || 'free';
 
       const docSnap = await getDoc(doc(adminDb, 'rapporten', rapportId));
       if (!docSnap.exists()) {
@@ -531,7 +532,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
     if (!listing) {
       console.error(`[SCRAPING] Failed for URL: ${url}`);
-    await updateDoc(rapportRef, { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
+      await updateDoc(rapportRef, { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
       return;
     }
     

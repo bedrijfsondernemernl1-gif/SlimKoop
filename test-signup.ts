@@ -4,7 +4,7 @@ const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json
 const apiKey = firebaseConfig.apiKey;
 
 async function createAdmin() {
-  const email = "admin_server_bot@slimkoop.nl";
+  const email = "admin_server_bot@ocassionscan.nl";
   const password = "ServerSuperPassword123!";
   
   // 1. Sign Up

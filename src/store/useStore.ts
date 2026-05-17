@@ -73,62 +73,55 @@ let unsubPayment: (() => void) | null = null;
 export const useStore = create<StoreState>((set) => {
   // Listen to Firebase auth state
   onAuthStateChanged(auth, async (user) => {
-    let isValidLogin = false;
+    let isValidLogin = !!user;
     
     if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
-    if (unsubSub) { unsubSub(); unsubSub = null; }
-    if (unsubPayment) { unsubPayment(); unsubPayment = null; }
     
     if (user) {
-      if (user.providerData.some(p => p.providerId === 'google.com') || user.emailVerified) {
-         isValidLogin = true;
+      try {
+        const userRef = doc(db, 'gebruikers', user.uid);
+        // Initial check/create
+        const userSnap = await getDoc(userRef).catch(err => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
+        if (userSnap && !userSnap.exists()) {
+          await setDoc(userRef, {
+            email: user.email,
+            uid: user.uid,
+            aanmaakdatum: new Date().toISOString(),
+            subscriptionStatus: 'free',
+            pakket: 'free',
+            permissies: 'free',
+          }).catch(err => handleFirestoreError(err, OperationType.WRITE, `gebruikers/${user.uid}`));
+        }
+        
+        unsubUserDoc = onSnapshot(userRef, (docSnap) => {
+           if (docSnap.exists()) {
+               const data = docSnap.data();
+               const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com'];
+               const isAdmin = adminEmails.includes(user.email || '');
+               const plan = data.pakket || 'free';
+               const perms = data.permissies || 'free';
+               set({ 
+                   isPremium: isAdmin || perms !== 'free',
+                   subscriptionPlan: isAdmin ? 'Autohandelaar' : plan,
+                   permissies: isAdmin ? 'autohandelaar' : perms,
+                   scansOver: data.scansOver || 0
+               });
+           }
+        }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
+
+      } catch (err) {
+        console.error("Failed to sync user doc:", err);
       }
-      
-      if (isValidLogin) {
-        try {
-          const userRef = doc(db, 'gebruikers', user.uid);
-          // Initial check/create
-          const userSnap = await getDoc(userRef).catch(err => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
-          if (userSnap && !userSnap.exists()) {
-            await setDoc(userRef, {
-              email: user.email,
-              uid: user.uid,
-              aanmaakdatum: new Date().toISOString(),
-              subscriptionStatus: 'free',
-              pakket: 'free',
-              permissies: 'free',
-            }).catch(err => handleFirestoreError(err, OperationType.WRITE, `gebruikers/${user.uid}`));
-          }
-          
-          unsubUserDoc = onSnapshot(userRef, (docSnap) => {
-             if (docSnap.exists()) {
-                 const data = docSnap.data();
-                 const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com'];
-                 const isAdmin = adminEmails.includes(user.email || '');
-                 const plan = data.pakket || 'free';
-                 const perms = data.permissies || 'free';
-                 set({ 
-                     isPremium: isAdmin || perms !== 'free',
-                     subscriptionPlan: isAdmin ? 'Autohandelaar' : plan,
-                     permissies: isAdmin ? 'autohandelaar' : perms
-                 });
-             }
-          }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
 
-        } catch (err) {
-          console.error("Failed to sync user doc:", err);
-        }
-
-        // Proactively sync subscription with Stripe
-        try {
-          await fetch('/api/sync-subscription', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.uid })
-          });
-        } catch(e) {
-          console.error("Failed to sync Stripe subscription:", e);
-        }
+      // Proactively sync subscription with Stripe
+      try {
+        await fetch('/api/sync-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.uid })
+        });
+      } catch(e) {
+        console.error("Failed to sync Stripe subscription:", e);
       }
     }
 
