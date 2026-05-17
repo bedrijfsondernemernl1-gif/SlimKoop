@@ -70,7 +70,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isServerAdmin());
     }
 
-    // 4. Stripe Extension
+    // 5. Stripe Extension
     match /customers/{uid} {
       allow read: if request.auth.uid == uid;
       

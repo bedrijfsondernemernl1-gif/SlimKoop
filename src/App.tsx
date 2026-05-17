@@ -16,6 +16,8 @@ const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
 const AnalysisInputPage = lazy(() => import('./pages/AnalysisInputPage').then(m => ({ default: m.AnalysisInputPage })));
+const BlogPage = lazy(() => import('./pages/BlogPage').then(m => ({ default: m.BlogPage })));
+const BlogPostPage = lazy(() => import('./pages/BlogPostPage').then(m => ({ default: m.BlogPostPage })));
 
 function PageLoader() {
   return (
@@ -53,35 +55,43 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function Layout() {
+  return (
+    <div className="min-h-screen text-foreground font-sans">
+      <ShaderBackground />
+      <Navbar />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/analyseer" element={<AnalysisInputPage />} />
+          <Route path="/hoe-het-werkt" element={<HowItWorksPage />} />
+          <Route path="/prijzen" element={<PricingPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/over-ons" element={<AboutPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/voorwaarden" element={<TermsPage />} />
+          <Route 
+            path="/dashboard/*" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/rapport/:id" element={<ReportPage />} />
+        </Routes>
+      </Suspense>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Router>
       <ScrollToTop />
-      <div className="min-h-screen text-foreground font-sans">
-        <ShaderBackground />
-        <Navbar />
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/analyseer" element={<AnalysisInputPage />} />
-            <Route path="/hoe-het-werkt" element={<HowItWorksPage />} />
-            <Route path="/prijzen" element={<PricingPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/over-ons" element={<AboutPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/voorwaarden" element={<TermsPage />} />
-            <Route 
-              path="/dashboard/*" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/rapport/:id" element={<ReportPage />} />
-          </Routes>
-        </Suspense>
-      </div>
+      <Layout />
     </Router>
   );
 }

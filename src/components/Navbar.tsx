@@ -54,18 +54,21 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { label: "Hoe het werkt", href: "/hoe-het-werkt" },
     { label: "Prijzen", href: "/prijzen" },
+    { label: "Blog", href: "/blog" },
     { label: "Over ons", href: "/over-ons" },
     { label: "Contact", href: "/contact" }
   ];
 
+  const isBlogPostPage = location.pathname.startsWith('/blog/');
+  
   return (
     <>
       <motion.nav 
         className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out px-4 py-4 pointer-events-none"
       >
         <div className={`mx-auto max-w-7xl transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-auto rounded-[2rem] ${
-          isScrolled 
-            ? 'glass-panel border-white/10 px-6 py-3 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.8)] bg-primary-dark/70 backdrop-blur-3xl' 
+          (isScrolled || isBlogPostPage) 
+            ? 'glass-panel border-white/10 px-6 py-3 shadow-[0_16px_40px_-15px_rgba(0,0,0,0.8)] bg-black/90 backdrop-blur-3xl' 
             : 'bg-transparent px-6 py-4'
         }`}>
           <div className="flex items-center justify-between">
