@@ -8,19 +8,19 @@ import { checkRDW } from './src/lib/rdw';
 import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
 
 import admin from "firebase-admin";
+import { getFirestore } from 'firebase-admin/firestore';
 import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
 
+let adminApp;
 if (admin.apps.length === 0) {
-  admin.initializeApp({
+  adminApp = admin.initializeApp({
     projectId: firebaseConfig.projectId
   });
+} else {
+  adminApp = admin.apps[0];
 }
-const adminDb = admin.firestore();
-// Use databaseId if provided in config
-if (firebaseConfig.firestoreDatabaseId) {
-  // In firebase-admin, you can't easily set databaseId after init easily without specific versions
-  // but usually it defaults correctly in this environment.
-}
+
+const adminDb = getFirestore(adminApp!, firebaseConfig.firestoreDatabaseId);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const PRICE_IDS = {
@@ -411,12 +411,12 @@ async function startServer() {
         
         if (ipDoc.exists) {
           const ipData = ipDoc.data() as any;
-          const count = typeof ipData.usageCount === 'number' ? ipData.usageCount : 1; 
+          const count = typeof ipData.usageCount === 'number' ? ipData.usageCount : 0; 
           
           if (count >= 1) {
             console.log(`[LIMIT] IP ${clientIp} blocked. Usage: ${count}`);
             return res.status(403).json({ 
-              error: "Je hebt je gratis limiet van 1 scan per IP bereikt op dit toestel. Maak een account aan of upgrade om meer auto's te analyseren." 
+              error: "Je hebt je gratis limiet van 1 scan per IP bereikt. Maak een account aan of upgrade om meer auto's te analyseren." 
             });
           }
         }
@@ -431,7 +431,7 @@ async function startServer() {
         try {
           const ipRef = adminDb.collection("limited_ips").doc(ipString);
           await ipRef.set({ 
-            usageCount: 1, 
+            usageCount: admin.firestore.FieldValue.increment(1), 
             lastUsed: admin.firestore.FieldValue.serverTimestamp(), 
             userId: userId || 'anonymous' 
           }, { merge: true });
@@ -624,17 +624,17 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     
     console.log(`[SCRAPING] Success: ${listing.titel} (${listing.kenteken})`);
 
-    // Redact AutoScout24 seller info if needed
+    // Redact Seller Info for AutoScout24 per request (unreliable data)
     const isAutoScout = url.includes('autoscout24');
     const verkoperInfo = isAutoScout ? {
-      naam: 'Niet beschikbaar',
+      naam: 'Verborgen voor AutoScout24',
       sinds: 'Onbekend',
       aantalAdvertenties: 0,
       type: 'Onbekend'
     } : {
-      naam: listing.verkoper,
-      sinds: listing.verkoperSinds,
-      aantalAdvertenties: listing.aantalAdvertenties,
+      naam: listing.verkoper || 'Onbekend',
+      sinds: listing.verkoperSinds || 'Onbekend',
+      aantalAdvertenties: listing.aantalAdvertenties || 0,
       type: listing.verkoperType || 'Particulier'
     };
 
@@ -648,7 +648,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       carrosserie: listing.carrosserie,
       merk: listing.merk,
       model: listing.model,
-      fotos: listing.fotos,
+      fotos: (listing.fotos || []).slice(0, 6), // Keep up to 6 in DB but analyze 3
       advertentieId: listing.advertentieId,
       verkoper: verkoperInfo,
       dagenOnline: listing.dagenOnline,
@@ -663,7 +663,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       vergelijkbaarPromise || Promise.resolve([]),
       url.includes('autoscout24') ? Promise.resolve(null) : checkRDW(listing.kenteken),
       // Skip AI photo analysis for free tier to save costs
-      reportTier === 'free' ? Promise.resolve(null) : analyseerFotos(listing.fotos)
+      reportTier === 'free' ? Promise.resolve(null) : analyseerFotos((listing.fotos || []).slice(0, 3))
     ]);
     
     const vergelijkbareAutos = vergelijkbaar.status === 'fulfilled' ? vergelijkbaar.value : [];
