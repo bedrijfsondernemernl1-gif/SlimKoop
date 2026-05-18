@@ -87,6 +87,11 @@ service cloud.firestore {
       }
     }
 
+    // 6. Limited IPs tracking
+    match /limited_ips/{ip} {
+      allow read, write: if isServerAdmin();
+    }
+
     // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;

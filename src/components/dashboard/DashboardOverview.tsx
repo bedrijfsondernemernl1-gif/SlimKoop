@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, ArrowRight, Loader2, History } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { useStore } from '@/src/store/useStore';
@@ -28,9 +28,19 @@ export const DashboardOverview: React.FC = () => {
 
 
 
+  const isPremium = useStore(state => state.isPremium);
+  const permissies = useStore(state => state.permissies);
+  const scansOver = useStore(state => state.scansOver);
+
   useEffect(() => {
     async function fetchAnalyses() {
       if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Hide scans for free users (user requested hide until upgrade)
+      if (!isPremium && permissies === 'free') {
         setLoading(false);
         return;
       }
@@ -131,7 +141,7 @@ export const DashboardOverview: React.FC = () => {
               <Search className="absolute left-4 h-5 w-5 text-gray-400 group-focus-within:text-accent-green transition-colors" />
               <Input 
                 type="url" 
-                placeholder="Plak marktplaats.nl link..." 
+                placeholder="Plak marktplaats.nl of autoscout24.nl link..." 
                 className="pl-12 pr-4 h-14 w-full bg-transparent border-0 text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -169,6 +179,17 @@ export const DashboardOverview: React.FC = () => {
         {loading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="w-8 h-8 text-accent-green animate-spin" />
+          </div>
+        ) : (!isPremium && permissies === 'free') ? (
+          <div className="text-center py-12 glass rounded-2xl border-white/5 bg-accent-green/[0.02]">
+            <div className="w-16 h-16 rounded-full bg-accent-green/10 flex items-center justify-center mx-auto mb-4 border border-accent-green/20">
+              <History className="w-8 h-8 text-accent-green/60" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Geschiedenis Ontgrendelen</h3>
+            <p className="text-gray-400 max-w-sm mx-auto mb-6">Je hebt momenteel een gratis account. Upgrade naar premium om je scan-geschiedenis te bewaren en in te zien.</p>
+            <Button onClick={() => navigate('/prijzen')} size="sm" className="bg-accent-green hover:bg-accent-green/80 text-black font-bold rounded-xl px-6 h-10 shadow-lg shadow-accent-green/20">
+              Upgrade Account
+            </Button>
           </div>
         ) : recentCars.length === 0 ? (
           <div className="text-center py-12 glass rounded-2xl border-white/5">

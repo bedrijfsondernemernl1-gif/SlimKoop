@@ -275,6 +275,11 @@ export const ReportPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleWhatsAppShare = () => {
+    const text = `Check dit OccasionScan rapport voor de ${data.autoNaam}: ${window.location.href}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   const handleShare = async () => {
     try {
       if (navigator.share && window.self === window.top) {
@@ -545,26 +550,28 @@ export const ReportPage: React.FC = () => {
         </div>
 
         {/* RDW BALK */}
-        <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl mb-10 border-l-4 border-l-accent-green">
-          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-5">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-accent-green" /> RDW Voertuigcheck
-              {data.rdw.kenteken && (
-                <span className="ml-2 inline-block bg-[#FACC15] text-black font-extrabold px-3 py-1 rounded text-sm tracking-[0.1em] border-2 border-black/80 font-mono">
-                  {data.rdw.kenteken.replace(/(.{2})(.{2})(.{2})/, "$1-$2-$3")}
-                </span>
-              )}
-            </h2>
-            <span className="text-xs text-gray-500 font-medium">Gegevens via RDW Open Data</span>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <RdwBlock label={`APK geldig t/m ${data.rdw.apkVervaldatum || "Niet beschikbaar"}`} ok={!!data.rdw.apkVervaldatum} />
-            <RdwBlock label={data.rdw.isGestolen ? "GEREGISTREERD ALS GESTOLEN!" : "Niet gestolen"} ok={!data.rdw.isGestolen} />
-            <RdwBlock label={`${data.rdw.aantalEigenaren || "Niet beschikbaar"} eigenaren`} ok={true} />
-            <RdwBlock label={`Eerste toelating: ${data.rdw.eersteToelating || "Niet beschikbaar"}`} ok={true} />
-          </div>
-        </Card>
+        {data.rdw && data.rdw.succes !== false && Object.keys(data.rdw).length > 0 && (
+          <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl mb-10 border-l-4 border-l-accent-green">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-5">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-accent-green" /> RDW Voertuigcheck
+                {data.rdw.kenteken && (
+                  <span className="ml-2 inline-block bg-[#FACC15] text-black font-extrabold px-3 py-1 rounded text-sm tracking-[0.1em] border-2 border-black/80 font-mono">
+                    {data.rdw.kenteken.replace(/(.{2})(.{2})(.{2})/, "$1-$2-$3")}
+                  </span>
+                )}
+              </h2>
+              <span className="text-xs text-gray-500 font-medium">Gegevens via RDW Open Data</span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <RdwBlock label={`APK geldig t/m ${data.rdw.apkVervaldatum || "Niet beschikbaar"}`} ok={!!data.rdw.apkVervaldatum} />
+              <RdwBlock label={data.rdw.isGestolen ? "GEREGISTREERD ALS GESTOLEN!" : "Niet gestolen"} ok={!data.rdw.isGestolen} />
+              <RdwBlock label={`${data.rdw.aantalEigenaren || "Niet beschikbaar"} eigenaren`} ok={true} />
+              <RdwBlock label={`Eerste toelating: ${data.rdw.eersteToelating || "Niet beschikbaar"}`} ok={true} />
+            </div>
+          </Card>
+        )}
 
         {/* TABS NAVIGATION */}
         <div className="bg-[#0A111F] border border-white/5 rounded-[1.25rem] p-1.5 mb-8 inline-flex overflow-x-auto no-scrollbar shadow-lg max-w-full">
@@ -645,14 +652,17 @@ export const ReportPage: React.FC = () => {
                   </Card>
                 </div>
 
-                <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl">
-                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Verkoper Info</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
-                    <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
-                    <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.actieveAdvertenties} actieve advertenties</div>
-                  </div>
-                </Card>
+                {/* Hide Seller Info for AutoScout24 as data is unreliable per user request */}
+                {!reportData?.url?.includes('autoscout24') && (
+                  <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Verkoper Info</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
+                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
+                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.actieveAdvertenties} actieve advertenties</div>
+                    </div>
+                  </Card>
+                )}
               </motion.div>
             ) : (
               <motion.div 
@@ -913,7 +923,7 @@ export const ReportPage: React.FC = () => {
                               <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">
                                 {copied ? <Check className="w-5 h-5 mr-2 text-accent-green" /> : <Copy className="w-5 h-5 mr-2" />} Kopiëren
                               </Button>
-                              <Button className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl h-14 font-bold border-transparent">
+                              <Button onClick={handleWhatsAppShare} className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl h-14 font-bold border-transparent">
                                 <MessageCircle className="w-5 h-5 mr-2" /> Verstuur via WhatsApp
                               </Button>
                             </div>

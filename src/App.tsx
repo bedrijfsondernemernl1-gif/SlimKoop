@@ -42,8 +42,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-black/20 backdrop-blur-sm">
+        <Loader2 className="w-8 h-8 animate-spin text-accent-green opacity-40" />
       </div>
     );
   }

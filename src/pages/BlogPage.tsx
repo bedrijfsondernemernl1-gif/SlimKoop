@@ -19,7 +19,7 @@ export const BlogPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-accent-green font-bold tracking-[0.2em] uppercase text-xs mb-4"
           >
-            SlimKoop Kenniscentrum
+            OccasionScan Kenniscentrum
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}

@@ -19,7 +19,7 @@ interface SavedCar {
 
 export const DashboardGarage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useStore();
+  const { user, isPremium, permissies } = useStore();
   const [savedCars, setSavedCars] = useState<SavedCar[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,10 +80,31 @@ export const DashboardGarage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-10">
-      <div className="flex justify-between items-end mb-8">
+    <div className="flex-1 overflow-y-auto p-6 md:p-10 relative">
+      {!isPremium && permissies === 'free' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-black/60 backdrop-blur-[8px] m-4 md:m-8 rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-dark/20 to-transparent pointer-events-none"></div>
+          <div className="text-center max-w-md relative z-10 p-8 glass rounded-3xl border-white/10">
+            <div className="w-20 h-20 bg-accent-green/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-accent-green/30 animate-pulse">
+              <Car className="w-10 h-10 text-accent-green" />
+            </div>
+            <h3 className="text-3xl font-heading font-extrabold text-white mb-4 tracking-tight uppercase">Mijn Garage</h3>
+            <p className="text-gray-300 mb-8 text-lg leading-relaxed">De Garage is een premium functie. Hiermee bewaar je auto's en volg je prijsveranderingen live.</p>
+            <div className="space-y-4">
+              <Button onClick={() => navigate('/prijzen')} className="w-full bg-accent-green hover:bg-accent-green/90 text-black font-black h-14 rounded-2xl text-lg shadow-[0_0_20px_rgba(0,200,83,0.3)] transform transition-transform hover:scale-[1.02]">
+                UPGRADE NU
+              </Button>
+              <Button onClick={() => navigate('/dashboard')} variant="ghost" className="w-full text-gray-400 hover:text-white">
+                Terug naar overzicht
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-end mb-8 text-white">
         <div>
-          <h2 className="text-3xl font-heading font-bold text-white tracking-tight mb-2">Mijn Garage</h2>
+          <h2 className="text-3xl font-heading font-bold tracking-tight mb-2">Mijn Garage</h2>
           <p className="text-gray-400">Beheer en volg de prijs van je favoriete auto's.</p>
         </div>
       </div>
@@ -144,14 +165,7 @@ export const DashboardGarage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2 mt-auto">
-                    <Button 
-                      variant="outline" 
-                      className="gap-2 bg-white/5 border-white/10 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl h-11"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      Update
-                    </Button>
+                  <div className="grid grid-cols-1 gap-2 mt-auto">
                     <Button 
                       onClick={() => navigate(`/rapport/${car.rapportId}`)}
                       className="bg-accent-green hover:bg-accent-green/90 text-black shadow-[0_0_15px_rgba(0,200,83,0.2)] rounded-xl font-semibold h-11"

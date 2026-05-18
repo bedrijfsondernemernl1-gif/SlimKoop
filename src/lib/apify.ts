@@ -258,53 +258,63 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | null> {
   try {
     const client = getApifyClient();
-    const actorId = 'Dckez3uXbF6dh6dMe';
+    // Specialized listing scraper: fayoussef/autoscout24
+    const actorId = 'kxvqbfZknFYLcVyfx';
+
+    console.log(`[SCRAPER] Starten AutoScout24 listing scrape voor: ${url}`);
 
     const run = await client.actor(actorId).call({
-      urls: [{ url }],
-      maxResults: 1,
-      includeDetails: true,
-      countries: ["NL"]
+      start_urls: [{ url }],
+      max_concurrency: 1,
+      proxy_url: ""
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
     const item: any = items[0] || {};
 
-    if (!item || !item.title) {
-      console.log("[SCRAPER] Geen data ontvangen van AutoScout24");
+    if (!item || (!item.make && !item.title)) {
+      console.log("[SCRAPER] Geen data ontvangen van AutoScout24 listing scraper");
       return null;
     }
 
-    console.log("[SCRAPER] AutoScout24 Raw data keys:", Object.keys(item));
+    console.log("[SCRAPER] AutoScout24 Listing Raw data keys:", Object.keys(item));
 
-    const price = parseInt(item.price) || 0;
-    const mileage = parseInt(item.mileageKm) || 0;
-    const firstRegYear = item.firstRegistration ? parseInt(item.firstRegistration.split('-')[0]) || parseInt(item.firstRegistration.split('/')[1]) || 0 : 0;
-    let daysOnline = 0;
-    if (item.createdAt) {
-       daysOnline = Math.floor((new Date().getTime() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    const price = item.price || 0;
+    const mileage = extractNumber(item.mileage_formatted || item.mileage_km) || 0;
+    
+    // Parse first registration (format usually "MM/YYYY")
+    let firstRegYear = 0;
+    if (item.first_registration) {
+      const parts = item.first_registration.split('/');
+      firstRegYear = parseInt(parts[parts.length - 1]) || 0;
     }
 
+    let daysOnline = 0;
+    if (item.created_at) {
+       daysOnline = Math.floor((new Date().getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Map new scraper fields to our MarktplaatsData interface
     const data: MarktplaatsData = {
-      titel: item.title || "",
+      titel: `${item.make} ${item.model} ${item.model_version || ""}`.trim(),
       prijs: price,
-      beschrijving: (item.description || "").replace(/<[^>]+>/g, ''),
-      fotos: item.images || [],
-      kenteken: "",
+      beschrijving: item.description || "",
+      fotos: item.all_images || (item.main_image ? [item.main_image] : []),
+      kenteken: "", // AutoScout has no license plate
       kilometerstand: mileage,
       bouwjaar: firstRegYear,
-      brandstof: item.fuelType || "Onbekend",
+      brandstof: item.fuel_type_formatted || item.fuel_type || "Onbekend",
       transmissie: item.transmission === "Manual" ? "Handgeschakeld" : (item.transmission === "Automatic" ? "Automaat" : item.transmission || "Onbekend"),
-      carrosserie: item.bodyType || "",
-      merk: item.make || "",
-      model: item.model || item.modelGroup || "",
-      verkoper: item.sellerName || "Onbekend",
-      verkoperType: item.sellerType || "Onbekend",
+      carrosserie: item.body_type || "",
+      merk: item.make || "Onbekend",
+      model: item.model || "Onbekend",
+      verkoper: item.seller_company || item.seller_contact_name || "Onbekend",
+      verkoperType: item.seller_type === "Dealer" || item.is_dealer ? "Dealer" : "Particulier",
       verkoperSinds: "Onbekend",
       aantalAdvertenties: 0,
       dagenOnline: daysOnline,
-      advertentieId: String(item.id || "Niet beschikbaar")
+      advertentieId: String(item.listing_id || "Niet beschikbaar")
     };
 
     console.log(`[SCRAPER] Geëxtraheerd AutoScout24: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.brandstof}`);
@@ -334,7 +344,7 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       countries: ["NL"],
       yearFrom: jaar > 1900 ? jaar - 1 : undefined,
       yearTo: jaar > 1900 ? jaar + 1 : undefined,
-      maxResults: 15,
+      maxResults: 10,
       compact: true
     });
 

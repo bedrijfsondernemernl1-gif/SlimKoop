@@ -70,42 +70,30 @@ export async function analyseerdeTekst(listingData: any, vergelijkbareAutos: any
   try {
     const ai = getAIClient();
 
-    const textPrompt = `Je bent een Nederlandse expert in tweedehands auto's en marktplaats advertenties.
-Analyseer de advertentie en bereken de waarden nauwkeurig. 
+    // Trim description to save input tokens (most important info is in the first 1500 chars)
+    const shortBeschrijving = (listingData.beschrijving || "").substring(0, 1500);
 
-Advertentie:
+    const textPrompt = `Analyseer deze advertentie voor een tweedehands auto:
 Titel: ${listingData.titel}
 Prijs: €${listingData.prijs}
 Kilometerstand: ${listingData.kilometerstand} km
 Bouwjaar: ${listingData.bouwjaar}
 Dagen online: ${listingData.dagenOnline}
-Verkoper: ${listingData.verkoper} (Type: ${listingData.verkoperType || 'Particulier'}, Lid sinds: ${listingData.verkoperSinds}, Advertenties: ${listingData.aantalAdvertenties})
-Beschrijving: ${listingData.beschrijving}
+Verkoper: ${listingData.verkoper} (Type: ${listingData.verkoperType || 'Particulier'}, Lid sinds: ${listingData.verkoperSinds})
+Beschrijving: ${shortBeschrijving}
 
-Vergelijkbare auto's (gebruikt voor marktgemiddelde):
-${JSON.stringify(vergelijkbareAutos.map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}
+Vergelijking (voor marktgemiddelde): ${JSON.stringify(vergelijkbareAutos.slice(0, 10).map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}
 
-INSTRUCTIES VOOR SCORE BEREKENING (dealScore):
-Bereken de dealScore op basis van the volgende vier gewogen factoren (totaal 100 punten):
-1. Prijs ten opzichte van markt (max 40 punten): Hoe lager de prijs t.o.v. vergelijkbare auto's, hoe meer punten.
-2. Rode vlaggen (max 30 punten): Geen rode vlaggen = 30 punten. Elke vlag kost punten afhankelijk van ernst.
-3. Kwaliteit van de advertentie (max 15 punten): Volledigheid en professionaliteit van beschrijving.
-4. Kilometerstand (max 15 punten): Lage km-stand t.o.v. leeftijd geeft meer punten.
-Tel deze scores op voor de definitieve 'dealScore'. Wees streng en realistisch.
+INSTRUCTIES:
+1. dealScore (0-100): 40% prijs vs markt, 30% risico/vlaggen, 15% advertentiekwaliteit, 15% km-stand.
+2. eerlijkePrijs: Gemiddelde marktwaarde gecorrigeerd met +/- €0,10/km en €1000/jaar verschil.
+3. directeWinst: eerlijkePrijs - vraagprijs.
+4. verdict: 'koopje' (winst > 1500), 'redelijk' (winst > 0), 'voorzichtig' (bij risico), 'vermijden' (grote problemen).
+5. advertentieAnalyse: Analyseer taalgebruik, volledigheid, onlineSinds (${listingData.dagenOnline} dagen) en prijsWijzigingen.
+6. onderhandelingsScript: Schrijf een krachtig NL script op basis van vraagprijs (€${listingData.prijs}) en vlaggen.
+7. samenvatting: 3 korte bullets.
 
-INSTRUCTIES VOOR BEREKENING:
-- 'eerlijkePrijs': Neem het gemiddelde van de vergelijkbare auto's. Corrigeer voor KM-stand (+/- €0,10 per km verschil) en Bouwjaar (+/- €1000 per jaar verschil).
-- 'directeWinst': eerlijkePrijs - vraagprijs.
-- 'verdict': 'koopje' als winst > 1500, 'redelijk' als winst > 0, 'voorzichtig' bij rode vlaggen, 'vermijden' bij grote problemen.
-- 'advertentieAnalyse': 
-    - taalgebruik: Hoe komt de tekst over? (Professioneel, haastig, eerlijk?)
-    - volledigheid: Mist er belangrijke info? (Onderhoud, schade, herkomst?)
-    - onlineSinds: Analyseer herplaatsingen op basis van dagen online (${listingData.dagenOnline}).
-    - prijsWijzigingen: Analyseer of de prijs aantrekkelijk is of te vaak aangepast lijkt.
-- 'onderhandelingsScript': Schrijf een krachtig script. Gebruik de vraagprijs (€${listingData.prijs}), marktgegevens en rode vlaggen.
-- 'samenvatting': 3 korte bullets met de essentie.
-
-Geef exact dit JSON formaat terug:
+OUTPUT JSON FORMAT:
 {
   "dealScore": number,
   "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje",
@@ -121,15 +109,19 @@ Geef exact dit JSON formaat terug:
   "samenvatting": string[]
 }`;
 
-    const result = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
-      contents: textPrompt
+      contents: { parts: [{ text: textPrompt }] },
+      config: {
+        systemInstruction: "Je bent een Nederlandse expert in tweedehands auto's en marktplaats advertenties. Analyseer advertenties en bereken waarden nauwkeurig in JSON formaat. Huidig jaar is 2026. Bestempel een bouwjaar uit het huidige jaar of recenter NOOIT als onjuist of onmogelijk.",
+        responseMimeType: "application/json",
+      }
     });
-    const textData = result.text;
+    
+    const textData = response.text;
     
     if (textData) {
-      let cleanedText = textData.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanedText);
+      return JSON.parse(textData);
     }
     return null;
   } catch (error) {
@@ -145,24 +137,20 @@ export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisR
   
   try {
     const ai = getAIClient();
-    const urlsToUse = fotoUrls.slice(0, 6);
+    
+    // Limit to 3 high-quality photos to save multimodal tokens while keeping quality
+    const urlsToUse = fotoUrls.slice(0, 3);
 
     const fetchedImages = await Promise.all(
       urlsToUse.map(async (url) => {
-        if (!url || !url.startsWith('http')) {
-          console.warn(`Ongeldige foto URL overgeslagen: ${url}`);
-          return null;
-        }
+        if (!url || !url.startsWith('http')) return null;
         try {
           const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          if (!res.ok) return null;
           const arrayBuffer = await res.arrayBuffer();
           const base64data = Buffer.from(arrayBuffer).toString('base64');
-          const mimeType = res.headers.get("content-type") || "image/jpeg";
-          
-          return { url, base64: base64data, mimeType };
+          return { url, base64: base64data, mimeType: res.headers.get("content-type") || "image/jpeg" };
         } catch (e) {
-          console.warn(`Kon foto niet ophalen: ${url}`, e);
           return null;
         }
       })
@@ -174,32 +162,16 @@ export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisR
       return { fotos: [], ontbrekendeFotos: ["Alle foto's"] };
     }
 
-    const photoPrompt = `Je bent een expert in het optisch keuren van tweedehands auto's op basis van foto's.
-Analyseer de bijgevoegde foto's van de auto zeer kritisch. 
-
-Let specifiek op:
-1. Carrosserie: Deuken, krassen, kleurverschil tussen panelen (duidt op schadeherstel).
-2. Interieur: Slijtage aan stuur, pook of instapwang (komt dit overeen met de KM-stand?), status van de bekleding.
-3. Motorruimte: Sporen van lekkage, missende afdekkappen.
-4. Banden/Velgen: Stoeprandschade, profieldiepte indicatie.
-
-Geef voor ELKE foto een specifieke bevinding.
-De 'ernst' moet 'ok', 'waarschuwing' (bijv. lichte kras) of 'probleem' (bijv. flinke deuk of kleurverschil) zijn.
-
-Response JSON formaat:
+    const photoPrompt = `Analyseer deze foto's op carrosserie (deuken/kleurverschil), interieur slijtage, motorruimte (lekkage) en banden.
+Response format:
 {
-  "fotos": [
-    {
-      "url": "de_exacte_url_van_de_geanalyseerde_foto",
-      "bevinding": "Specifieke observatie in het Nederlands",
-      "ernst": "ok" | "waarschuwing" | "probleem",
-      "label": "Bijv: Linksvoor, Interieur stuur, Motorblok"
-    }
-  ],
-  "ontbrekendeFotos": ["Welke specifieke foto's ontbreken nog om een goed beeld te krijgen?"]
+  "fotos": [{"url": "string", "bevinding": "string", "ernst": "ok"|"waarschuwing"|"probleem", "label": "string"}],
+  "ontbrekendeFotos": ["string"]
 }`;
 
-    const contents = {
+    const response = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: {
         parts: [
           { text: photoPrompt },
           ...validImages.map(img => ({
@@ -209,36 +181,30 @@ Response JSON formaat:
             }
           }))
         ]
-    };
-
-    const result = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
-      contents
-    });
-    const photoData = result.text;
-    
-    if (photoData) {
-      let cleaned = photoData.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      
-      // Map URLs back correctly based on order
-      if (parsed.fotos) {
-        parsed.fotos = parsed.fotos.map((f: any, i: number) => {
-          // Gemini might hallucinate 'input_file_0.png' etc.
-          // We must use the actual URL we sent.
-          const originalUrl = validImages[i] ? validImages[i].url : (f.url || "");
-          return {
-            ...f,
-            url: originalUrl
-          };
-        });
+      },
+      config: {
+        systemInstruction: "Je bent een expert in het optisch keuren van tweedehands auto's op basis van foto's. Geef kritische analyses in JSON formaat.",
+        responseMimeType: "application/json"
       }
-      
+    });
+
+    const textData = response.text;
+    
+    if (textData) {
+      const parsed = JSON.parse(textData);
+      if (parsed.fotos) {
+        parsed.fotos = parsed.fotos.map((f: any, i: number) => ({
+          ...f,
+          url: validImages[i] ? validImages[i].url : (f.url || "")
+        }));
+      }
       return parsed;
     }
-    return { fotos: [], ontbrekendeFotos: ["Foto analyse kon niet voltooid worden"] };
+    return { fotos: [], ontbrekendeFotos: ["Analyse mislukt"] };
   } catch (error) {
     console.error("Fout tijdens analyseerFotos:", error);
-    return { fotos: [], ontbrekendeFotos: ["Foto analyse niet beschikbaar door API fout"] };
+    return { fotos: [], ontbrekendeFotos: ["API fout tijdens foto analyse"] };
   }
 }
+
+

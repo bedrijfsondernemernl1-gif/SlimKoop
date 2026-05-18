@@ -5,11 +5,11 @@ import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { useStore } from '@/src/store/useStore';
 import { auth, db } from '../../lib/firebase';
-import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
+import { sendPasswordResetEmail, deleteUser, signOut, GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
 import { deleteDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export const DashboardSettings: React.FC = () => {
-  const { isPremium, subscriptionPlan, user } = useStore();
+  const { isPremium, subscriptionPlan, user, scansOver } = useStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -60,6 +60,19 @@ export const DashboardSettings: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     if (!user) return;
+
+    // Check if user has an active subscription
+    // Users with an active monthly subscription (Autohandelaar or Particulier) must cancel first
+    // Admins are excluded from this check
+    const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com'];
+    const isAdmin = adminEmails.includes((user.email || '').toLowerCase());
+    
+    if (isPremium && subscriptionPlan !== 'Losse Scan' && !isAdmin) {
+      alert("Zeg eerst je abonnement op via Abonnement Beheren voordat je je account kunt verwijderen.");
+      setShowDeleteConfirm(false);
+      return;
+    }
+
     setDeleteLoading(true);
     try {
       // 1. Delete all user analyses
@@ -72,14 +85,26 @@ export const DashboardSettings: React.FC = () => {
       await deleteDoc(doc(db, 'gebruikers', user.uid));
 
       // 3. Delete auth user
-      await deleteUser(user);
+      try {
+        await deleteUser(user);
+      } catch (authError: any) {
+        if (authError.code === 'auth/requires-recent-login') {
+          // Attempt to re-authenticate with Google
+          const provider = new GoogleAuthProvider();
+          await reauthenticateWithPopup(user, provider);
+          // Retry deletion
+          await deleteUser(user);
+        } else {
+          throw authError;
+        }
+      }
       
       // Navigate to home, zustand handles the state implicitly through onAuthStateChanged
       navigate('/');
     } catch (error: any) {
       console.error("Error deleting account", error);
       if (error.code === 'auth/requires-recent-login') {
-        alert("Melding: Je moet recent ingelogd zijn om je account te verwijderen. Log alsjeblieft uit en opnieuw in om dit te voltooien.");
+        alert("Je moet recent ingelogd zijn om je account te verwijderen. Log alsjeblieft uit en opnieuw in om dit te voltooien.");
       } else {
         alert("Er is iets misgegaan bij het verwijderen. (" + error.message + ")");
       }
@@ -92,7 +117,6 @@ export const DashboardSettings: React.FC = () => {
   const tabs = [
     { id: 'profile', label: 'Profiel', icon: User },
     { id: 'subscription', label: 'Abonnement', icon: CreditCard },
-    { id: 'notifications', label: 'Notificaties', icon: Bell },
     { id: 'account', label: 'Account', icon: Shield },
   ];
 
@@ -203,32 +227,6 @@ export const DashboardSettings: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <div className="space-y-8 relative z-10">
-              <h3 className="text-xl font-bold text-white mb-6">Notificatie Voorkeuren</h3>
-              
-              <div className="space-y-6">
-                {[
-                  { title: "Prijsdalingen", desc: "Mail mij zodra een auto in mijn garage in prijs daalt." },
-                  { title: "Nieuwe Rapportages", desc: "Bevestiging en samenvatting zodra een AI rapport klaar is." },
-                  { title: "Systeem Updates", desc: "Blijf op de hoogte van nieuwe functies en verbeteringen." },
-                  { title: "Marketing & Aanbiedingen", desc: "Occasionele mails met kortingscodes en unieke data-inzichten." }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start justify-between pb-6 border-b border-white/5 last:border-0 last:pb-0">
-                    <div className="pr-8">
-                      <h4 className="text-white font-medium mb-1">{item.title}</h4>
-                      <p className="text-sm text-gray-400">{item.desc}</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                      <input type="checkbox" className="sr-only peer" defaultChecked={i < 2} />
-                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-green"></div>
-                    </label>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 

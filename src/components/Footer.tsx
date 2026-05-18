@@ -10,10 +10,12 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="flex items-center gap-3 group inline-flex mb-6">
-              <div className="text-primary transition-all duration-300 flex items-center justify-center bg-gradient-to-br from-primary-dark via-primary-dark to-black p-2.5 rounded-xl border border-white/10 shadow-[inset_0_0_20px_rgba(0,200,83,0.15)] group-hover:shadow-[inset_0_0_25px_rgba(0,200,83,0.25)]">
-                <ShieldCheck width="22" height="22" className="text-accent-green" strokeWidth={2.5} />
-              </div>
-              <span className="text-xl font-heading font-extrabold tracking-tight text-white drop-shadow-sm">Occasion<span className="text-accent-green">Scan</span></span>
+              <img 
+                src="https://i.ibb.co/Y7MMQR76/f06abe35-17e0-4185-96aa-eae12841c0f5-removalai-preview.png" 
+                alt="Logo" 
+                className="h-12 sm:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-105" 
+                referrerPolicy="no-referrer"
+              />
             </Link>
             <p className="text-gray-400 font-light max-w-sm mb-6">
               AI-gedreven autotaxaties en risico-analyses. Wij beschermen kopers tegen miskopen en verborgen gebreken met data.

@@ -81,7 +81,7 @@ export const AnalysisInputPage: React.FC = () => {
                         type="url"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://www.marktplaats.nl/v/auto-s/... of autoscout24.com/..." 
+                        placeholder="https://www.marktplaats.nl/v/auto-s/... of autoscout24.nl/..." 
                         className="pl-14 h-16 bg-black/50 border border-white/10 text-white rounded-xl focus-visible:ring-accent-green focus-visible:border-transparent text-lg shadow-inner"
                         required
                       />

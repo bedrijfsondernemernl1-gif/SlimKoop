@@ -292,7 +292,7 @@ async function startServer() {
       
       const [vergelijkbaar, rdw] = await Promise.all([
         vergelijkbaarPromise || Promise.resolve([]),
-        checkRDW(listing.kenteken).catch(() => null)
+        url.includes('autoscout24') ? Promise.resolve(null) : checkRDW(listing.kenteken).catch(() => null)
       ]);
 
       res.json({
@@ -346,6 +346,10 @@ async function startServer() {
 
   app.post("/api/analyseer", async (req, res) => {
     const { url, userId } = req.body;
+    const xff = req.headers['x-forwarded-for'];
+    const clientIp = typeof xff === 'string' ? xff.split(',')[0].trim() : (Array.isArray(xff) ? xff[0] : req.socket.remoteAddress);
+    // Replace dots and colons for firestore ID safety (IPv4 and IPv6)
+    const ipString = (clientIp || 'unknown').replace('::ffff:', '').replace(/[\.\:]/g, '_'); 
 
     if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {
       return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
@@ -353,6 +357,9 @@ async function startServer() {
     
     // Check permissions / deduct scans
     let reportTier = 'free';
+    let isAdmin = false;
+    let limitReached = false;
+    
     if (userId && userId !== "anonymous") {
       try {
         const userRef = doc(adminDb, "gebruikers", userId);
@@ -360,7 +367,7 @@ async function startServer() {
         if (userDoc.exists()) {
           const data = userDoc.data() as any;
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
-          const isAdmin = adminEmails.includes((data.email || '').toLowerCase());
+          isAdmin = adminEmails.includes((data.email || '').toLowerCase());
           
           if (isAdmin) {
             reportTier = 'autohandelaar';
@@ -375,8 +382,7 @@ async function startServer() {
               if (scansGebruikt >= scanLimiet && scanLimiet < 999) {
                 // If limit reached, downgrade to free tier for this scan
                 reportTier = 'free';
-                // Add a flag to the response
-                var limitReached = true;
+                limitReached = true;
               } else {
                 // Determine tier based on permissies
                 reportTier = permissies;
@@ -397,18 +403,84 @@ async function startServer() {
       }
     }
 
+    // IP-based limit for free/anonymous users (1 scan per IP)
+    if (reportTier === 'free' && !isAdmin) {
+      try {
+        const ipRef = doc(adminDb, "limited_ips", ipString); 
+        const ipDoc = await getDoc(ipRef);
+        
+        if (ipDoc.exists()) {
+          const ipData = ipDoc.data();
+          const count = typeof ipData.usageCount === 'number' ? ipData.usageCount : 1; 
+          
+          if (count >= 1) {
+            console.log(`[LIMIT] IP ${clientIp} blocked. Usage: ${count}`);
+            return res.status(403).json({ 
+              error: "Je hebt je gratis limiet van 1 scan per IP bereikt op dit toestel. Maak een account aan of upgrade om meer auto's te analyseren." 
+            });
+          }
+        }
+      } catch (ipError) {
+        console.error("IP limit check failed:", ipError);
+      }
+    }
+
+    // Mark IP as used if they are on free tier (logged in or not)
+    const markIpAsUsed = async () => {
+      if (reportTier === 'free' && !isAdmin) {
+        try {
+          const ipRef = doc(adminDb, "limited_ips", ipString);
+          await setDoc(ipRef, { 
+            usageCount: 1, 
+            lastUsed: serverTimestamp(), 
+            userId: userId || 'anonymous' 
+          }, { merge: true });
+        } catch (err) {
+          console.error("Failed to mark IP as used:", err);
+        }
+      }
+    };
+
+    // URL Caching: Check if this URL was already analyzed successfully
     try {
+      const q = query(
+        collection(adminDb, 'rapporten'), 
+        where('url', '==', url), 
+        where('status', '==', 'compleet')
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        // Reuse the most recent completed report
+        const existingReport = querySnapshot.docs[0];
+        console.log(`[CACHE] Reusing existing report ${existingReport.id} for URL: ${url}`);
+        
+        await markIpAsUsed();
+        
+        return res.json({
+          success: true,
+          rapportId: existingReport.id,
+          cached: true
+        });
+      }
+    } catch (cacheError) {
+      console.error("Cache check failed:", cacheError);
+    }
+
+    try {
+      await markIpAsUsed();
+
       const docRef = await addDoc(collection(adminDb, 'rapporten'), {
         userId: userId || "anonymous",
         url: url,
         status: "verwerking",
         tier: reportTier,
-        limitReached: (typeof limitReached !== 'undefined' ? true : false),
+        limitReached: limitReached,
         createdAt: serverTimestamp()
       });
 
       // Start background process
-      voerAnalyseUit(docRef.id, url, userId || "anonymous").catch(console.error);
+      voerAnalyseUit(docRef.id, url, userId || "anonymous", reportTier).catch(console.error);
 
       return res.json({
         success: true,
@@ -528,12 +600,12 @@ async function startServer() {
   });
 }
 
-async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
+async function voerAnalyseUit(rapportId: string, url: string, userId: string, reportTier: string = 'free') {
   try {
     // ── FASE 1: SCRAPING ──
     const rapportRef = doc(adminDb, 'rapporten', rapportId);
     await updateDoc(rapportRef, { status: 'scraping' });
-    console.log(`[SCRAPING] Listing at URL: ${url}`);
+    console.log(`[SCRAPING] Listing at URL: ${url} (Tier: ${reportTier})`);
     
     let listing;
     let vergelijkbaarPromise;
@@ -554,6 +626,20 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
     
     console.log(`[SCRAPING] Success: ${listing.titel} (${listing.kenteken})`);
 
+    // Redact AutoScout24 seller info if needed
+    const isAutoScout = url.includes('autoscout24');
+    const verkoperInfo = isAutoScout ? {
+      naam: 'Niet beschikbaar',
+      sinds: 'Onbekend',
+      aantalAdvertenties: 0,
+      type: 'Onbekend'
+    } : {
+      naam: listing.verkoper,
+      sinds: listing.verkoperSinds,
+      aantalAdvertenties: listing.aantalAdvertenties,
+      type: listing.verkoperType || 'Particulier'
+    };
+
     await updateDoc(rapportRef, { 
       autoNaam: listing.titel,
       vraagprijs: listing.prijs,
@@ -566,12 +652,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
       model: listing.model,
       fotos: listing.fotos,
       advertentieId: listing.advertentieId,
-      verkoper: {
-        naam: listing.verkoper,
-        sinds: listing.verkoperSinds,
-        aantalAdvertenties: listing.aantalAdvertenties,
-        type: listing.verkoperType || 'Particulier'
-      },
+      verkoper: verkoperInfo,
       dagenOnline: listing.dagenOnline,
       kenteken: listing.kenteken
     });
@@ -582,15 +663,16 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string) {
 
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
       vergelijkbaarPromise || Promise.resolve([]),
-      checkRDW(listing.kenteken),
-      analyseerFotos(listing.fotos)
+      url.includes('autoscout24') ? Promise.resolve(null) : checkRDW(listing.kenteken),
+      // Skip AI photo analysis for free tier to save costs
+      reportTier === 'free' ? Promise.resolve(null) : analyseerFotos(listing.fotos)
     ]);
     
     const vergelijkbareAutos = vergelijkbaar.status === 'fulfilled' ? vergelijkbaar.value : [];
     const rdw = rdwData.status === 'fulfilled' ? rdwData.value : null;
     const fotos = (fotoAnalyse.status === 'fulfilled' && fotoAnalyse.value) ? fotoAnalyse.value : { fotos: [], ontbrekendeFotos: [] };
     
-    console.log(`[PARALLEL] Collected data: ${vergelijkbareAutos.length} parallels, RDW: ${!!rdw}, Fotos: ${fotos.fotos?.length || 0}`);
+    console.log(`[PARALLEL] Collected data: ${vergelijkbareAutos.length} parallels, RDW: ${!!rdw}, Fotos: ${fotos?.fotos?.length || 0}`);
 
     // ── FASE 3: GEMINI ANALYSE ──
     await updateDoc(rapportRef, { status: 'analyseren' });

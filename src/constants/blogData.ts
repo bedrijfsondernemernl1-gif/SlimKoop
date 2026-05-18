@@ -20,21 +20,21 @@ export const BLOGS: Blog[] = [
     slug: 'tweedehands-auto-kopen-10-tips',
     title: 'Tweedehands auto kopen: 10 tips om niet opgelicht te worden',
     excerpt: 'Een tweedehands auto kopen kan spannend zijn, maar ook risicovol. Met deze 10 essentiële tips voorkom je miskopen en oplichting.',
-    metaTitle: 'Tweedehands Auto Kopen: 10 Tips Tegen Oplichting | SlimKoop',
+    metaTitle: 'Tweedehands Auto Kopen: 10 Tips Tegen Oplichting | OccasionScan',
     metaDescription: 'Wil je een tweedehands auto kopen zonder zorgen? Lees onze 10 tips om oplichting te voorkomen, van kilometerstand fraude tot verborgen gebreken.',
-    featuredImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1200',
+    featuredImage: 'https://images.unsplash.com/photo-1506015391300-4802dc74de2e?auto=format&fit=crop&q=80&w=1200',
     category: 'Koopadvies',
     readTime: '8 min',
     createdAt: '2026-05-17',
-    author: 'SlimKoop Expert Team',
+    author: 'OccasionScan Expert Team',
     content: `
       <h2>De droom van een nieuwe auto kan snel een nachtmerrie worden</h2>
       <p>Het kopen van een tweedehands auto is voor veel Nederlanders de slimste manier om een kwalitatief goede auto te rijden zonder de hoofdprijs van een nieuw exemplaar te betalen. Echter, de occassionmarkt is ook een plek waar minder eerlijke verkopers proberen hun slag te slaan. Van teruggedraaide kilometertellers tot verborgen schade; de risico's zijn reëel.</p>
 
-      <p>Bij <strong>SlimKoop</strong> zien we dagelijks duizenden advertenties voorbijkomen. We hebben onze expertise gebundeld in deze 10 gouden regels voor iedereen die op zoek is naar een betrouwbare tweedehands auto.</p>
+      <p>Bij <strong>OccasionScan</strong> zien we dagelijks duizenden advertenties voorbijkomen. We hebben onze expertise gebundeld in deze 10 gouden regels voor iedereen die op zoek is naar een betrouwbare tweedehands auto.</p>
 
       <h3>1. Vertrouw op je onderbuikgevoel, maar check de feiten</h3>
-      <p>Lijkt de deal te mooi om waar te zijn? Dan is dat meestal ook zo. Een Audi A3 uit 2020 met slechts 20.000 op de teller voor de helft van de marktprijs? Grote kans dat er iets niet klopt. Gebruik een tool als de <a href="/analyseer">SlimKoop analyse</a> om direct te zien of de prijs marktconform is.</p>
+      <p>Lijkt de deal te mooi om waar te zijn? Dan is dat meestal ook zo. Een Audi A3 uit 2020 met slechts 20.000 op de teller voor de helft van de marktprijs? Grote kans dat er iets niet klopt. Gebruik een tool als de <a href="/analyseer">OccasionScan analyse</a> om direct te zien of de prijs marktconform is.</p>
 
       <h3>2. Controleer altijd de NAP-logisch status</h3>
       <p>Kilometerstandfraude is nog steeds een groot probleem. Sinds 2014 is het terugdraaien van tellerstanden strafbaar, maar via de import uit het buitenland glippen er nog steeds veel sjoemelauto's doorheen. Controleer of de auto een 'logisch' oordeel heeft bij de RDW.</p>
@@ -66,7 +66,7 @@ export const BLOGS: Blog[] = [
       <h3>9. Controleer de chassisnummers</h3>
       <p>Komt het chassisnummer in de auto overeen met de papieren? Check ook of het nummer er 'origineel' uitziet en niet is overgeponst. Dit is de beste manier om te voorkomen dat je een gestolen auto koopt.</p>
 
-      <h3>10. Wil je het zeker weten? Analyseer je auto met SlimKoop</h3>
+      <h3>10. Wil je het zeker weten? Analyseer je auto met OccasionScan</h3>
       <p>Waarom zou je gokken met duizenden euro's? Onze AI-gestuurde analyse bekijkt de advertentie, vergelijkt marktprijzen en checkt de historie voor je. Het geeft je de munitie die je nodig hebt voor de onderhandeling.</p>
 
       <div class="mt-12 p-8 bg-gradient-to-br from-gray-900 to-black border border-white/5 rounded-[2.5rem] text-center">
@@ -83,18 +83,18 @@ export const BLOGS: Blog[] = [
     slug: 'rode-vlaggen-marktplaats-autos',
     title: "Rode vlaggen bij Marktplaats auto's: hier moet je op letten",
     excerpt: 'Marktplaats is dé plek voor een goede occasion, maar ook een mijnenveld voor onervaren kopers. Herken de signalen van een louche advertentie.',
-    metaTitle: "Marktplaats Auto Rode Vlaggen: Herken Oplichting | SlimKoop",
+    metaTitle: "Marktplaats Auto Rode Vlaggen: Herken Oplichting | OccasionScan",
     metaDescription: "Pas op voor deze rode vlaggen bij het kopen van een auto op Marktplaats. Van vage verkopers tot dubieuze foto's. Wij leggen uit waar je op moet letten.",
-    featuredImage: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&q=80&w=1200',
+    featuredImage: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80&w=1200',
     category: 'Marktplaats Tips',
     readTime: '7 min',
     createdAt: '2026-05-17',
-    author: 'SlimKoop Expert Team',
+    author: 'OccasionScan Expert Team',
     content: `
       <h2>De jungle van Marktplaats doorstaan</h2>
       <p>Iedereen die wel eens op Marktplaats naar een auto heeft gezocht, weet dat het aanbod enorm is. Helaas is de kwaliteit van de advertenties (en de verkopers) erg wisselend. Waar de ene verkoper elk krasje eerlijk vermeldt, probeert de ander een total-loss auto als 'zo goed als nieuw' te verkopen.</p>
-
-      <p>Bij <strong>SlimKoop</strong> hebben we miljoenen advertenties geanalyseerd. Hier zijn de absolute rode vlaggen die je direct zouden moeten doen twijfelen.</p>
+ 
+      <p>Bij <strong>OccasionScan</strong> hebben we miljoenen advertenties geanalyseerd. Hier zijn de absolute rode vlaggen die je direct zouden moeten doen twijfelen.</p>
 
       <h3>1. De 'Zondag-Foto's'</h3>
       <p>Wanneer de foto's van de auto genomen zijn in de regen, in het donker, of als de auto duidelijk net nat is gespoten met een tuinslang, wees dan op je hoede. Water op de lak maskeert krassen en doffe plekken. Een eerlijke verkoper maakt foto's op een zonnige dag (of in ieder geval droog) van een schone auto.</p>
@@ -106,7 +106,7 @@ export const BLOGS: Blog[] = [
       <p>Het klinkt geruststellend, maar ervaren kopers weten: dit is vaak een standaardtekstje bij auto's die eigenlijk aan het einde van hun latijn zijn. Het suggereert dat de rest van de auto minder dan 100% is. Een goede advertentie omschrijft specifiek onderhoud in plaats van deze loze kreten.</p>
 
       <div class="bg-accent-green/10 border border-accent-green/20 p-6 rounded-2xl my-8">
-        <h4 class="text-white font-bold mb-2">Check de SlimKoop Score</h4>
+        <h4 class="text-white font-bold mb-2">Check de OccasionScan Score</h4>
         <p class="text-sm mb-4">Onze AI herkent dit soort 'verkooptaal' en straft het af in de betrouwbaarheidsscore. Weet wat er echt staat.</p>
         <a href="/analyseer" class="inline-block bg-accent-green !text-black px-6 py-2 rounded-xl font-bold hover:scale-105 transition-transform">Analyseer advertentie</a>
       </div>
@@ -120,7 +120,7 @@ export const BLOGS: Blog[] = [
       <h3>6. Te weinig informatie over onderhoud</h3>
       <p>"Onderhoudsboekjes aanwezig" is niet hetzelfde als "volledig ingevuld en afgestempeld". Vraag specifiek wanneer de laatste grote beurt is geweest en of de distributieriem al is vervangen (indien van toepassing voor dat model). Kan de verkoper hier geen antwoord op geven? Loop dan weg.</p>
 
-      <h3>7. Wil je het zeker weten? Analyseer je auto met SlimKoop</h3>
+      <h3>7. Wil je het zeker weten? Analyseer je auto met OccasionScan</h3>
       <p>Onze tool scant niet alleen de tekst, maar koppelt de gegevens ook aan historische data van vergelijkbare modellen. We zien patronen die een menselijk oog vaak mist. Bescherm jezelf tegen Marktplaats-cowboys.</p>
 
       <div class="mt-12 p-8 bg-gradient-to-br from-gray-900 to-black border border-white/5 rounded-[2.5rem] text-center">
@@ -137,18 +137,18 @@ export const BLOGS: Blog[] = [
     slug: 'onderhandelen-tweedehands-auto-script',
     title: "Onderhandelen bij een tweedehands auto: het complete script",
     excerpt: 'Veel mensen vinden onderhandelen eng. Met dit script en deze tips sta je sterker in je schoenen en bespaar je honderden euro’s.',
-    metaTitle: "Onderhandelen Tweedehands Auto: Script & Tips | SlimKoop",
+    metaTitle: "Onderhandelen Tweedehands Auto: Script & Tips | OccasionScan",
     metaDescription: "Wil je de beste prijs voor je occasion? Gebruik ons praktische onderhandelingsscript en tips om honderden euro's te besparen bij je volgende auto-aankoop.",
     featuredImage: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&q=80&w=1200',
     category: 'Onderhandeling',
     readTime: '9 min',
     createdAt: '2026-05-17',
-    author: 'SlimKoop Expert Team',
+    author: 'OccasionScan Expert Team',
     content: `
       <h2>Onderhandelen is geen strijd, het is een spel</h2>
       <p>In Nederland zijn we vaak een beetje bescheiden als het om geld gaat. Maar bij de aankoop van een auto is het volstrekt normaal om te onderhandelen over de prijs. De vraagprijs is namelijk bijna altijd een 'biedprijs' waar enige marge in zit voor de onderhandeling.</p>
-
-      <p>Het geheim van een goede onderhandeling is <strong>voorbereiding</strong>. Hoe meer je weet over de auto en de markt, hoe sterker je staat. En dat is precies waar <a href="/analyseer">SlimKoop</a> je bij helpt.</p>
+ 
+      <p>Het geheim van een goede onderhandeling is <strong>voorbereiding</strong>. Hoe meer je weet over de auto en de markt, hoe sterker je staat. En dat is precies waar <a href="/analyseer">OccasionScan</a> je bij helpt.</p>
 
       <h3>De Gouden Regel: Ken de marktprijs</h3>
       <p>Voordat je de verkoper ontmoet, moet je weten wat vergelijkbare auto's kosten. Is de vraagprijs al scherp? Dan hoef je minder korting te verwachten. Is de prijs te hoog? Dan heb je een sterk argument.</p>
@@ -176,8 +176,8 @@ export const BLOGS: Blog[] = [
         <li><strong>Contanten noemen:</strong> "Ik kan vandaag nog het geld overmaken en de auto meenemen." Snelheid is goud waard voor een verkoper.</li>
       </ul>
 
-      <h3>Wil je het zeker weten? Analyseer je auto met SlimKoop</h3>
-      <p>Onze marktanalyse is de ultieme voorbereiding. Het laat je zien hoe lang de auto al te koop staat (hoe langer hij staat, hoe meer haast de verkoper heeft) en wat de prijstrend is. Dat is pas echt slim onderhandelen.</p>
+      <h3>Wil je het zeker weten? Analyseer je auto met OccasionScan</h3>
+      <p>Onze marktanalyse is the ultieme voorbereiding. Het laat je zien hoe lang de auto al te koop staat (hoe langer hij staat, hoe meer haast de verkoper heeft) en wat de prijstrend is. Dat is pas echt slim onderhandelen.</p>
 
       <div class="mt-12 p-8 bg-gradient-to-br from-gray-900 to-black border border-white/5 rounded-[2.5rem] text-center">
         <h3 class="text-2xl font-bold text-white mb-4">Klaar om te besparen?</h3>
@@ -193,18 +193,18 @@ export const BLOGS: Blog[] = [
     slug: 'rdw-check-uitleg-kenteken',
     title: "RDW check: wat kun je allemaal opzoeken met een kenteken?",
     excerpt: 'Een kenteken is meer dan een plaatje metaal. Het is de sleutel tot de hele geschiedenis van een auto. Zo haal je alles uit een RDW-check.',
-    metaTitle: "RDW Check Kenteken: Alles over voertuiggegevens | SlimKoop",
+    metaTitle: "RDW Check Kenteken: Alles over voertuiggegevens | OccasionScan",
     metaDescription: "Wat vertelt een kenteken je over een auto? Van eigenaren tot terugroepacties en APK historie. Ontdek hoe je de gratis RDW data optimaal gebruikt.",
-    featuredImage: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=1200',
+    featuredImage: 'https://i.ibb.co/bMfFc68D/Gemini-Generated-Image-fxjhcofxjhcofxjh.png',
     category: 'Auto Check',
     readTime: '6 min',
     createdAt: '2026-05-17',
-    author: 'SlimKoop Expert Team',
+    author: 'OccasionScan Expert Team',
     content: `
       <h2>De schat aan informatie achter het kenteken</h2>
       <p>In Nederland hebben we geluk. De RDW (Rijksdienst voor het Wegverkeer) houdt een enorme hoeveelheid data bij over elk voertuig op de weg. Veel van deze data is openbaar toegankelijk voor iedereen. Maar weet je ook waar je naar moet kijken?</p>
 
-      <p>Bij <strong>SlimKoop</strong> gebruiken we deze RDW-data als basis voor onze diepgaande analyses. Hier is een overzicht van de belangrijkste gegevens die je kunt vinden.</p>
+      <p>Bij <strong>OccasionScan</strong> gebruiken we deze RDW-data als basis voor onze diepgaande analyses. Hier is een overzicht van de belangrijkste gegevens die je kunt vinden.</p>
 
       <h3>APK-historie en verloopdatum</h3>
       <p>Is de auto recent door de keuring gekomen? Zijn er reparatiepunten geweest bij de laatste APK? Een auto die al bijna moet worden gekeurd, kan een verborgen kostenpost zijn. Een verse APK geeft meer rust, maar let op: een APK is een veiligheidskeuring, geen garantie op een goede technische staat.</p>
@@ -227,8 +227,8 @@ export const BLOGS: Blog[] = [
       <h3>Technische Specificaties</h3>
       <p>Wat is het echte trekgewicht? Wat is de CO2-uitstoot? Klopt het vermogen dat de verkoper opgeeft? Verkopers op Marktplaats 'liegen' soms een beetje over het aantal PK's of de zuinigheid. De RDW-data vertelt je de waarheid.</p>
 
-      <h3>Wil je het zeker weten? Analyseer je auto met SlimKoop</h3>
-      <p>Data lezen is één ding, data interpreteren is een tweede. SlimKoop analyseert de verbanden tussen alle gegevens en geeft je een begrijpelijk advies. Zo hoef je zelf geen expert te zijn om als een expert te kopen.</p>
+      <h3>Wil je het zeker weten? Analyseer je auto met OccasionScan</h3>
+      <p>Data lezen is één ding, data interpreteren is een tweede. OccasionScan analyseert de verbanden tussen alle gegevens en geeft je een begrijpelijk advies. Zo hoef je zelf geen expert te zijn om als een expert te kopen.</p>
 
       <div class="mt-12 p-8 bg-gradient-to-br from-gray-900 to-black border border-white/5 rounded-[2.5rem] text-center">
         <h3 class="text-2xl font-bold text-white mb-4">Eerst checken, dan kopen</h3>
@@ -244,18 +244,18 @@ export const BLOGS: Blog[] = [
     slug: 'kilometerstand-fraude-herkennen',
     title: "Kilometerstand fraude herkennen: zo prik je erdoorheen",
     excerpt: 'Sjoemelen met de tellerstand is helaas nog steeds dagelijkse kost, vooral bij importauto’s. Leer hoe je de signalen herkent.',
-    metaTitle: "Kilometerstand Fraude Herkennen: Tips & Tricks | SlimKoop",
+    metaTitle: "Kilometerstand Fraude Herkennen: Tips & Tricks | OccasionScan",
     metaDescription: "Hoe weet je of de kilometerstand van een tweedehands auto klopt? Ontdek de fysieke en digitale signalen van tellerfraude en voorkom een dure miskoop.",
-    featuredImage: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=1200',
+    featuredImage: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=1200',
     category: 'Fraude Detectie',
     readTime: '7 min',
     createdAt: '2026-05-17',
-    author: 'SlimKoop Expert Team',
+    author: 'OccasionScan Expert Team',
     content: `
       <h2>De teller liegt vaker dan je denkt</h2>
       <p>Je hebt een prachtige BMW 3-serie uit Duitsland gevonden met slechts 80.000 KM op de teller. De prijs is goed, de auto glimt. Maar wist je dat naar schatting 1 op de 5 importauto's een teruggedraaide teller heeft? De winst voor de sjoemelaar kan duizenden euro's per auto zijn.</p>
-
-      <p>Bij <strong>SlimKoop</strong> focussen we op transparantie. Tellerfraude is een van de moeilijkste dingen om te zien, maar met deze tips sta je 1-0 voor.</p>
+ 
+      <p>Bij <strong>OccasionScan</strong> focussen we op transparantie. Tellerfraude is een van de moeilijkste dingen om te zien, maar met deze tips sta je 1-0 voor.</p>
 
       <h3>1. Slijtage aan het interieur</h3>
       <p>Kijk naar de punten die je aanraakt. Een stuur dat helemaal glad en glimmend is, een versnellingspook waar de letters vanaf zijn gesleten, of een bestuurdersstoel met een kapotte wang? Dat past niet bij een auto met 50.000 KM. Als het interieur eruitziet alsof er 2 ton mee gereden is, dan is dat waarschijnlijk ook zo.</p>
@@ -265,7 +265,7 @@ export const BLOGS: Blog[] = [
 
       <div class="bg-accent-green/10 border border-accent-green/20 p-6 rounded-2xl my-8">
         <h4 class="text-white font-bold mb-2">Check de kilometer-historie</h4>
-        <p class="text-sm mb-4">Gebruik SlimKoop om te zien of de kilometerstand logisch aansluit bij de leeftijd en eerdere advertenties van dit voertuig.</p>
+        <p class="text-sm mb-4">Gebruik OccasionScan om te zien of de kilometerstand logisch aansluit bij de leeftijd en eerdere advertenties van dit voertuig.</p>
         <a href="/analyseer" class="inline-block bg-accent-green !text-black px-6 py-2 rounded-xl font-bold hover:scale-105 transition-transform">Start tellercheck</a>
       </div>
 
@@ -279,9 +279,9 @@ export const BLOGS: Blog[] = [
       <p>Banden hebben een productiedatum. Als je een auto koopt uit 2021 met 10.000 KM, horen daar de originele banden uit 2021 onder te zitten met veel profiel. Zitten er splinternieuwe banden onder? Waarom? Of zitten er juist stokoude banden onder? Check of het verhaal logisch is.</p>
 
       <h3>6. Gebruik de digitale voetprint</h3>
-      <p>Auto's van tegenwoordig slaan de kilometerstand op meerdere plekken op: in de sleutel, in de module van de versnellingsbak, en in de multimedia-unit. Een gespecialiseerde garage kan deze uitlezen. Onze software bij SlimKoop zoekt ook naar eerdere verkopen van dezelfde auto op het internet om tellerfraude op te sporen.</p>
+      <p>Auto's van tegenwoordig slaan de kilometerstand op meerdere plekken op: in de sleutel, in de module van de versnellingsbak, en in de multimedia-unit. Een gespecialiseerde garage kan deze uitlezen. Onze software bij OccasionScan zoekt ook naar eerdere verkopen van dezelfde auto op het internet om tellerfraude op te sporen.</p>
 
-      <h3>Wil je het zeker weten? Analyseer je auto met SlimKoop</h3>
+      <h3>Wil je het zeker weten? Analyseer je auto met OccasionScan</h3>
       <p>We voeren een uitgebreide kruiscontrole uit op basis van alle beschikbare publieke en private data. We geven een waarschuwingssignaal als de data niet consistent is. Bescherm jezelf tegen deze vorm van diefstal.</p>
 
       <div class="mt-12 p-8 bg-gradient-to-br from-gray-900 to-black border border-white/5 rounded-[2.5rem] text-center">

@@ -45,6 +45,28 @@ export const BlogPostPage: React.FC = () => {
     return <Navigate to="/blog" replace />;
   }
 
+  const handleShare = (platform: string) => {
+    const url = window.location.href;
+    const title = post.title;
+    
+    let shareUrl = '';
+    switch (platform) {
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+        break;
+      case 'linkedin':
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+        break;
+    }
+    
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black relative overflow-hidden text-gray-200">
       {/* Reading Progress Bar */}
@@ -86,7 +108,7 @@ export const BlogPostPage: React.FC = () => {
                     <div className="w-8 h-8 rounded-full bg-accent-green/20 border border-accent-green/30 flex items-center justify-center text-accent-green font-bold text-[10px] uppercase">
                       {post.author ? post.author.split(' ').map(n => n[0]).join('') : 'A'}
                     </div>
-                    <span className="font-medium text-white">{post.author || 'SlimKoop Team'}</span>
+                    <span className="font-medium text-white">{post.author || 'OccasionScan Team'}</span>
                   </div>
                   <div className="h-4 w-px bg-white/20"></div>
                   <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-accent-green" /> {new Date(post.createdAt).toLocaleDateString('nl-NL')}</span>
@@ -138,8 +160,16 @@ export const BlogPostPage: React.FC = () => {
           <div className="lg:w-16 flex flex-col gap-6 sticky top-32 h-fit order-first lg:order-last">
             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] lg:[writing-mode:vertical-lr] text-center">Deel dit</span>
             <div className="flex lg:flex-col gap-4 justify-center">
-              {[Facebook, Twitter, Linkedin].map((Icon, i) => (
-                <button key={i} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-black hover:bg-accent-green hover:border-accent-green transition-all shadow-xl group">
+              {[
+                { Icon: Facebook, name: 'facebook' },
+                { Icon: Twitter, name: 'twitter' },
+                { Icon: Linkedin, name: 'linkedin' }
+              ].map(({ Icon, name }, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => handleShare(name)}
+                  className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-black hover:bg-accent-green hover:border-accent-green transition-all shadow-xl group"
+                >
                   <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </button>
               ))}

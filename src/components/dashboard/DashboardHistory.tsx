@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Search, Filter, Play, ExternalLink, Loader2 } from 'lucide-react';
+import { Search, Filter, Play, ExternalLink, Loader2, History, ArrowRight } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -26,11 +26,16 @@ export const DashboardHistory: React.FC = () => {
   const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user } = useStore();
+  const { user, isPremium, permissies } = useStore();
 
   useEffect(() => {
     async function fetchHistory() {
       if (!user) {
+        setLoading(false);
+        return;
+      }
+      // Stop fetch for free users to hide their history strictly per request
+      if (!isPremium && permissies === 'free') {
         setLoading(false);
         return;
       }
@@ -73,7 +78,29 @@ export const DashboardHistory: React.FC = () => {
   }, [user]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden relative">
+      {!isPremium && permissies === 'free' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-black/60 backdrop-blur-[12px] rounded-none shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-tr from-accent-green/5 to-transparent pointer-events-none"></div>
+          <div className="text-center max-w-md relative z-10 p-10 glass rounded-[2.5rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <div className="w-20 h-20 bg-accent-green/10 rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-3 border border-accent-green/20">
+              <History className="w-10 h-10 text-accent-green" />
+            </div>
+            <h3 className="text-4xl font-heading font-black text-white mb-4 tracking-tighter uppercase italic">Geschiedenis</h3>
+            <p className="text-gray-300 mb-10 text-lg font-medium">Bekijk al je eerdere scans en rapporten op één plek. Voor altijd opgeslagen voor onze premium leden.</p>
+            <div className="space-y-4">
+              <Button onClick={() => navigate('/prijzen')} className="w-full bg-accent-green hover:bg-accent-green/90 text-black font-extrabold h-16 rounded-2xl text-xl shadow-[0_10px_20px_rgba(0,200,83,0.2)] group overflow-hidden relative">
+                <span className="relative z-10 flex items-center justify-center gap-3">
+                   START PREMIUM <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                </span>
+              </Button>
+              <Button onClick={() => navigate('/dashboard')} variant="link" className="w-full text-gray-500 hover:text-white uppercase tracking-widest text-xs font-bold">
+                Niet nu, terug naar dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="p-6 md:p-10 pb-6">
         <h2 className="text-3xl font-heading font-bold text-white tracking-tight mb-2">Geschiedenis</h2>
         <p className="text-gray-400 mb-8">Bekijk en beheer al je eerdere rapporten.</p>
@@ -89,18 +116,30 @@ export const DashboardHistory: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="relative">
-            <select
-              value={filterScore}
-              onChange={(e) => setFilterScore(e.target.value)}
-              className="h-12 bg-white/5 border border-white/10 text-gray-300 rounded-xl px-4 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-accent-green"
-            >
-              <option value="all" className="bg-black text-white">Filter: Alles</option>
-              <option value="70+" className="bg-black text-white">Score: 70+ (Goede deal)</option>
-              <option value="50-69" className="bg-black text-white">Score: 50-69 (Redelijk)</option>
-              <option value="<50" className="bg-black text-white">Score: &lt;50 (Slechte deal)</option>
-            </select>
-            <Filter className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <div className="flex gap-2">
+            <div className="relative">
+              <select
+                value={filterScore}
+                onChange={(e) => setFilterScore(e.target.value)}
+                className="h-12 bg-white/5 border border-white/10 text-gray-300 rounded-xl px-4 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-accent-green cursor-pointer"
+              >
+                <option value="all" className="bg-black text-white">Filter: Alles</option>
+                <option value="70+" className="bg-black text-white">Score: 70+ (Goede deal)</option>
+                <option value="50-69" className="bg-black text-white">Score: 50-69 (Redelijk)</option>
+                <option value="<50" className="bg-black text-white">Score: &lt;50 (Slechte deal)</option>
+              </select>
+              <Filter className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+
+            {(searchTerm || filterScore !== 'all') && (
+              <Button 
+                variant="ghost" 
+                onClick={() => { setSearchTerm(''); setFilterScore('all'); }}
+                className="h-12 px-4 rounded-xl text-gray-400 hover:text-white"
+              >
+                Wis filters
+              </Button>
+            )}
           </div>
         </div>
       </div>

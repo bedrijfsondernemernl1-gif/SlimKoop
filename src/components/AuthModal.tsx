@@ -182,12 +182,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
               <div className="flex justify-center mb-6 relative z-10">
                 <div className="flex items-center gap-2">
-                  <div className="bg-accent-green/20 p-2 rounded-xl border border-accent-green/30">
-                    <Car className="h-5 w-5 text-accent-green" />
-                  </div>
-                  <span className="text-xl font-heading font-black tracking-tight text-white">
-                    Slim<span className="text-accent-green">Koop</span>
-                  </span>
+                  <img 
+                    src="https://i.ibb.co/Y7MMQR76/f06abe35-17e0-4185-96aa-eae12841c0f5-removalai-preview.png" 
+                    alt="OccasionScan Logo" 
+                    className="h-16 w-auto"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings, AlertCircle } from 'lucide-react';
+import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useStore } from '@/src/store/useStore';
 import { doc, setDoc } from 'firebase/firestore';
@@ -53,6 +53,21 @@ export const Dashboard: React.FC = () => {
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
+
+  const authLoading = useStore(state => state.authLoading);
+  const isLoggedIn = useStore(state => state.isLoggedIn);
+  
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-transparent">
+        <Loader2 className="w-10 h-10 text-accent-green animate-spin opacity-50" />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+     return null; // ProtectedRoute will handle redirect
+  }
 
   const currentPath = location.pathname.split('/').pop() || 'dashboard';
 
@@ -132,22 +147,6 @@ export const Dashboard: React.FC = () => {
       <main className="flex-1 flex flex-col bg-black/40 backdrop-blur-3xl overflow-hidden relative">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary-dark/20 blur-[100px] rounded-full pointer-events-none"></div>
         
-        {/* SCAN LIMIT ALERT */}
-        {isPremium && scansOver === 0 && (
-          <div className="mx-6 mt-6 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 relative z-20">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <div>
-                <p className="text-white font-bold text-sm">Je premium scans zijn op</p>
-                <p className="text-gray-400 text-xs">Je krijgt nu beperkte toegang tot analyses. Upgrade om weer volledige rapporten te ontvangen.</p>
-              </div>
-            </div>
-            <Button size="sm" onClick={() => navigate('/prijzen')} className="bg-red-500 hover:bg-red-600 text-white border-transparent text-xs font-bold shrink-0">
-              Scans opwaarderen
-            </Button>
-          </div>
-        )}
-
         {/* Mobile Navigation Tabs */}
         <div className="md:hidden flex overflow-x-auto gap-2 px-6 py-4 border-b border-white/5 scrollbar-hide shrink-0 items-center bg-black/50 backdrop-blur-md relative z-20">
           {menuItems.map((item) => {

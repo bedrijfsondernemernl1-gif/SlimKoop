@@ -194,7 +194,7 @@ export const LandingPage: React.FC = () => {
                 <Search className="absolute left-6 h-6 w-6 text-gray-400" />
                 <Input 
                   type="url" 
-                  placeholder="https://www.marktplaats.nl/v/... of autoscout24.com/..." 
+                  placeholder="https://www.marktplaats.nl/v/... of autoscout24.nl/..." 
                   className="pl-16 pr-6 h-20 w-full bg-transparent border-0 text-lg text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
