@@ -50,18 +50,13 @@ function getAIClient() {
     } catch(e) {}
   }
   
-  // Hardcoded fallback (TIJDELIJK)
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    apiKey = "AIzaSyDZEzKWENdXAHvMtK5-ksPrhZEWt-Z_FvM";
-  }
-  
-  console.log(`[AI] Gemini API key geladen: ${apiKey ? apiKey.substring(0, 8) + '...' : 'GEEN KEY!'}`);
-  
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY ontbreekt volledig!");
+    console.warn(`[AI] GEMINI_API_KEY ontbreekt!`);
+  } else {
+    console.log(`[AI] Gemini API key geladen: ${apiKey.substring(0, 8)}...`);
   }
   
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: apiKey || "" });
 }
 
 const DEFAULT_MODEL = "gemini-3-flash-preview";
@@ -111,7 +106,7 @@ OUTPUT JSON FORMAT:
 
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
-      contents: { parts: [{ text: textPrompt }] },
+      contents: [{ parts: [{ text: textPrompt }] }],
       config: {
         systemInstruction: "Je bent een Nederlandse expert in tweedehands auto's en marktplaats advertenties. Analyseer advertenties en bereken waarden nauwkeurig in JSON formaat. Huidig jaar is 2026. Bestempel een bouwjaar uit het huidige jaar of recenter NOOIT als onjuist of onmogelijk.",
         responseMimeType: "application/json",
@@ -171,17 +166,19 @@ Response format:
 
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
-      contents: {
-        parts: [
-          { text: photoPrompt },
-          ...validImages.map(img => ({
-            inlineData: {
-              data: img.base64,
-              mimeType: img.mimeType
-            }
-          }))
-        ]
-      },
+      contents: [
+        {
+          parts: [
+            { text: photoPrompt },
+            ...validImages.map(img => ({
+              inlineData: {
+                data: img.base64,
+                mimeType: img.mimeType
+              }
+            }))
+          ]
+        }
+      ],
       config: {
         systemInstruction: "Je bent een expert in het optisch keuren van tweedehands auto's op basis van foto's. Geef kritische analyses in JSON formaat.",
         responseMimeType: "application/json"

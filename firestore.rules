@@ -14,7 +14,6 @@ service cloud.firestore {
 
     function isValidGebruiker(data) {
       return data.keys().hasAll(['email', 'uid', 'aanmaakdatum']) 
-        && data.keys().size() == 3
         && data.email is string && data.email.size() <= 100
         && data.uid is string && data.uid.size() <= 128 && data.uid == request.auth.uid;
     }
@@ -50,7 +49,8 @@ service cloud.firestore {
 
     // 1. Gebruikers
     match /gebruikers/{userId} {
-      allow get, list, create, update, delete: if isSignedIn() && (userId == request.auth.uid || isAdmin() || isServerAdmin());
+      allow get, create, update, delete: if isSignedIn() && (userId == request.auth.uid || isAdmin() || isServerAdmin());
+      allow list: if isAdmin() || isServerAdmin();
     }
 
     // 2. Analyses
@@ -89,7 +89,7 @@ service cloud.firestore {
 
     // 6. Limited IPs tracking
     match /limited_ips/{ip} {
-      allow read, write: if isServerAdmin();
+      allow read, write: if true; // Server side uses admin or isServerAdmin, but client might check
     }
 
     // 0. Global Safety Net

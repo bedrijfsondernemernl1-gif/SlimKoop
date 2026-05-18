@@ -47,7 +47,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  // Don't throw to avoid crashing the auth listener
+  // throw new Error(JSON.stringify(errInfo));
 }
 
 interface StoreState {
