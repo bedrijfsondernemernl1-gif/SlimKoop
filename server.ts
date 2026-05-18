@@ -7,20 +7,19 @@ import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoSc
 import { checkRDW } from './src/lib/rdw';
 import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
 
-import admin from "firebase-admin";
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, query, where, getDocs, serverTimestamp, increment } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
 
-let adminApp;
-if (admin.apps.length === 0) {
-  adminApp = admin.initializeApp({
-    projectId: firebaseConfig.projectId
-  });
-} else {
-  adminApp = admin.apps[0];
-}
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const adminDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
-const adminDb = getFirestore(adminApp!, firebaseConfig.firestoreDatabaseId);
+// Sign in server bot
+signInWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSuperPassword123!")
+  .then(() => console.log("[SERVER] Logged in as Server Bot for Firestore access."))
+  .catch((err) => console.error("[SERVER] Failed to login Server Bot:", err));
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const PRICE_IDS = {
@@ -70,15 +69,15 @@ async function startServer() {
             permissies = "autohandelaar";
           }
 
-          const userRef = adminDb.collection("gebruikers").doc(userId);
-          await userRef.set({
+          const userRef = doc(adminDb, "gebruikers", userId);
+          await setDoc(userRef, {
             subscriptionStatus: "active",
             pakket: pakket,
             permissies: permissies,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
-            laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
+            laatsteBetaling: serverTimestamp(),
             scansGebruikt: 0,
             scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
             scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
@@ -184,15 +183,15 @@ async function startServer() {
             permissies = "autohandelaar";
           }
 
-          const userRef = adminDb.collection("gebruikers").doc(userId);
-          await userRef.set({
+          const userRef = doc(adminDb, "gebruikers", userId);
+          await setDoc(userRef, {
             subscriptionStatus: session.payment_status === "paid" ? "active" : "pending",
             pakket: pakket,
             permissies: permissies,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId || null,
             betaalstatus: session.payment_status,
-            laatsteBetaling: admin.firestore.FieldValue.serverTimestamp(),
+            laatsteBetaling: serverTimestamp(),
             scansGebruikt: 0,
             scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
             scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
@@ -207,15 +206,17 @@ async function startServer() {
         
         if (isCanceledOrDeleted) {
           try {
-            const usersSnapshot = await adminDb.collection("gebruikers").where("stripeCustomerId", "==", customerId).get();
+            const q = query(collection(adminDb, 'gebruikers'), where('stripeCustomerId', '==', customerId));
+            const usersSnapshot = await getDocs(q);
             if (!usersSnapshot.empty) {
-              const userDocRef = usersSnapshot.docs[0].ref;
-              await userDocRef.set({
+              const userRef = usersSnapshot.docs[0].ref;
+              await updateDoc(userRef, {
                 subscriptionStatus: 'free',
                 pakket: 'free',
                 permissies: 'free',
-                stripeSubscriptionId: null
-              }, { merge: true });
+                stripeSubscriptionId: null,
+                updatedAt: serverTimestamp()
+              });
               console.log(`[SERVER] Successfully downgraded user ${usersSnapshot.docs[0].id} to free layout because subscription was canceled/deleted`);
             }
           } catch (error) {
@@ -236,9 +237,9 @@ async function startServer() {
     if (!userId) return res.status(400).json({ error: "userId required" });
     
     try {
-      const userRef = adminDb.collection("gebruikers").doc(userId);
-      const userSnap = await userRef.get();
-      if (!userSnap.exists) return res.status(404).json({ error: "User not found" });
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) return res.status(404).json({ error: "User not found" });
 
       const userData = userSnap.data() as any;
       const subId = userData.stripeSubscriptionId;
@@ -248,12 +249,13 @@ async function startServer() {
       const isCanceledOrDeleted = subscription.status === "canceled" || subscription.status === "unpaid" || subscription.cancel_at_period_end;
       
       if (isCanceledOrDeleted && userData.pakket !== 'free') {
-        await userRef.set({
+        await updateDoc(userRef, {
           subscriptionStatus: 'free',
           pakket: 'free',
           permissies: 'free',
-          stripeSubscriptionId: null
-        }, { merge: true });
+          stripeSubscriptionId: null,
+          updatedAt: serverTimestamp()
+        });
         return res.json({ status: 'downgraded' });
       }
 
@@ -313,17 +315,17 @@ async function startServer() {
     if (!rapportId) return res.status(400).json({ error: "rapportId is vereist" });
 
     try {
-      const rapportRef = adminDb.collection('rapporten').doc(rapportId);
-      await rapportRef.update({
+      const rapportRef = doc(adminDb, 'rapporten', rapportId);
+      await updateDoc(rapportRef, {
         ...data,
         ...analyses,
         status: 'compleet',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: serverTimestamp()
       });
 
       // Sync to analyses collection for dashboard if user is not admin
       if (userId && userId !== "anonymous") {
-        await adminDb.collection('analyses').add({
+        await addDoc(collection(adminDb, 'analyses'), {
           userId: userId,
           rapportId: rapportId,
           title: data.autoNaam || data.titel,
@@ -333,7 +335,7 @@ async function startServer() {
           url: data.url,
           status: 'Voltooid',
           statusColor: 'text-accent-green',
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: serverTimestamp()
         });
       }
 
@@ -362,9 +364,9 @@ async function startServer() {
     
     if (userId && userId !== "anonymous") {
       try {
-        const userRef = adminDb.collection("gebruikers").doc(userId);
-        const userDoc = await userRef.get();
-        if (userDoc.exists) {
+        const userRef = doc(adminDb, "gebruikers", userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
           const data = userDoc.data() as any;
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
           isAdmin = adminEmails.includes((data.email || '').toLowerCase());
@@ -388,10 +390,10 @@ async function startServer() {
                 reportTier = permissies;
                 
                 // Increment scansGebruikt only if it's a premium scan
-                await userRef.set({ 
+                await updateDoc(userRef, { 
                   scansGebruikt: scansGebruikt + 1,
                   scansOver: Math.max(0, scanLimiet - (scansGebruikt + 1))
-                }, { merge: true });
+                });
               }
             } else {
               reportTier = 'free';
@@ -403,57 +405,19 @@ async function startServer() {
       }
     }
 
-    // IP-based limit for free/anonymous users (1 scan per IP)
-    if (reportTier === 'free' && !isAdmin) {
-      try {
-        const ipRef = adminDb.collection("limited_ips").doc(ipString);
-        const ipDoc = await ipRef.get();
-        
-        if (ipDoc.exists) {
-          const ipData = ipDoc.data() as any;
-          const count = typeof ipData.usageCount === 'number' ? ipData.usageCount : 0; 
-          
-          if (count >= 1) {
-            console.log(`[LIMIT] IP ${clientIp} blocked. Usage: ${count}`);
-            return res.status(403).json({ 
-              error: "Je hebt je gratis limiet van 1 scan per IP bereikt. Maak een account aan of upgrade om meer auto's te analyseren." 
-            });
-          }
-        }
-      } catch (ipError) {
-        console.error("IP limit check failed:", ipError);
-      }
-    }
-
-    // Mark IP as used if they are on free tier (logged in or not)
-    const markIpAsUsed = async () => {
-      if (reportTier === 'free' && !isAdmin) {
-        try {
-          const ipRef = adminDb.collection("limited_ips").doc(ipString);
-          await ipRef.set({ 
-            usageCount: admin.firestore.FieldValue.increment(1), 
-            lastUsed: admin.firestore.FieldValue.serverTimestamp(), 
-            userId: userId || 'anonymous' 
-          }, { merge: true });
-        } catch (err) {
-          console.error("Failed to mark IP as used:", err);
-        }
-      }
-    };
-
     // URL Caching: Check if this URL was already analyzed successfully
     try {
-      const querySnapshot = await adminDb.collection('rapporten')
-        .where('url', '==', url)
-        .where('status', '==', 'compleet')
-        .get();
+      const q = query(
+        collection(adminDb, 'rapporten'), 
+        where('url', '==', url), 
+        where('status', '==', 'compleet')
+      );
+      const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
         // Reuse the most recent completed report
         const existingReport = querySnapshot.docs[0];
         console.log(`[CACHE] Reusing existing report ${existingReport.id} for URL: ${url}`);
-        
-        await markIpAsUsed();
         
         return res.json({
           success: true,
@@ -466,15 +430,13 @@ async function startServer() {
     }
 
     try {
-      await markIpAsUsed();
-
-      const docRef = await adminDb.collection('rapporten').add({
+      const docRef = await addDoc(collection(adminDb, 'rapporten'), {
         userId: userId || "anonymous",
         url: url,
         status: "verwerking",
         tier: reportTier,
         limitReached: limitReached,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: serverTimestamp()
       });
 
       // Start background process
@@ -520,8 +482,9 @@ async function startServer() {
       const isPaidUser = isBetaald === 'true';
       const userPerms = (permissies as string) || 'free';
 
-      const docSnap = await adminDb.collection('rapporten').doc(rapportId).get();
-      if (!docSnap.exists) {
+      const docRef = doc(adminDb, 'rapporten', rapportId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
         return res.status(404).json({ error: "Rapport niet gevonden" });
       }
 
@@ -601,8 +564,8 @@ async function startServer() {
 async function voerAnalyseUit(rapportId: string, url: string, userId: string, reportTier: string = 'free') {
   try {
     // ── FASE 1: SCRAPING ──
-    const rapportRef = adminDb.collection('rapporten').doc(rapportId);
-    await rapportRef.update({ status: 'scraping' });
+    const rapportRef = doc(adminDb, 'rapporten', rapportId);
+    await updateDoc(rapportRef, { status: 'scraping' });
     console.log(`[SCRAPING] Listing at URL: ${url} (Tier: ${reportTier})`);
     
     let listing;
@@ -618,7 +581,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
     if (!listing) {
       console.error(`[SCRAPING] Failed for URL: ${url}`);
-      await rapportRef.update({ status: 'fout', error: 'Kon de advertentie niet ophalen.' });
+      await updateDoc(rapportRef, { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
       return;
     }
     
@@ -638,7 +601,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       type: listing.verkoperType || 'Particulier'
     };
 
-    await rapportRef.update({ 
+    await updateDoc(rapportRef, { 
       autoNaam: listing.titel,
       vraagprijs: listing.prijs,
       kilometerstand: listing.kilometerstand,
@@ -656,7 +619,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     });
 
     // ── FASE 2: PARALLEL OPHALEN ──
-    await rapportRef.update({ status: 'vergelijken' });
+    await updateDoc(rapportRef, { status: 'vergelijken' });
     console.log(`[PARALLEL] Start tasks voor ${listing.kenteken}`);
 
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
@@ -673,7 +636,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     console.log(`[PARALLEL] Collected data: ${vergelijkbareAutos.length} parallels, RDW: ${!!rdw}, Fotos: ${fotos?.fotos?.length || 0}`);
 
     // ── FASE 3: GEMINI ANALYSE ──
-    await rapportRef.update({ status: 'analyseren' });
+    await updateDoc(rapportRef, { status: 'analyseren' });
     
     let analyse;
     try {
@@ -682,7 +645,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
       console.error("[GEMINI] EXCEPTION:", e.message);
-      await rapportRef.update({ 
+      await updateDoc(rapportRef, { 
         status: 'fout', 
         error: `AI Analyse fout: ${e.message}` 
       });
@@ -691,7 +654,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
     if (!analyse) {
       console.error("[GEMINI] No result returned.");
-      await rapportRef.update({ 
+      await updateDoc(rapportRef, { 
         status: 'fout', 
         error: 'Gemini retourneerde geen resultaat. Check API key.' 
       });
@@ -699,9 +662,9 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     }
 
     // ── FASE 4: ALLES OPSLAAN ──
-    await rapportRef.update({ status: 'afronden' });
+    await updateDoc(rapportRef, { status: 'afronden' });
 
-    await rapportRef.update({
+    await updateDoc(rapportRef, {
         dealScore: analyse.dealScore || 0,
         verdict: analyse.verdict || 'onbekend',
         eerlijkePrijs: analyse.eerlijkePrijs || 0,
@@ -719,12 +682,12 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
         fotoAnalyse: fotos.fotos || [],
         ontbrekendeFotos: fotos.ontbrekendeFotos || [],
         status: 'compleet',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: serverTimestamp()
     });
     
     // Sync to analyses collection for dashboard if user is not anonymous
     if (userId && userId !== "anonymous") {
-        await adminDb.collection('analyses').add({
+        await addDoc(collection(adminDb, 'analyses'), {
             userId: userId,
             rapportId: rapportId,
             title: listing.titel,
@@ -734,7 +697,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
             url: url,
             status: 'Voltooid',
             statusColor: 'text-accent-green',
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
+            createdAt: serverTimestamp()
         });
     }
     
@@ -742,7 +705,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
   } catch (error: any) {
     console.error("[ERROR] In background task:", error);
-    await adminDb.collection('rapporten').doc(rapportId).update({ 
+    await updateDoc(doc(adminDb, 'rapporten', rapportId), { 
         status: 'fout', 
         error: error.message || 'Onbekende fout' 
     });

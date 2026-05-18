@@ -6,10 +6,12 @@ import { Button } from '@/src/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/src/store/useStore';
 import { db } from '../../lib/firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
+import { PaywallOverlay } from './PaywallOverlay';
 
 interface HistoryItem {
   id: string;
+  rapportId: string;
   date: string;
   time: string;
   title: string;
@@ -28,23 +30,23 @@ export const DashboardHistory: React.FC = () => {
   const navigate = useNavigate();
   const { user, isPremium, permissies } = useStore();
 
+  const isFreePlan = !isPremium || permissies === 'free';
+
   useEffect(() => {
     async function fetchHistory() {
       if (!user) {
         setLoading(false);
         return;
       }
-      // Stop fetch for free users to hide their history strictly per request
-      if (!isPremium && permissies === 'free') {
-        setLoading(false);
-        return;
-      }
+
       try {
+        // Fetch it all, we will truncate UI for free users
         const q = query(
           collection(db, 'analyses'),
           where('userId', '==', user.uid),
           orderBy('createdAt', 'desc')
         );
+        
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map(doc => {
           const d = doc.data();
@@ -75,32 +77,22 @@ export const DashboardHistory: React.FC = () => {
       }
     }
     fetchHistory();
-  }, [user]);
+  }, [user, isPremium, permissies]);
+
+  const filteredData = historyData
+    .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(item => {
+      if (filterScore === '70+') return item.score >= 70;
+      if (filterScore === '50-69') return item.score >= 50 && item.score < 70;
+      if (filterScore === '<50') return item.score < 50;
+      return true;
+    });
+
+  const displayedData = isFreePlan ? filteredData.slice(0, 2) : filteredData;
+  const showPaywall = isFreePlan && filteredData.length > 2;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
-      {!isPremium && permissies === 'free' && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center p-6 bg-black/60 backdrop-blur-[12px] rounded-none shadow-2xl overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-tr from-accent-green/5 to-transparent pointer-events-none"></div>
-          <div className="text-center max-w-md relative z-10 p-10 glass rounded-[2.5rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <div className="w-20 h-20 bg-accent-green/10 rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-3 border border-accent-green/20">
-              <History className="w-10 h-10 text-accent-green" />
-            </div>
-            <h3 className="text-4xl font-heading font-black text-white mb-4 tracking-tighter uppercase italic">Geschiedenis</h3>
-            <p className="text-gray-300 mb-10 text-lg font-medium">Bekijk al je eerdere scans en rapporten op één plek. Voor altijd opgeslagen voor onze premium leden.</p>
-            <div className="space-y-4">
-              <Button onClick={() => navigate('/prijzen')} className="w-full bg-accent-green hover:bg-accent-green/90 text-black font-extrabold h-16 rounded-2xl text-xl shadow-[0_10px_20px_rgba(0,200,83,0.2)] group overflow-hidden relative">
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                   START PREMIUM <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-                </span>
-              </Button>
-              <Button onClick={() => navigate('/dashboard')} variant="link" className="w-full text-gray-500 hover:text-white uppercase tracking-widest text-xs font-bold">
-                Niet nu, terug naar dashboard
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="p-6 md:p-10 pb-6">
         <h2 className="text-3xl font-heading font-bold text-white tracking-tight mb-2">Geschiedenis</h2>
         <p className="text-gray-400 mb-8">Bekijk en beheer al je eerdere rapporten.</p>
@@ -144,8 +136,8 @@ export const DashboardHistory: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 md:px-10 pb-10">
-        <div className="glass-panel border border-white/10 rounded-3xl overflow-hidden shadow-2xl min-h-[300px]">
+      <div className="flex-1 overflow-y-auto px-6 md:px-10 pb-10 relative">
+        <div className="glass-panel border border-white/10 rounded-3xl overflow-hidden shadow-2xl min-h-[300px] relative">
           {loading ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="w-8 h-8 text-accent-green animate-spin" />
@@ -158,7 +150,7 @@ export const DashboardHistory: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto min-w-[700px]">
+            <div className="overflow-x-auto min-w-[700px] relative">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 text-xs font-semibold text-gray-400 tracking-wider">
@@ -170,15 +162,7 @@ export const DashboardHistory: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {historyData
-                    .filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase()))
-                    .filter(item => {
-                      if (filterScore === '70+') return item.score >= 70;
-                      if (filterScore === '50-69') return item.score >= 50 && item.score < 70;
-                      if (filterScore === '<50') return item.score < 50;
-                      return true;
-                    })
-                    .map((row, i) => (
+                  {displayedData.map((row, i) => (
                     <motion.tr 
                       key={row.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -207,6 +191,7 @@ export const DashboardHistory: React.FC = () => {
                           <Button 
                             variant="ghost" 
                             size="icon"
+                            onClick={() => navigate(`/analyze?url=${encodeURIComponent(row.url)}`)}
                             title="Heranalyseren"
                             className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                           >
@@ -223,8 +208,25 @@ export const DashboardHistory: React.FC = () => {
                       </td>
                     </motion.tr>
                   ))}
+                  
+                  {/* Visual indication of more items blurred in background if free */}
+                  {showPaywall && (
+                    <tr className="border-none">
+                      <td colSpan={5} className="py-20 px-6 text-center text-gray-500 italic relative">
+                         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 backdrop-blur-[2px]" />
+                         Er zijn meer rapporten in je geschiedenis...
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
+
+              {showPaywall && (
+                <PaywallOverlay 
+                  title="Bekijk je volledige historie" 
+                  description="Upgrade nu om toegang te krijgen tot al je eerder gemaakte analyses en rapporten." 
+                />
+              )}
             </div>
           )}
         </div>

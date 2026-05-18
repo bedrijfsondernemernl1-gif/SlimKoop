@@ -32,6 +32,8 @@ export const DashboardOverview: React.FC = () => {
   const permissies = useStore(state => state.permissies);
   const scansOver = useStore(state => state.scansOver);
 
+  const isFreePlan = !isPremium || permissies === 'free';
+
   useEffect(() => {
     async function fetchAnalyses() {
       if (!user) {
@@ -39,17 +41,12 @@ export const DashboardOverview: React.FC = () => {
         return;
       }
 
-      // Hide scans for free users (user requested hide until upgrade)
-      if (!isPremium && permissies === 'free') {
-        setLoading(false);
-        return;
-      }
       try {
         const q = query(
           collection(db, 'analyses'),
           where('userId', '==', user.uid),
           orderBy('createdAt', 'desc'),
-          limit(3)
+          limit(5)
         );
         const snapshot = await getDocs(q);
         const cars = snapshot.docs.map(doc => {
@@ -79,7 +76,7 @@ export const DashboardOverview: React.FC = () => {
       }
     }
     fetchAnalyses();
-  }, [user]);
+  }, [user, isPremium, permissies]);
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,17 +177,6 @@ export const DashboardOverview: React.FC = () => {
           <div className="flex justify-center py-10">
             <Loader2 className="w-8 h-8 text-accent-green animate-spin" />
           </div>
-        ) : (!isPremium && permissies === 'free') ? (
-          <div className="text-center py-12 glass rounded-2xl border-white/5 bg-accent-green/[0.02]">
-            <div className="w-16 h-16 rounded-full bg-accent-green/10 flex items-center justify-center mx-auto mb-4 border border-accent-green/20">
-              <History className="w-8 h-8 text-accent-green/60" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">Geschiedenis Ontgrendelen</h3>
-            <p className="text-gray-400 max-w-sm mx-auto mb-6">Je hebt momenteel een gratis account. Upgrade naar premium om je scan-geschiedenis te bewaren en in te zien.</p>
-            <Button onClick={() => navigate('/prijzen')} size="sm" className="bg-accent-green hover:bg-accent-green/80 text-black font-bold rounded-xl px-6 h-10 shadow-lg shadow-accent-green/20">
-              Upgrade Account
-            </Button>
-          </div>
         ) : recentCars.length === 0 ? (
           <div className="text-center py-12 glass rounded-2xl border-white/5">
             <h3 className="text-xl font-bold text-white mb-2">Nog geen analyses</h3>
@@ -203,7 +189,7 @@ export const DashboardOverview: React.FC = () => {
             animate="show"
             className="grid gap-4"
           >
-            {recentCars.map((car) => (
+            {recentCars.slice(0, isFreePlan ? 2 : 5).map((car) => (
               <motion.div 
                 key={car.id}
                 variants={itemVariants}
@@ -237,6 +223,19 @@ export const DashboardOverview: React.FC = () => {
                 </div>
               </motion.div>
             ))}
+
+            {isFreePlan && recentCars.length > 2 && (
+              <div className="text-center py-8 glass rounded-2xl border-white/5 bg-accent-green/[0.02]">
+                <div className="w-12 h-12 rounded-full bg-accent-green/10 flex items-center justify-center mx-auto mb-3 border border-accent-green/20">
+                  <History className="w-6 h-6 text-accent-green/60" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-1">Ontgrendel de Rest</h3>
+                <p className="text-gray-400 text-sm max-w-xs mx-auto mb-4">Je hebt {recentCars.length} analyses. Upgrade om ze allemaal te bekijken.</p>
+                <Button onClick={() => navigate('/prijzen')} size="sm" className="bg-accent-green hover:bg-accent-green/80 text-black font-bold rounded-xl px-6 h-9 shadow-lg shadow-accent-green/20">
+                  Bekijk Meer
+                </Button>
+              </div>
+            )}
           </motion.div>
         )}
       </div>
