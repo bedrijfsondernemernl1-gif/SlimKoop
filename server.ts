@@ -414,7 +414,31 @@ async function startServer() {
       }
     }
 
-    // URL Caching removed
+    // URL Caching: Voorkom dubbele AI calls als recent nog gedaan
+    try {
+      const qReport = query(collection(adminDb, 'rapporten'), where('url', '==', url));
+      const querySnapshot = await getDocs(qReport);
+      
+      if (!querySnapshot.empty) {
+        const existingReport = querySnapshot.docs.sort((a,b) => {
+          const tA = (a.data().createdAt?.toDate && a.data().createdAt.toDate().getTime()) || 0;
+          const tB = (b.data().createdAt?.toDate && b.data().createdAt.toDate().getTime()) || 0;
+          return tB - tA;
+        })[0];
+        
+        const data = existingReport.data();
+        if (data.status === 'compleet' || data.status === 'verwerking' || data.status === 'analyseren' || data.status === 'vergelijken') {
+          console.log(`[CACHE] Reusing report ${existingReport.id} for URL: ${url}`);
+          return res.json({
+            success: true,
+            rapportId: existingReport.id,
+            cached: true
+          });
+        }
+      }
+    } catch (cacheError) {
+      console.error("Cache check failed:", cacheError);
+    }
 
 
     try {

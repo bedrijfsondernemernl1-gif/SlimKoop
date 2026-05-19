@@ -59,56 +59,31 @@ function getAIClient() {
   return new GoogleGenAI({ apiKey: apiKey || "" });
 }
 
-const DEFAULT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 
 export async function analyseerdeTekst(listingData: any, vergelijkbareAutos: any[] = []): Promise<TextAnalysisResult | null> {
   try {
     const ai = getAIClient();
 
-    // Trim description to save input tokens (most important info is in the first 1500 chars)
-    const shortBeschrijving = (listingData.beschrijving || "").substring(0, 1500);
+    // Limit description
+    const shortBeschrijving = (listingData.beschrijving || "").substring(0, 800);
 
-    const textPrompt = `Analyseer deze advertentie voor een tweedehands auto:
-Titel: ${listingData.titel}
+    const textPrompt = `Analyseer autorapport. JSON response ONLY:
+{"dealScore": 0-100, "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje", "eerlijkePrijs": num, "directeWinst": num, "positievePunten": [".."], "aandachtspunten": [".."], "rodeVlaggen": [{"ernst": "hoog"|"middel"|"laag", "titel": "..", "uitleg": ".."}], "advertentieAnalyse": {"taalgebruik": "..", "volledigheid": "..", "onlineSinds": "..", "prijsWijzigingen": ".."}, "onderhandelingsScript": "..", "openingsBod": num, "onderhandelingsTips": [".."], "samenvatting": [".."]}
+
+Auto: ${listingData.titel}
 Prijs: €${listingData.prijs}
-Kilometerstand: ${listingData.kilometerstand} km
-Bouwjaar: ${listingData.bouwjaar}
-Dagen online: ${listingData.dagenOnline}
-Verkoper: ${listingData.verkoper} (Type: ${listingData.verkoperType || 'Particulier'}, Lid sinds: ${listingData.verkoperSinds})
+KM: ${listingData.kilometerstand} km
+Jaar: ${listingData.bouwjaar}
+Online: ${listingData.dagenOnline} dgn
+Verkoper: ${listingData.verkoper} (${listingData.verkoperType || 'Particulier'})
 Beschrijving: ${shortBeschrijving}
-
-Vergelijking (voor marktgemiddelde): ${JSON.stringify(vergelijkbareAutos.slice(0, 10).map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}
-
-INSTRUCTIES:
-1. dealScore (0-100): 40% prijs vs markt, 30% risico/vlaggen, 15% advertentiekwaliteit, 15% km-stand.
-2. eerlijkePrijs: Gemiddelde marktwaarde gecorrigeerd met +/- €0,10/km en €1000/jaar verschil.
-3. directeWinst: eerlijkePrijs - vraagprijs.
-4. verdict: 'koopje' (winst > 1500), 'redelijk' (winst > 0), 'voorzichtig' (bij risico), 'vermijden' (grote problemen).
-5. advertentieAnalyse: Analyseer taalgebruik, volledigheid, onlineSinds (${listingData.dagenOnline} dagen) en prijsWijzigingen.
-6. onderhandelingsScript: Schrijf een krachtig NL script op basis van vraagprijs (€${listingData.prijs}) en vlaggen.
-7. samenvatting: 3 korte bullets.
-
-OUTPUT JSON FORMAT:
-{
-  "dealScore": number,
-  "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje",
-  "eerlijkePrijs": number,
-  "directeWinst": number,
-  "positievePunten": string[],
-  "aandachtspunten": string[],
-  "rodeVlaggen": [{"ernst": "hoog"|"middel"|"laag", "titel": string, "uitleg": string}],
-  "advertentieAnalyse": {"taalgebruik": string, "volledigheid": string, "onlineSinds": string, "prijsWijzigingen": string},
-  "onderhandelingsScript": string,
-  "openingsBod": number,
-  "onderhandelingsTips": [string, string, string],
-  "samenvatting": string[]
-}`;
+Vergelijking: ${JSON.stringify(vergelijkbareAutos.slice(0, 5).map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}`;
 
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
       contents: [{ parts: [{ text: textPrompt }] }],
       config: {
-        systemInstruction: "Je bent een Nederlandse expert in tweedehands auto's en marktplaats advertenties. Analyseer advertenties en bereken waarden nauwkeurig in JSON formaat. Huidig jaar is 2026. Bestempel een bouwjaar uit het huidige jaar of recenter NOOIT als onjuist of onmogelijk.",
         responseMimeType: "application/json",
       }
     });
@@ -117,7 +92,12 @@ OUTPUT JSON FORMAT:
     
     if (textData) {
       const cleanJson = textData.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanJson);
+      try {
+        return JSON.parse(cleanJson);
+      } catch (parseError) {
+        console.error("JSON parse failed. Raw text:", textData);
+        throw parseError; // bubbles to outer catch
+      }
     }
     return null;
   } catch (error) {
@@ -163,12 +143,8 @@ export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisR
       return { fotos: [], ontbrekendeFotos: ["Alle foto's"] };
     }
 
-    const photoPrompt = `Analyseer deze foto's op carrosserie (deuken/kleurverschil), interieur slijtage, motorruimte (lekkage) en banden.
-Response format:
-{
-  "fotos": [{"url": "string", "bevinding": "string", "ernst": "ok"|"waarschuwing"|"probleem", "label": "string"}],
-  "ontbrekendeFotos": ["string"]
-}`;
+    const photoPrompt = `Analyseer schades/slijtage in JSON:
+{"fotos": [{"url": "url", "bevinding": "korte zin", "ernst": "ok"|"waarschuwing"|"probleem", "label": "onderdeel"}], "ontbrekendeFotos": []}`;
 
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
@@ -186,7 +162,6 @@ Response format:
         }
       ],
       config: {
-        systemInstruction: "Je bent een expert in het optisch keuren van tweedehands auto's op basis van foto's. Geef kritische analyses in JSON formaat.",
         responseMimeType: "application/json"
       }
     });
@@ -195,14 +170,18 @@ Response format:
     
     if (textData) {
       const cleanJson = textData.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-      if (parsed.fotos) {
-        parsed.fotos = parsed.fotos.map((f: any, i: number) => ({
-          ...f,
-          url: validImages[i] ? validImages[i].url : (f.url || "")
-        }));
+      try {
+        const parsed = JSON.parse(cleanJson);
+        if (parsed.fotos) {
+          parsed.fotos = parsed.fotos.map((f: any, i: number) => ({
+            ...f,
+            url: validImages[i] ? validImages[i].url : (f.url || "")
+          }));
+        }
+        return parsed;
+      } catch (parseError) {
+        console.error("JSON parse failed in analyseerFotos. Raw text:", textData);
       }
-      return parsed;
     }
     return { fotos: [], ontbrekendeFotos: ["Analyse mislukt"] };
   } catch (error) {
