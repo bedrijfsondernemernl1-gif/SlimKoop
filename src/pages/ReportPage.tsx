@@ -884,18 +884,7 @@ export const ReportPage: React.FC = () => {
                           ))}
                         </div>
 
-                        <div className="border border-red-500/30 bg-red-500/10 rounded-2xl p-6 lg:p-8">
-                          <h4 className="flex items-center gap-3 text-red-400 font-bold mb-4 text-sm uppercase tracking-wide">
-                            <XCircle className="w-5 h-5" /> Ontbrekende foto's — vraag hier altijd om:
-                          </h4>
-                          <ul className="space-y-3 pl-1">
-                            {data.ontbrekendeFotos.map((item: string, i: number) => (
-                              <li key={i} className="flex gap-3 text-gray-200 text-sm items-center font-medium">
-                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 shadow-[0_0_8px_rgba(239,68,68,1)]"></div> {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+
                       </Card>
                     </div>
                   )}
