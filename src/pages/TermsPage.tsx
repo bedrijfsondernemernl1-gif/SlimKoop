@@ -5,7 +5,7 @@ import { Footer } from '@/src/components/Footer';
 
 export const TermsPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-black pt-32 flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-black pt-40 flex flex-col relative overflow-hidden">
       <div className="absolute top-1/3 right-0 w-[600px] h-[600px] bg-accent-green/10 blur-[150px] rounded-full pointer-events-none"></div>
 
       <div className="container mx-auto px-6 relative z-10 flex-1 pb-24">

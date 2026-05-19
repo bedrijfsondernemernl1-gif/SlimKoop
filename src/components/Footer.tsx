@@ -13,6 +13,7 @@ export const Footer: React.FC = () => {
               <img 
                 src="https://i.ibb.co/Y7MMQR76/f06abe35-17e0-4185-96aa-eae12841c0f5-removalai-preview.png" 
                 alt="Logo" 
+                loading="lazy"
                 className="h-12 sm:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-105" 
                 referrerPolicy="no-referrer"
               />

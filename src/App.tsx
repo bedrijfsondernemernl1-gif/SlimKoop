@@ -2,6 +2,7 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ShaderBackground } from './components/ShaderBackground';
 import { Navbar } from './components/Navbar';
+import { CookieConsent } from './components/CookieConsent';
 import { useStore } from './store/useStore';
 import { Loader2 } from 'lucide-react';
 
@@ -18,6 +19,7 @@ const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m
 const AnalysisInputPage = lazy(() => import('./pages/AnalysisInputPage').then(m => ({ default: m.AnalysisInputPage })));
 const BlogPage = lazy(() => import('./pages/BlogPage').then(m => ({ default: m.BlogPage })));
 const BlogPostPage = lazy(() => import('./pages/BlogPostPage').then(m => ({ default: m.BlogPostPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function PageLoader() {
   return (
@@ -81,8 +83,10 @@ function Layout() {
             } 
           />
           <Route path="/rapport/:id" element={<ReportPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+      <CookieConsent />
     </div>
   );
 }

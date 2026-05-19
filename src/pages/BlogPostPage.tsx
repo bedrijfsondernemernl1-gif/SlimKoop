@@ -86,7 +86,7 @@ export const BlogPostPage: React.FC = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
         
-        <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
+        <div className="absolute inset-0 flex flex-col justify-end pt-24 pb-12 md:pb-20">
           <div className="container mx-auto px-6">
             <div className="max-w-4xl">
               <motion.div

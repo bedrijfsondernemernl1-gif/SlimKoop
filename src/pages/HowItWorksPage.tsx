@@ -5,7 +5,7 @@ import { CheckCircle2, Search, Link as LinkIcon, Cpu, ShieldCheck } from 'lucide
 
 export const HowItWorksPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-black pt-32 flex flex-col">
+    <div className="min-h-screen bg-black pt-40 flex flex-col">
       <div className="container mx-auto px-6 relative z-10 flex-1 pb-24">
         
         <div className="text-center max-w-3xl mx-auto mb-24 relative">
@@ -14,7 +14,7 @@ export const HowItWorksPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl lg:text-7xl font-heading font-extrabold text-white mb-6 tracking-tight drop-shadow-lg"
           >
-            Hoe werkt Slim<span className="text-accent-green">Koop</span>?
+            Hoe werkt <span className="text-accent-green">OccasionScan</span>?
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}

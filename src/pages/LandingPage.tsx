@@ -163,7 +163,7 @@ export const LandingPage: React.FC = () => {
       {/* Hero Section */}
       <motion.div 
         style={{ y: yHero, opacity: opacityHero }}
-        className="container mx-auto px-6 py-20 md:py-48 relative z-10 flex flex-col items-center text-center"
+        className="container mx-auto px-6 pt-32 pb-16 md:pt-48 md:pb-32 relative z-10 flex flex-col items-center text-center"
       >
         <motion.div 
           variants={containerVariants}
@@ -171,19 +171,19 @@ export const LandingPage: React.FC = () => {
           animate="show"
           className="max-w-4xl w-full flex flex-col items-center"
         >
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass border border-white/10 mb-8 shadow-sm bg-black/40 backdrop-blur-xl">
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass border border-white/10 mb-6 md:mb-8 shadow-sm bg-black/40 backdrop-blur-xl">
             <Search className="w-4 h-4 text-accent-green" />
-            <span className="text-sm font-medium text-white">AI-gedreven autoanalyse</span>
+            <span className="text-sm font-medium text-white whitespace-nowrap">AI-gedreven autoanalyse</span>
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-heading font-extrabold tracking-tight mb-8 leading-tight text-white flex flex-col items-center">
+          <motion.h1 variants={itemVariants} className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-heading font-extrabold tracking-tight mb-6 md:mb-8 leading-tight text-white flex flex-col items-center">
             <span>AI die jou beschermt</span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">
                tegen slechte auto's.
             </span>
           </motion.h1>
           
-          <motion.p variants={itemVariants} className="text-gray-300 text-lg md:text-xl mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+          <motion.p variants={itemVariants} className="text-gray-300 text-base md:text-xl mb-10 md:mb-12 max-w-2xl mx-auto font-light leading-relaxed">
             Plak een Marktplaats of AutoScout24 link. Ontvang binnen 60 seconden een AI-rapport met DealScore, rode vlaggen en een onderhandelingsscript.
           </motion.p>
           
@@ -191,11 +191,11 @@ export const LandingPage: React.FC = () => {
             <div className="relative w-full group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-primary-dark/50 to-accent-green/30 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
               <div className="relative flex items-center bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl focus-within:border-accent-green/50 transition-colors duration-300">
-                <Search className="absolute left-6 h-6 w-6 text-gray-400" />
+                <Search className="absolute left-4 md:left-6 h-5 md:h-6 w-5 md:w-6 text-gray-400" />
                 <Input 
                   type="url" 
-                  placeholder="https://www.marktplaats.nl/v/... of autoscout24.nl/..." 
-                  className="pl-16 pr-6 h-20 w-full bg-transparent border-0 text-lg text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  placeholder="Marktplaats of AutoScout24 link..." 
+                  className="pl-12 md:pl-16 pr-6 h-16 md:h-20 w-full bg-transparent border-0 text-base md:text-lg text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
@@ -203,7 +203,7 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
             
-            <Button disabled={isLoading} type="submit" size="xl" className="w-full md:w-auto h-16 px-10 text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all duration-300 group">
+            <Button disabled={isLoading} type="submit" size="xl" className="w-full md:w-auto h-14 md:h-16 px-8 md:px-10 text-base md:text-lg rounded-xl shadow-lg hover:shadow-xl bg-accent-green hover:bg-accent-green/90 text-black font-semibold transition-all duration-300 group">
               {isLoading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : 
                 <>
                   Analyseer deze auto
@@ -212,7 +212,7 @@ export const LandingPage: React.FC = () => {
               }
             </Button>
             
-            <p className="text-sm text-gray-500 flex items-center gap-2 mt-2">
+            <p className="text-xs md:text-sm text-gray-500 flex items-center gap-2 mt-2">
               <CheckCircle2 className="w-4 h-4 text-accent-green" /> Eerste analyse gratis · Geen account nodig
             </p>
           </motion.form>
@@ -221,18 +221,18 @@ export const LandingPage: React.FC = () => {
 
       {/* Trust bar */}
       <div className="border-y border-white/5 bg-black/20 backdrop-blur-md relative z-10">
-        <div className="container mx-auto px-6 py-6 font-medium text-gray-400">
-          <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16 text-sm">
-             <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-lg">4.200+</span> analyses uitgevoerd
+        <div className="container mx-auto px-6 py-6 md:py-8 font-medium text-gray-400">
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-6 sm:gap-x-12 sm:gap-y-4 lg:gap-16 text-sm">
+             <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-white font-bold text-lg">4.200+</span> <span>analyses uitgevoerd</span>
              </div>
-             <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/10"></div>
-             <div className="flex items-center gap-2">
-                Gemiddeld <span className="text-accent-green font-bold text-lg">€1.800</span> bespaard
+             <div className="hidden lg:block w-1.5 h-1.5 rounded-full bg-white/10"></div>
+             <div className="flex items-center gap-2 whitespace-nowrap">
+                <span>Gemiddeld</span> <span className="text-accent-green font-bold text-lg">€1.800</span> <span>bespaard</span>
              </div>
-             <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/10"></div>
-             <div className="flex items-center gap-2 text-yellow-500">
-                ⭐ <span className="text-white font-bold text-lg ml-1">4.8/5</span> beoordeling
+             <div className="hidden lg:block w-1.5 h-1.5 rounded-full bg-white/10"></div>
+             <div className="flex items-center gap-2 text-yellow-500 whitespace-nowrap">
+                ⭐ <span className="text-white font-bold text-lg ml-1">4.8/5</span> <span>beoordeling</span>
              </div>
           </div>
         </div>

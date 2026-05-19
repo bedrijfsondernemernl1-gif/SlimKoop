@@ -42,7 +42,7 @@ export const AnalysisInputPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black pt-32 flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-black pt-40 flex flex-col relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent-green/10 blur-[150px] rounded-full pointer-events-none"></div>
 

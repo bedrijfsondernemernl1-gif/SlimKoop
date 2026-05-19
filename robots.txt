@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://occasionscan.nl/sitemap.xml

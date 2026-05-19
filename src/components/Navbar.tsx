@@ -77,29 +77,30 @@ export const Navbar: React.FC = () => {
               <img 
                 src="https://i.ibb.co/Y7MMQR76/f06abe35-17e0-4185-96aa-eae12841c0f5-removalai-preview.png" 
                 alt="Logo" 
+                loading="eager"
                 className="h-14 sm:h-16 w-auto object-contain transition-transform duration-500 group-hover:scale-105" 
                 referrerPolicy="no-referrer"
               />
             </Link>
             
             {/* Desktop Navigation Center */}
-            <div className="hidden md:flex items-center space-x-1 text-sm font-medium text-gray-300 bg-white/5 p-1 rounded-2xl border border-white/5 backdrop-blur-md">
+            <div className="hidden md:flex items-center space-x-0.5 lg:space-x-1 text-sm font-medium text-gray-300 bg-white/5 p-1 rounded-2xl border border-white/5 backdrop-blur-md">
               {navLinks.map((link) => (
-                <Link key={link.label} to={link.href} className="px-5 py-2.5 rounded-xl hover:text-white hover:bg-white/10 transition-all relative overflow-hidden group/link">
-                  <span className="relative z-10">{link.label}</span>
+                <Link key={link.label} to={link.href} className="px-3 lg:px-5 py-2.5 rounded-xl hover:text-white hover:bg-white/10 transition-all relative overflow-hidden group/link">
+                  <span className="relative z-10 whitespace-nowrap">{link.label}</span>
                   <div className="absolute inset-0 bg-white/[0.03] opacity-0 group-hover/link:opacity-100 transition-opacity"></div>
                 </Link>
               ))}
             </div>
 
             {/* Desktop Actions Right */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1 lg:gap-3">
               {isLoggedIn ? (
                 <>
                   <Link to="/dashboard">
-                    <Button variant="ghost" className="gap-2 font-medium bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl h-11 px-5 transition-all shadow-[inset_0_1px_rgba(255,255,255,0.05)]">
+                    <Button variant="ghost" className="gap-2 font-medium bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl h-11 px-3 lg:px-5 transition-all shadow-[inset_0_1px_rgba(255,255,255,0.05)]">
                       <LayoutDashboard className="w-4 h-4" />
-                      Dashboard
+                      <span className="hidden xl:inline">Dashboard</span>
                     </Button>
                   </Link>
                   <Button variant="glass" size="icon" className="rounded-xl h-11 w-11 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 group transition-all" onClick={handleLogout} title="Uitloggen">
@@ -110,7 +111,7 @@ export const Navbar: React.FC = () => {
                 <Button 
                   variant="ghost" 
                   onClick={openAuthModal}
-                  className="font-semibold text-gray-300 hover:text-white hover:bg-white/10 rounded-xl h-11 px-5 transition-all cursor-pointer"
+                  className="font-semibold text-gray-300 hover:text-white hover:bg-white/10 rounded-xl h-11 px-4 lg:px-5 transition-all cursor-pointer"
                 >
                   Inloggen
                 </Button>
@@ -118,9 +119,10 @@ export const Navbar: React.FC = () => {
               
               <Link to="/analyseer">
                 <Button 
-                  className="gap-2 font-semibold bg-accent-green hover:bg-accent-green/90 text-black shadow-[0_0_20px_rgba(0,200,83,0.3)] hover:shadow-[0_0_30px_rgba(0,200,83,0.5)] rounded-xl h-11 px-6 transition-all group cursor-pointer"
+                  className="gap-2 font-semibold bg-accent-green hover:bg-accent-green/90 text-black shadow-[0_0_20px_rgba(0,200,83,0.3)] hover:shadow-[0_0_30px_rgba(0,200,83,0.5)] rounded-xl h-11 px-4 lg:px-6 transition-all group cursor-pointer whitespace-nowrap"
                 >
-                  Gratis Analyseren
+                  <span className="hidden lg:inline">Gratis Analyseren</span>
+                  <span className="lg:hidden">Analyseer</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>

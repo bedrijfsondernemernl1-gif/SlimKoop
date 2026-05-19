@@ -7,7 +7,7 @@ import { BLOGS } from '../constants/blogData';
 
 export const BlogPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-black pt-32 pb-20 relative overflow-hidden">
+    <div className="min-h-screen bg-black pt-40 pb-20 relative overflow-hidden">
       {/* Ambient background effects */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-accent-green/5 blur-3xl rounded-full -translate-y-1/2 pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-accent-green/5 blur-3xl rounded-full translate-x-1/2 pointer-events-none"></div>
