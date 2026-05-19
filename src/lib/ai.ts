@@ -116,7 +116,8 @@ OUTPUT JSON FORMAT:
     const textData = response.text;
     
     if (textData) {
-      return JSON.parse(textData);
+      const cleanJson = textData.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
     }
     return null;
   } catch (error) {
@@ -140,7 +141,12 @@ export async function analyseerFotos(fotoUrls: string[]): Promise<PhotoAnalysisR
       urlsToUse.map(async (url) => {
         if (!url || !url.startsWith('http')) return null;
         try {
-          const res = await fetch(url);
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+            }
+          });
           if (!res.ok) return null;
           const arrayBuffer = await res.arrayBuffer();
           const base64data = Buffer.from(arrayBuffer).toString('base64');
@@ -188,7 +194,8 @@ Response format:
     const textData = response.text;
     
     if (textData) {
-      const parsed = JSON.parse(textData);
+      const cleanJson = textData.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
       if (parsed.fotos) {
         parsed.fotos = parsed.fotos.map((f: any, i: number) => ({
           ...f,

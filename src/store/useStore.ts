@@ -103,15 +103,26 @@ export const useStore = create<StoreState>((set) => {
                const isAdmin = adminEmails.includes((user.email || '').toLowerCase());
                const plan = data.pakket || 'free';
                const perms = data.permissies || 'free';
-               const sG = data.scansGebruikt || 0;
-               const sL = data.scanLimiet || 0;
+               const sG = Number(data.scansGebruikt || 0);
+               const sL = Number(data.scanLimiet || 0);
+               const sO = data.scansOver !== undefined ? Number(data.scansOver) : Math.max(0, sL - sG);
+
+               let computedIsPremium = perms !== 'free';
+               let computedPerms = perms;
+
+               // Revoke paid rights if limit is reached
+               if (!isAdmin && sO <= 0) {
+                   computedIsPremium = false;
+                   computedPerms = 'free';
+               }
+
                set({ 
-                   isPremium: isAdmin || perms !== 'free',
+                   isPremium: isAdmin ? true : computedIsPremium,
                    subscriptionPlan: isAdmin ? 'Autohandelaar' : plan,
-                   permissies: isAdmin ? 'autohandelaar' : perms,
+                   permissies: isAdmin ? 'autohandelaar' : computedPerms,
                    scansGebruikt: sG,
                    scanLimiet: isAdmin ? 999 : sL,
-                   scansOver: isAdmin ? 999 : Math.max(0, sL - sG)
+                   scansOver: isAdmin ? 999 : sO
                });
            }
         }, (err) => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));

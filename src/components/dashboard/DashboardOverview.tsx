@@ -31,8 +31,10 @@ export const DashboardOverview: React.FC = () => {
   const isPremium = useStore(state => state.isPremium);
   const permissies = useStore(state => state.permissies);
   const scansOver = useStore(state => state.scansOver);
+  const scanLimiet = useStore(state => state.scanLimiet);
 
   const isFreePlan = !isPremium || permissies === 'free';
+  const displayLimit = (isFreePlan) ? 3 : 10; // Show more for paid users even if scans=0
 
   useEffect(() => {
     async function fetchAnalyses() {
@@ -169,7 +171,26 @@ export const DashboardOverview: React.FC = () => {
 
       <div className="p-6 md:p-10 flex-1 overflow-y-auto min-h-0">
         <div className="flex justify-between items-end mb-8">
-          <h2 className="text-3xl font-heading font-bold text-white tracking-tight">Recente Analyses</h2>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-3xl font-heading font-bold text-white tracking-tight">Recente Analyses</h2>
+            {!isFreePlan && (
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent-green/70">
+                <div className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse"></div>
+                {scansOver} van de {scanLimiet} premium scans over
+              </div>
+            )}
+            {isFreePlan && scanLimiet > 0 && scansOver <= 0 && (
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-orange-400">
+                <div className="w-1.5 h-1.5 rounded-full bg-orange-400"></div>
+                0 van de {scanLimiet} premium scans over
+              </div>
+            )}
+            {isFreePlan && (scanLimiet === 0 || scansOver > 0) && (
+              <div className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                Gratis account
+              </div>
+            )}
+          </div>
           <Button variant="link" className="text-gray-400 hover:text-white pr-0" onClick={() => navigate('/dashboard/history')}>Bekijk alles</Button>
         </div>
         
@@ -189,7 +210,7 @@ export const DashboardOverview: React.FC = () => {
             animate="show"
             className="grid gap-4"
           >
-            {recentCars.slice(0, isFreePlan ? 2 : 5).map((car) => (
+            {recentCars.slice(0, displayLimit).map((car) => (
               <motion.div 
                 key={car.id}
                 variants={itemVariants}

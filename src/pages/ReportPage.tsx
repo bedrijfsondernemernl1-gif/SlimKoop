@@ -330,17 +330,19 @@ export const ReportPage: React.FC = () => {
     if (!tab) return false;
     if (tab.minTier === 'free') return false;
     
-    // Check if the report itself is unlocked for this session or if user has active plan
-    // If the data returned has valid content for the tab, it's not locked.
-    // However, we want to show the LOCK icon if they don't have the TIER.
+    // Admin/Dealer sees all
+    if (permissies === 'autohandelaar' || isUnlimited) return false;
+
+    // Determine the report's actual level from data
+    const reportLevel = reportData?.tier || 'free';
     
+    // If exploring a tab that requires higher tier than the report has, it's locked
     if (tab.minTier === 'losse_scan') {
-      return !isPremium && permissies === 'free' && reportData?.tier === 'free';
+      return reportLevel === 'free';
     }
     
     if (tab.minTier === 'slimme_koper') {
-      const perms = reportData?.tier || permissies;
-      return perms !== 'slimme_koper' && perms !== 'autohandelaar' && !['slimme_koper', 'autohandelaar'].includes(permissies);
+      return reportLevel === 'free' || reportLevel === 'losse_scan';
     }
     
     return false;

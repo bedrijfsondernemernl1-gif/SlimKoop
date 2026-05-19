@@ -17,9 +17,16 @@ const auth = getAuth(firebaseApp);
 const adminDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 // Sign in server bot
+import { createUserWithEmailAndPassword } from "firebase/auth";
+
 signInWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSuperPassword123!")
   .then(() => console.log("[SERVER] Logged in as Server Bot for Firestore access."))
-  .catch((err) => console.error("[SERVER] Failed to login Server Bot:", err));
+  .catch((err) => {
+    console.error("[SERVER] Failed to login Server Bot, attempting to create...", err.message);
+    createUserWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSuperPassword123!")
+      .then(() => console.log("[SERVER] Created and logged in as Server Bot."))
+      .catch(createErr => console.error("[SERVER] Could not create Server Bot:", createErr.message));
+  });
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const PRICE_IDS = {
@@ -81,7 +88,7 @@ async function startServer() {
             scansGebruikt: 0,
             scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
             scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
-          }, { merge: true }).catch(err => console.error("Admin DB set failed:", err));
+          }, { merge: true });
           
           return res.json({ success: true, updated: true, pakket, permissies });
         }
@@ -366,7 +373,7 @@ async function startServer() {
       try {
         const userRef = doc(adminDb, "gebruikers", userId);
         const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) {
+        if (userDoc.exists) {
           const data = userDoc.data() as any;
           const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
           isAdmin = adminEmails.includes((data.email || '').toLowerCase());
@@ -374,26 +381,28 @@ async function startServer() {
           if (isAdmin) {
             reportTier = 'autohandelaar';
           } else {
-            const scansGebruikt = data.scansGebruikt || 0;
-            const scanLimiet = data.scanLimiet || 0;
+            const scansGebruikt = Number(data.scansGebruikt || 0);
+            const scanLimiet = Number(data.scanLimiet || 0);
             const permissies = data.permissies || 'free';
             const pakket = data.pakket || 'free';
 
-            // Check if limit is reached
             if (pakket !== 'free') {
               if (scansGebruikt >= scanLimiet && scanLimiet < 999) {
-                // If limit reached, downgrade to free tier for this scan
+                // Limit reached, fallback to free
                 reportTier = 'free';
                 limitReached = true;
+                console.log(`[SUBSCRIPTION] User ${userId} has reached limit (${scansGebruikt}/${scanLimiet}). Falling back to free.`);
               } else {
-                // Determine tier based on permissies
+                // Use paid tier
                 reportTier = permissies;
                 
-                // Increment scansGebruikt only if it's a premium scan
+                // Real-time deduction
                 await updateDoc(userRef, { 
-                  scansGebruikt: scansGebruikt + 1,
-                  scansOver: Math.max(0, scanLimiet - (scansGebruikt + 1))
+                  scansGebruikt: increment(1),
+                  scansOver: increment(-1),
+                  lastScanAt: serverTimestamp()
                 });
+                console.log(`[SUBSCRIPTION] User ${userId} used premium scan (${reportTier}). New count: ${scansGebruikt + 1}`);
               }
             } else {
               reportTier = 'free';
@@ -405,29 +414,8 @@ async function startServer() {
       }
     }
 
-    // URL Caching: Check if this URL was already analyzed successfully
-    try {
-      const q = query(
-        collection(adminDb, 'rapporten'), 
-        where('url', '==', url), 
-        where('status', '==', 'compleet')
-      );
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        // Reuse the most recent completed report
-        const existingReport = querySnapshot.docs[0];
-        console.log(`[CACHE] Reusing existing report ${existingReport.id} for URL: ${url}`);
-        
-        return res.json({
-          success: true,
-          rapportId: existingReport.id,
-          cached: true
-        });
-      }
-    } catch (cacheError) {
-      console.error("Cache check failed:", cacheError);
-    }
+    // URL Caching removed
+
 
     try {
       const docRef = await addDoc(collection(adminDb, 'rapporten'), {
@@ -445,7 +433,7 @@ async function startServer() {
       return res.json({
         success: true,
         rapportId: docRef.id,
-        limitReached: (typeof limitReached !== 'undefined' ? true : false)
+        limitReached: limitReached
       });
 
     } catch (error: any) {
@@ -490,40 +478,54 @@ async function startServer() {
 
       const rawData = docSnap.data() as any;
       const reportTier = rawData.tier || 'free';
-      const userEmail = (req.query.email as string) || ''; // Wait, we should probably check admin by email if possible
+      const userEmail = (req.query.email as string) || ''; 
 
       const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
       const isAdmin = adminEmails.includes(userEmail.toLowerCase());
 
-      // Access is granted if:
-      // 1. Report itself was generated with a paid tier
-      // 2. User has unlimited access (autohandelaar)
-      // 3. User is admin
-      const isUnlimited = isAdmin || userPerms === 'autohandelaar';
-      const isPremiumReport = reportTier !== 'free';
+      // Access logic:
+      // Reports carry their generation tier (which affects what data is actually present in DB).
+      // However, even if a report was generated as 'free', a viewing user with a paid plan should see 
+      // whatever premium data IS available (Price, Risks, RDW).
       
-      const hasFullAccess = isUnlimited || isPremiumReport;
+      let effectiveTier = reportTier; 
       
-      // Tier determines features shown
-      const tier = isUnlimited ? 'autohandelaar' : (isPremiumReport ? reportTier : 'free');
+      // Upgrade view based on WHO is looking
+      if (isAdmin || userPerms === 'autohandelaar') {
+        effectiveTier = 'autohandelaar';
+      } else if (userPerms === 'slimme_koper') {
+        if (effectiveTier === 'free' || effectiveTier === 'losse_scan') {
+          effectiveTier = 'slimme_koper';
+        }
+      } else if (userPerms === 'losse_scan') {
+        if (effectiveTier === 'free') {
+          effectiveTier = 'losse_scan';
+        }
+      }
 
-      if (!hasFullAccess && rawData.status === 'compleet') {
-        // Redact premium fields for users without access to this report's tier
+      // ── REDACTION LOGIC ──
+      
+      // If it's a free report and user is not admin/dealer
+      if (effectiveTier === 'free') {
         return res.json({
           ...rawData,
+          tier: 'free',
           rodeVlaggen: rawData.rodeVlaggen ? rawData.rodeVlaggen.slice(0, 1) : [],
           vergelijkbareAutos: [],
           fotoAnalyse: [],
           onderhandelingsScript: null,
           openingsBod: null,
-          onderhandelingsTips: []
+          onderhandelingsTips: [],
+          eerlijkePrijs: 0, // Hide price for free
+          directeWinst: 0
         });
       }
 
-      if (tier === 'losse_scan' && rawData.status === 'compleet') {
-        // Losse scan user: Has Prijs & Risico's, but NO Foto Analyse or Script.
+      // Losse Scan: Full analysis (DealScore, Risks, RDW), but NO Photo Analysis or Script
+      if (effectiveTier === 'losse_scan') {
         return res.json({
           ...rawData,
+          tier: 'losse_scan',
           fotoAnalyse: [],
           onderhandelingsScript: null,
           openingsBod: null,
@@ -531,7 +533,8 @@ async function startServer() {
         });
       }
 
-      return res.json(rawData);
+      // Slimme Koper & Autohandelaar: Everything
+      return res.json({ ...rawData, tier: effectiveTier });
     } catch (e: any) {
       console.error(e);
       res.status(500).json({ error: e.message || "Interne fout" });
@@ -625,8 +628,8 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
       vergelijkbaarPromise || Promise.resolve([]),
       url.includes('autoscout24') ? Promise.resolve(null) : checkRDW(listing.kenteken),
-      // Skip AI photo analysis for free tier to save costs
-      reportTier === 'free' ? Promise.resolve(null) : analyseerFotos((listing.fotos || []).slice(0, 3))
+      // Skip AI photo analysis for free and losse_scan tier to save costs/limit features
+      (reportTier === 'free' || reportTier === 'losse_scan') ? Promise.resolve(null) : analyseerFotos((listing.fotos || []).slice(0, 3))
     ]);
     
     const vergelijkbareAutos = vergelijkbaar.status === 'fulfilled' ? vergelijkbaar.value : [];

@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, ShieldCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { Footer } from '@/src/components/Footer';
+import { useStore } from '@/src/store/useStore';
 
 export const AnalysisInputPage: React.FC = () => {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { scansOver, permissies, isPremium, subscriptionPlan, scanLimiet } = useStore();
+
+  const isFreeAccount = !isPremium || permissies === 'free';
+  const outOfScans = scansOver <= 0 && scanLimiet > 0 && subscriptionPlan !== 'free';
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,13 +69,35 @@ export const AnalysisInputPage: React.FC = () => {
            transition={{ delay: 0.1 }}
            className="w-full max-w-2xl glass-panel border-white/10 rounded-3xl p-8 shadow-2xl relative bg-black/60 backdrop-blur-2xl"
         >
-           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-8 text-[10px] sm:text-sm font-bold text-gray-500 uppercase tracking-wider">
-              <span className="text-white whitespace-nowrap">Ondersteunde platforms:</span>
-              <div className="flex items-center justify-center gap-4 flex-wrap">
-                <span className="flex items-center gap-1.5 text-orange-400 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
-                <span className="flex items-center gap-1.5 text-blue-400 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-blue-400"></span> AutoScout24</span>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 mb-8 text-[10px] sm:text-sm font-bold text-gray-500 uppercase tracking-wider">
+               <span className="text-white whitespace-nowrap">Ondersteunde platforms:</span>
+               <div className="flex items-center justify-center gap-4 flex-wrap">
+                 <span className="flex items-center gap-1.5 text-orange-400 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Marktplaats</span>
+                 <span className="flex items-center gap-1.5 text-blue-400 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-blue-400"></span> AutoScout24</span>
+               </div>
+            </div>
+
+            {/* Scan Limit / Tier Warning */}
+            {outOfScans && (
+              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+                 <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                 <div className="text-left">
+                   <p className="text-amber-500 text-xs font-bold uppercase tracking-wider">Bundel opgebruikt</p>
+                   <p className="text-gray-300 text-xs">Je premium scans zijn op. Deze nieuwe analyse zal een <span className="text-white font-bold underline">gratis versie</span> zijn met minder gegevens.</p>
+                 </div>
+                 <Button size="sm" type="button" onClick={() => navigate('/prijzen')} className="ml-auto bg-amber-500 hover:bg-amber-600 text-black text-[10px] h-7 px-3 rounded-lg font-bold">Upgrade</Button>
               </div>
-           </div>
+            )}
+            
+            {isFreeAccount && !outOfScans && (
+              <div className="mb-6 p-4 bg-accent-green/5 border border-accent-green/10 rounded-xl flex items-center gap-3">
+                 <CheckCircle2 className="w-5 h-5 text-accent-green shrink-0" />
+                 <div className="text-left">
+                   <p className="text-accent-green text-xs font-bold uppercase tracking-wider">Gratis Analyse</p>
+                   <p className="text-gray-400 text-xs">Je ontvangt een basisrapport. <span className="text-white font-bold cursor-pointer hover:underline" onClick={() => navigate('/prijzen')}>Bekijk premium</span> voor DealScore & RDW check.</p>
+                 </div>
+              </div>
+            )}
 
              <form onSubmit={handleAnalyze} className="space-y-6">
                 <div>
