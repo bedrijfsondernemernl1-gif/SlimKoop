@@ -122,7 +122,7 @@ export const ReportPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050B14] flex items-center justify-center pt-20">
+      <div className="min-h-[100dvh] bg-[#050B14] flex items-center justify-center pt-20">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-accent-green animate-spin mx-auto mb-4" />
           <p className="text-gray-400 font-medium">Gegevens ophalen...</p>
@@ -187,7 +187,7 @@ export const ReportPage: React.FC = () => {
     const progress = ((currentIdx + 1) / stappen.length) * 100;
 
     return (
-      <div className="min-h-screen bg-[#050B14] flex flex-col items-center justify-center pt-20 px-4">
+      <div className="min-h-[100dvh] bg-[#050B14] flex flex-col items-center justify-center pt-20 px-4">
         <div className="max-w-md w-full text-center space-y-8">
            <div className="relative w-32 h-32 mx-auto">
              <div className="absolute inset-0 bg-accent-green/20 rounded-full blur-2xl animate-pulse"></div>
@@ -349,7 +349,7 @@ export const ReportPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#050B14] relative text-white pb-32 overflow-x-hidden pt-28">
+    <div className="min-h-[100dvh] bg-[#050B14] relative text-white pb-32 overflow-x-hidden pt-28">
       {/* Background accents */}
       <div className="absolute top-[-10%] right-[-5%] w-[800px] h-[800px] rounded-full bg-accent-green/5 blur-[150px] pointer-events-none mix-blend-screen"></div>
 

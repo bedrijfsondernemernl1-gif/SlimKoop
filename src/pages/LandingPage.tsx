@@ -163,7 +163,7 @@ export const LandingPage: React.FC = () => {
       {/* Hero Section */}
       <motion.div 
         style={{ y: yHero, opacity: opacityHero }}
-        className="container mx-auto px-6 py-32 md:py-48 relative z-10 flex flex-col items-center text-center"
+        className="container mx-auto px-6 py-20 md:py-48 relative z-10 flex flex-col items-center text-center"
       >
         <motion.div 
           variants={containerVariants}
@@ -239,7 +239,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Benefits Section */}
-      <div className="container mx-auto px-6 relative z-10 py-24">
+      <div className="container mx-auto px-6 relative z-10 py-16 md:py-24">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-6">
             <div className="max-w-2xl">
@@ -300,7 +300,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Hoe het werkt Section */}
-      <div id="hoe-het-werkt" className="container mx-auto px-6 relative z-10 py-32">
+      <div id="hoe-het-werkt" className="container mx-auto px-6 relative z-10 py-16 md:py-32">
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -355,7 +355,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Voorbeeld Rapport Sectie */}
-      <div className="container mx-auto px-6 relative z-10 py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+      <div className="container mx-auto px-6 relative z-10 py-16 md:py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
          <div className="max-w-5xl mx-auto flex flex-col lg:flex-row gap-16 items-center">
             <div className="flex-1 w-full relative">
                <div className="absolute inset-0 bg-accent-green/10 blur-[100px] rounded-full"></div>
@@ -415,7 +415,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Pricing Section */}
-      <div className="container mx-auto px-6 relative z-10 py-32" id="prijzen">
+      <div className="container mx-auto px-6 relative z-10 py-16 md:py-32" id="prijzen">
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -506,7 +506,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* Testimonials Section */}
-      <div className="container mx-auto px-6 relative z-10 py-32 bg-accent-green/[0.01]">
+      <div className="container mx-auto px-6 relative z-10 py-16 md:py-32 bg-accent-green/[0.01]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-20">
             <motion.div 
@@ -561,7 +561,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* FAQ */}
-      <div className="container mx-auto px-6 py-32 relative z-10 max-w-4xl">
+      <div className="container mx-auto px-6 py-16 md:py-32 relative z-10 max-w-4xl">
          <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-12 text-center">Veelgestelde vragen</h2>
          <Accordion type="single" collapsible className="w-full space-y-4">
            {[

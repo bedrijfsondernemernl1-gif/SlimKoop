@@ -42,7 +42,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-black/20 backdrop-blur-sm">
         <Loader2 className="w-8 h-8 animate-spin text-accent-green opacity-40" />
       </div>
     );
@@ -57,7 +57,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function Layout() {
   return (
-    <div className="min-h-screen text-foreground font-sans">
+    <div className="min-h-[100dvh] text-foreground font-sans">
       <ShaderBackground />
       <Navbar />
       <Suspense fallback={<PageLoader />}>

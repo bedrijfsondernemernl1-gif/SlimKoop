@@ -92,7 +92,7 @@ export const Dashboard: React.FC = () => {
     isActive ? "text-accent-green drop-shadow-[0_0_8px_rgba(0,200,83,0.5)]" : "text-gray-400";
 
   return (
-    <div className="flex h-screen pt-[88px] relative z-10 w-full bg-black">
+    <div className="flex h-[100dvh] pt-[88px] relative z-10 w-full bg-black">
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-black border border-accent-green/50 p-8 rounded-2xl max-w-sm text-center shadow-2xl">
