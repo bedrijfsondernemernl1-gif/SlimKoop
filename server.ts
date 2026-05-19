@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
 import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar } from './src/lib/apify';
@@ -34,9 +35,9 @@ const PRICE_IDS = {
   autohandelaar: "price_1TWzLoRsJS7Vz7uqcB7DF5qQ",
 };
 
-const app = express();
-
-const PORT = Number(process.env.PORT) || 3000;
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
 
 
   app.use(express.json({
@@ -47,7 +48,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   }));
 
-  app.get(["/api/verify-checkout-session", "/verify-checkout-session"], async (req, res) => {
+  app.get("/api/verify-checkout-session", async (req, res) => {
     const { session_id } = req.query;
     if (!session_id || typeof session_id !== "string") {
       return res.status(400).json({ error: "Missing session_id" });
@@ -99,7 +100,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.post(["/api/create-checkout-session", "/create-checkout-session"], async (req, res) => {
+  app.post("/api/create-checkout-session", async (req, res) => {
     const { priceId, userId, userEmail, mode } = req.body;
 
     if (!priceId || !userId) {
@@ -146,7 +147,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.post(["/api/stripe-webhook", "/stripe-webhook"], express.raw({ type: "application/json" }), async (req, res) => {
+  app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
     const signature = req.headers["stripe-signature"] as string;
     let event;
 
@@ -238,7 +239,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.post(["/api/sync-subscription", "/sync-subscription"], async (req, res) => {
+  app.post("/api/sync-subscription", async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: "userId required" });
     
@@ -272,7 +273,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.post(["/api/scrape-marktplaats", "/scrape-marktplaats"], async (req, res) => {
+  app.post("/api/scrape-marktplaats", async (req, res) => {
     const { url } = req.body;
     if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {
       return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
@@ -315,7 +316,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.post(["/api/save-rapport", "/save-rapport"], async (req, res) => {
+  app.post("/api/save-rapport", async (req, res) => {
     const { rapportId, userId, data, analyses } = req.body;
     
     if (!rapportId) return res.status(400).json({ error: "rapportId is vereist" });
@@ -352,7 +353,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.post(["/api/analyseer", "/analyseer"], async (req, res) => {
+  app.post("/api/analyseer", async (req, res) => {
     const { url, userId } = req.body;
     const xff = req.headers['x-forwarded-for'];
     const clientIp = typeof xff === 'string' ? xff.split(',')[0].trim() : (Array.isArray(xff) ? xff[0] : req.socket.remoteAddress);
@@ -466,7 +467,7 @@ const PORT = Number(process.env.PORT) || 3000;
   });
 
   // GET /api/rapport/:id
-  app.get(["/api/proxy-image", "/proxy-image"], async (req, res) => {
+  app.get("/api/proxy-image", async (req, res) => {
     try {
       const imageUrl = req.query.url;
       if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.startsWith('http')) {
@@ -486,7 +487,7 @@ const PORT = Number(process.env.PORT) || 3000;
     }
   });
 
-  app.get(["/api/rapport/:id", "/rapport/:id"], async (req, res) => {
+  app.get("/api/rapport/:id", async (req, res) => {
     try {
       const rapportId = req.params.id;
       const { isBetaald, permissies } = req.query;
@@ -568,28 +569,24 @@ const PORT = Number(process.env.PORT) || 3000;
 
 
 
-  if (!process.env.VERCEL) {
-    (async () => {
-      if (process.env.NODE_ENV !== "production") {
-        const { createServer: createViteServer } = await import("vite");
-        const vite = await createViteServer({
-          server: { middlewareMode: true },
-          appType: "spa",
-        });
-        app.use(vite.middlewares);
-      } else {
-        const distPath = path.join(process.cwd(), 'dist');
-        app.use(express.static(distPath));
-        app.get('*', (req, res) => {
-          res.sendFile(path.join(distPath, 'index.html'));
-        });
-      }
-
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-      });
-    })();
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
 
 async function voerAnalyseUit(rapportId: string, url: string, userId: string, reportTier: string = 'free') {
   try {
@@ -742,4 +739,4 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
   }
 }
 
-export default app;
+startServer();

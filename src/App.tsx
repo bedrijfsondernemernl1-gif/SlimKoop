@@ -1,7 +1,6 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { ShaderBackground } from './components/ShaderBackground';
 import { Navbar } from './components/Navbar';
 import { CookieConsent } from './components/CookieConsent';
@@ -65,7 +64,6 @@ function Layout() {
       <ShaderBackground />
       <Navbar />
       <Analytics />
-      <SpeedInsights />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
