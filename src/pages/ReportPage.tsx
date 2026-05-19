@@ -372,7 +372,6 @@ export const ReportPage: React.FC = () => {
               {shareCopied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2"/>}
               {shareCopied ? "Gekopieerd!" : "Deel rapport"}
             </Button>
-            <Button onClick={handleSave} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Bookmark className="w-4 h-4 mr-2"/> Bewaar</Button>
           </div>
         </div>
 
@@ -493,7 +492,7 @@ export const ReportPage: React.FC = () => {
                   <motion.circle 
                     cx="50" cy="50" r="42" 
                     fill="none" 
-                    stroke="#10B981" 
+                    stroke={gaugeValue >= 70 ? "#10B981" : gaugeValue >= 40 ? "#FACC15" : "#EF4444"} 
                     strokeWidth="6" 
                     strokeDasharray={263.89} 
                     strokeDashoffset={263.89 - (263.89 * gaugeValue / 100)}
@@ -503,12 +502,18 @@ export const ReportPage: React.FC = () => {
                     transition={{ duration: 1.5, ease: "easeOut" }}
                   />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center border-4 border-accent-green/20 rounded-full m-[8px] bg-[#131B2A]/50">
+                <div className={`absolute inset-0 flex items-center justify-center border-4 ${gaugeValue >= 70 ? 'border-accent-green/20' : gaugeValue >= 40 ? 'border-yellow-500/20' : 'border-red-500/20'} rounded-full m-[8px] bg-[#131B2A]/50`}>
                   <span className="text-4xl sm:text-6xl font-heading font-extrabold text-white">{gaugeValue}</span>
                 </div>
               </div>
 
-              <div className="bg-accent-green/10 text-accent-green border border-accent-green/30 px-6 py-2 rounded-full font-bold text-sm mb-8 uppercase tracking-wide">
+              <div className={`px-6 py-2 rounded-full font-bold text-sm mb-8 uppercase tracking-wide border ${
+                gaugeValue >= 70 
+                  ? 'bg-accent-green/10 text-accent-green border-accent-green/30' 
+                  : gaugeValue >= 40 
+                    ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30' 
+                    : 'bg-red-500/10 text-red-500 border-red-500/30'
+              }`}>
                 {data.verdict}
               </div>
 
@@ -530,10 +535,24 @@ export const ReportPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className={`flex justify-between items-center bg-accent-green/10 p-4 rounded-xl mt-4 border border-accent-green/20 ${!hasPaidAccess ? 'grayscale opacity-50' : ''}`}>
+                <div className={`flex justify-between items-center p-4 rounded-xl mt-4 border ${!hasPaidAccess ? 'grayscale opacity-50 bg-accent-green/10 border-accent-green/20' : (
+                  (data.eerlijkePrijs - data.vraagprijs) > 500 
+                    ? 'bg-accent-green/10 border-accent-green/20' 
+                    : (data.eerlijkePrijs - data.vraagprijs) >= 0 
+                      ? 'bg-yellow-500/10 border-yellow-500/20' 
+                      : 'bg-red-500/10 border-red-500/20'
+                )}`}>
                   <span className="text-gray-200 font-bold uppercase text-xs tracking-wider">Directe Winst</span>
                   {hasPaidAccess ? (
-                    <span className="font-black text-accent-green text-xl">+ € {(data.eerlijkePrijs - data.vraagprijs).toLocaleString('nl-NL')}</span>
+                    <span className={`font-black text-xl ${
+                      (data.eerlijkePrijs - data.vraagprijs) > 500 
+                        ? 'text-accent-green' 
+                        : (data.eerlijkePrijs - data.vraagprijs) >= 0 
+                          ? 'text-yellow-500' 
+                          : 'text-red-500'
+                    }`}>
+                      {(data.eerlijkePrijs - data.vraagprijs) >= 0 ? '+ ' : ''}€ {(data.eerlijkePrijs - data.vraagprijs).toLocaleString('nl-NL')}
+                    </span>
                   ) : (
                     <span className="font-black text-gray-500 text-xl blur-sm select-none">+ € x.xxx</span>
                   )}

@@ -394,7 +394,15 @@ export const LandingPage: React.FC = () => {
                         <Lock className="w-4 h-4 text-accent-green" />
                         <span className="text-white font-medium text-sm">Ontgrendel volledig rapport</span>
                      </div>
-                     <Button className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg">Bekijk voor €9,99</Button>
+                     <Button 
+                       onClick={() => {
+                         const el = document.getElementById('prijzen');
+                         if (el) el.scrollIntoView({ behavior: 'smooth' });
+                       }}
+                       className="bg-accent-green text-black font-semibold rounded-xl hover:bg-accent-green/90 shadow-lg"
+                     >
+                       Bekijk voor €9,99
+                     </Button>
                   </div>
                </div>
             </div>
