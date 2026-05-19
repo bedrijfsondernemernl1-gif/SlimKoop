@@ -53,7 +53,14 @@ export const ReportPage: React.FC = () => {
       try {
         const emailParam = user?.email ? `&email=${encodeURIComponent(user.email)}` : '';
         const res = await fetch(`/api/rapport/${id}?isBetaald=${isPremium}&permissies=${permissies}${emailParam}`);
-        const data = await res.json();
+        
+        let data;
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          throw new Error("Er is een route of API configuratiefout opgetreden op de server. Zorg dat je backend correct is gekoppeld.");
+        }
         
         if (res.status === 404 && isPolling) {
           console.log("Rapport niet gevonden (404), opnieuw proberen...");
