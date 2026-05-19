@@ -3,14 +3,14 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
-import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar } from './src/lib/apify';
-import { checkRDW } from './src/lib/rdw';
-import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
+import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar } from '../src/lib/apify';
+import { checkRDW } from '../src/lib/rdw';
+import { analyseerdeTekst, analyseerFotos } from '../src/lib/ai';
 
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, query, where, getDocs, serverTimestamp, increment } from "firebase/firestore";
-import firebaseConfig from "./firebase-applet-config.json" with { type: 'json' };
+import firebaseConfig from "../firebase-applet-config.json" with { type: 'json' };
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -583,10 +583,26 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  // Export the app for Vercel
+  return app;
+}
+
+// Start the server if not in a serverless environment (though Vercel handles this)
+const startPromise = startServer();
+
+if (process.env.NODE_ENV !== "production") {
+  startPromise.then(app => {
+    app.listen(3000, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:3000`);
+    });
   });
 }
+
+// Export default for Vercel
+export default async (req: any, res: any) => {
+  const app = await startPromise;
+  return app(req, res);
+};
 
 async function voerAnalyseUit(rapportId: string, url: string, userId: string, reportTier: string = 'free') {
   try {
