@@ -30,7 +30,7 @@ export const TermsPage: React.FC = () => {
                   1. Diensten van OccasionScan
                 </h2>
                 <p>
-                  OccasionScan biedt een platform voor de analyse van tweedehands voertuigen op basis van online advertenties en openbare data. De resultaten zijn bedoeld als hulpmiddel en advies, niet als bindende taxatie of garantie op de staat van een voertuig.
+                  OccasionScan biedt een digitaal platform en een AI-gestuurde analysetool voor tweedehands voertuigen op basis van openbaar beschikbare advertentie-informatie en openbare RDW-data. Dit platform en de daarin gegenereerde rapporten, analyses en adviezen dienen uitsluitend als indicatief en informatief hulpmiddel voor de gebruiker. De geleverde analyses, AI-resultaten (zoals foto-analyses, prijsprognoses, schade-indicaties, onderhandelingsscripts en andere inzichten) en geaggregeerde voertuigdata zijn nimmer volledig accuraat, uitputtend of gegarandeerd correct. De prestaties van onze algoritmen en de getoonde data kunnen afwijken van de werkelijke staat, waarde, geschiedenis of eigenschappen van het voertuig. Er kunnen geen rechten aan de verstrekte informatie worden ontleend.
                 </p>
               </section>
 
@@ -52,16 +52,23 @@ export const TermsPage: React.FC = () => {
               <section>
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
                   <AlertCircle className="w-6 h-6 text-accent-green" />
-                  3. Disclaimer & Aansprakelijkheid
+                  3. Disclaimer & Aansprakelijkheidsbeperking
                 </h2>
-                <p>
-                  Hoewel onze AI-modellen met de grootste zorg zijn samengesteld, kan OccasionScan niet aansprakelijk worden gesteld voor:
+                <p className="mb-3">
+                  Het gebruik van de diensten en rapporten van OccasionScan geschiedt geheel op eigen risico van de gebruiker. Gebruikers dragen zelf de volledige en uitsluitende verantwoordelijkheid voor hun aankoopbeslissingen, onderhandelingen en de uiteindelijke aanschaf van een voertuig. Wij raden ten zeerste aan om altijd een onafhankelijke aankoopkeuring (zoals een DEKRA-keuring of merkspecifieke controle) te laten uitvoeren alvorens tot aankoop over te gaan.
                 </p>
-                <ul className="list-disc ml-6 mt-3 space-y-2">
-                  <li>Financiële verliezen naar aanleiding van een voertuigaankoop.</li>
-                  <li>Onjuistheden in de data die afkomstig is van externe bronnen zoals Marktplaats of AutoScout24.</li>
-                  <li>Invalide analyses door onvolledige informatie in een advertentie.</li>
+                <p>
+                  OccasionScan, haar wettelijke vertegenwoordigers en haar medewerkers zijn onder geen beding aansprakelijk voor enige vorm van directe, indirecte, incidentele, speciale of gevolgschade, noch voor vermogensschade, geleden verliezen, gederfde winst of onvoorziene kosten die voortvloeien uit of verband houden met:
+                </p>
+                <ul className="list-disc ml-6 mt-3 space-y-2 mb-3">
+                  <li>Eventuele aankoopbeslissingen, miskopen, verborgen gebreken, technische mankementen of mechanische defecten aan een geanalyseerd voertuig.</li>
+                  <li>Onjuiste, onvolledige of achterhaalde data afkomstig van externe bronnen (zoals advertentieplatforms, de RDW, of andere openbare registers).</li>
+                  <li>Fouten, onnauwkeurigheden, weglatingen of storingen in de AI-analyses, algoritmerapporten, schaderapporten of prijsindicaties.</li>
+                  <li>Het (tijdelijk) niet beschikbaar zijn of niet naar behoren functioneren van de website of diensten.</li>
                 </ul>
+                <p>
+                  Voor zover wettelijk toegestaan is de totale aansprakelijkheid van OccasionScan jegens de gebruiker, uit welke hoofde dan ook (inclusief contractuele aansprakelijkheid en onrechtmatige daad), te allen tijde beperkt tot het bedrag dat de gebruiker daadwerkelijk aan OccasionScan heeft betaald voor de specifieke dienst waaruit de aansprakelijkheid voortvloeit.
+                </p>
               </section>
 
               <section>

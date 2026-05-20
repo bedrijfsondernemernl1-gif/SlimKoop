@@ -103,6 +103,7 @@ export const PricingPage: React.FC = () => {
                { text: "RDW & kilometercheck", included: true },
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
+               { text: "Rapportgeschiedenis & PDF-export", included: false },
              ]}
              btnText={purchasing === "Losse Scan" ? "Laden..." : "Koop scan — €9,99"}
              buttonStyle="outline"
@@ -123,6 +124,7 @@ export const PricingPage: React.FC = () => {
                { text: "RDW & kilometercheck", included: true },
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
+               { text: "Rapportgeschiedenis & PDF-export", included: false },
              ]}
              btnText={purchasing === "Slimme Koper" ? "Laden..." : "Start nu — €19,99"}
              featured={true}
@@ -141,8 +143,7 @@ export const PricingPage: React.FC = () => {
                { text: "Onbeperkt rapporten", included: true },
                { text: "Alles van Slimme Koper", included: true },
                { text: "Prioriteitsverwerking", included: true },
-               { text: "Rapportgeschiedenis & export", included: true },
-               { text: "Bulk analyse (meerdere URL's)", included: true },
+               { text: "Rapportgeschiedenis & PDF-export", included: true },
              ]}
              btnText={purchasing === "Autohandelaar" ? "Laden..." : "Start abonnement"}
              buttonStyle="outline-green"
@@ -163,8 +164,8 @@ export const PricingPage: React.FC = () => {
           </div>
           <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
           <div className="flex items-center gap-2">
-            <RotateCcw className="w-5 h-5 text-accent-green" />
-            Niet tevreden? Geld terug garantie
+            <ShieldCheck className="w-5 h-5 text-accent-green" />
+            Onafhankelijk en objectief
           </div>
         </div>
 

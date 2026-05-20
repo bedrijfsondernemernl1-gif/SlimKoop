@@ -447,6 +447,7 @@ export const LandingPage: React.FC = () => {
                { text: "RDW & kilometercheck", included: true },
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
+               { text: "Rapportgeschiedenis & PDF-export", included: false },
              ]}
              btnText={purchasing === "Losse Scan" ? "Laden..." : "Koop scan — €9,99"}
              buttonStyle="outline"
@@ -467,6 +468,7 @@ export const LandingPage: React.FC = () => {
                { text: "RDW & kilometercheck", included: true },
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijk onderhandelingsscript", included: true },
+               { text: "Rapportgeschiedenis & PDF-export", included: false },
              ]}
              btnText={purchasing === "Slimme Koper" ? "Laden..." : "Start nu — €19,99"}
              featured={true}
@@ -485,8 +487,7 @@ export const LandingPage: React.FC = () => {
                { text: "Onbeperkt rapporten", included: true },
                { text: "Alles van Slimme Koper", included: true },
                { text: "Prioriteitsverwerking", included: true },
-               { text: "Rapportgeschiedenis & export", included: true },
-               { text: "Bulk analyse (meerdere URL's)", included: true },
+               { text: "Rapportgeschiedenis & PDF-export", included: true },
              ]}
              btnText={purchasing === "Autohandelaar" ? "Laden..." : "Start abonnement"}
              buttonStyle="outline-green"
@@ -507,8 +508,8 @@ export const LandingPage: React.FC = () => {
           </div>
           <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
           <div className="flex items-center gap-2">
-            <RotateCcw className="w-5 h-5 text-accent-green" />
-            Niet tevreden? Geld terug garantie
+            <ShieldCheck className="w-5 h-5 text-accent-green" />
+            Onafhankelijk en objectief
           </div>
         </div>
       </div>
@@ -575,7 +576,7 @@ export const LandingPage: React.FC = () => {
            {[
              { q: "Werkt het alleen voor Marktplaats?", a: "Nee, we ondersteunen momenteel zowel Marktplaats als AutoScout24." },
              { q: "Hoe nauwkeurig is de prijsanalyse?", a: "We vergelijken met 10–20 actuele vergelijkbare advertenties in heel Nederland op het moment van analyse." },
-             { q: "Is mijn data veilig?", a: "We slaan alleen de analyseresultaten op, niet je persoonlijke gegevens. Je hoeft zelfs geen account te maken voor je eerste rapport." },
+             { q: "Is mijn data veilig?", a: "Ja, je data is veilig. We verwerken en beveiligen je persoonlijke gegevens in overeenstemming met ons privacybeleid en de geldende privacywetgeving (AVG)." },
              { q: "Kan ik het rapport delen?", a: "Ja, elk rapport heeft een unieke deelbare link die je via WhatsApp of e-mail kunt sturen." },
              { q: "Hoe werkt de foto-analyse?", a: "Onze AI (Visual Intelligence) scant de foto's op kleurverschillen, spuitwerk, verborgen schades, deuken en slijtage aan het interieur." }
            ].map((faq, i) => (

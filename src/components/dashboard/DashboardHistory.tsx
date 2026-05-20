@@ -30,7 +30,7 @@ export const DashboardHistory: React.FC = () => {
   const navigate = useNavigate();
   const { user, isPremium, permissies } = useStore();
 
-  const isFreePlan = !isPremium || permissies === 'free';
+  const isDealer = permissies === 'autohandelaar';
 
   useEffect(() => {
     async function fetchHistory() {
@@ -88,8 +88,8 @@ export const DashboardHistory: React.FC = () => {
       return true;
     });
 
-  const displayedData = isFreePlan ? filteredData.slice(0, 2) : filteredData;
-  const showPaywall = isFreePlan && filteredData.length > 2;
+  const displayedData = isDealer ? filteredData : filteredData.slice(0, 2);
+  const showPaywall = !isDealer;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -150,76 +150,78 @@ export const DashboardHistory: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto min-w-[700px] relative">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-white/10 text-xs font-semibold text-gray-400 tracking-wider">
-                    <th className="py-5 px-6 font-medium">VOERTUIG</th>
-                    <th className="py-5 px-6 font-medium w-32">DATUM</th>
-                    <th className="py-5 px-6 font-medium w-32">SCORE</th>
-                    <th className="py-5 px-6 font-medium w-40">STATUS</th>
-                    <th className="py-5 px-6 font-medium text-right w-48">ACTIES</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {displayedData.map((row, i) => (
-                    <motion.tr 
-                      key={row.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="hover:bg-white/[0.02] transition-colors group"
-                    >
-                      <td className="py-5 px-6">
-                        <div className="font-semibold text-white group-hover:text-accent-green transition-colors">{row.title}</div>
-                        <div className="text-gray-500 text-sm mt-1">{row.price}</div>
-                      </td>
-                      <td className="py-5 px-6">
-                        <div className="text-gray-300">{row.date}</div>
-                        <div className="text-gray-600 text-xs mt-1">{row.time}</div>
-                      </td>
-                      <td className="py-5 px-6">
-                         <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl font-bold border border-white/10 ${row.score >= 70 ? 'bg-primary-dark/40 text-accent-green' : row.score >= 50 ? 'bg-black/40 text-accent-orange' : 'bg-black/40 text-destructive'}`}>
-                            {row.score}
-                         </div>
-                      </td>
-                      <td className={`py-5 px-6 text-sm font-medium ${row.statusColor}`}>
-                        {row.status}
-                      </td>
-                      <td className="py-5 px-6 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => navigate(`/analyze?url=${encodeURIComponent(row.url)}`)}
-                            title="Heranalyseren"
-                            className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                          >
-                            <Play className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            onClick={() => navigate(`/rapport/${row.rapportId}`)}
-                            className="h-10 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-primary transition-colors text-sm font-medium border border-white/5"
-                          >
-                            Rapport <ExternalLink className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                  
-                  {/* Visual indication of more items blurred in background if free */}
-                  {showPaywall && (
-                    <tr className="border-none">
-                      <td colSpan={5} className="py-20 px-6 text-center text-gray-500 italic relative">
-                         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 backdrop-blur-[2px]" />
-                         Er zijn meer rapporten in je geschiedenis...
-                      </td>
+            <div className="w-full overflow-x-auto relative">
+              <div className="min-w-[750px]">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 text-xs font-semibold text-gray-400 tracking-wider">
+                      <th className="py-5 px-6 font-medium">VOERTUIG</th>
+                      <th className="py-5 px-6 font-medium w-32">DATUM</th>
+                      <th className="py-5 px-6 font-medium w-32">SCORE</th>
+                      <th className="py-5 px-6 font-medium w-40">STATUS</th>
+                      <th className="py-5 px-6 font-medium text-right w-48">ACTIES</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {displayedData.map((row, i) => (
+                      <motion.tr 
+                        key={row.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="hover:bg-white/[0.02] transition-colors group"
+                      >
+                        <td className="py-5 px-6">
+                          <div className="font-semibold text-white group-hover:text-accent-green transition-colors">{row.title}</div>
+                          <div className="text-gray-500 text-sm mt-1">{row.price}</div>
+                        </td>
+                        <td className="py-5 px-6">
+                          <div className="text-gray-300">{row.date}</div>
+                          <div className="text-gray-600 text-xs mt-1">{row.time}</div>
+                        </td>
+                        <td className="py-5 px-6">
+                           <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl font-bold border border-white/10 ${row.score >= 70 ? 'bg-primary-dark/40 text-accent-green' : row.score >= 50 ? 'bg-black/40 text-accent-orange' : 'bg-black/40 text-destructive'}`}>
+                              {row.score}
+                           </div>
+                        </td>
+                        <td className={`py-5 px-6 text-sm font-medium ${row.statusColor}`}>
+                          {row.status}
+                        </td>
+                        <td className="py-5 px-6 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => navigate(`/analyze?url=${encodeURIComponent(row.url)}`)}
+                              title="Heranalyseren"
+                              className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            >
+                              <Play className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              onClick={() => navigate(`/rapport/${row.rapportId}`)}
+                              className="h-10 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-primary transition-colors text-sm font-medium border border-white/5"
+                            >
+                              Rapport <ExternalLink className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                    
+                    {/* Visual indication of more items blurred in background if free */}
+                    {showPaywall && (
+                      <tr className="border-none">
+                        <td colSpan={5} className="py-20 px-6 text-center text-gray-500 italic relative">
+                           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 backdrop-blur-[2px]" />
+                           Er zijn meer rapporten in je geschiedenis...
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
               {showPaywall && (
                 <PaywallOverlay 

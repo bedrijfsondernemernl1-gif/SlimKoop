@@ -367,7 +367,9 @@ export const ReportPage: React.FC = () => {
                 <AlertTriangle className="w-4 h-4" /> Open app in nieuw tabblad om te printen (PDF)
               </div>
             )}
-            <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
+            {isUnlimited && (
+              <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
+            )}
             <Button onClick={handleShare} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl">
               {shareCopied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2"/>}
               {shareCopied ? "Gekopieerd!" : "Deel rapport"}
@@ -680,7 +682,7 @@ export const ReportPage: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
                       <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
-                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.actieveAdvertenties} actieve advertenties</div>
+                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Verkoper: {data.verkoper.naam}</div>
                     </div>
                   </Card>
                 )}

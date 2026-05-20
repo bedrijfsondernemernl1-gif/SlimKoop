@@ -85,6 +85,13 @@ export const PrivacyPage: React.FC = () => {
                   Neem hiervoor contact met ons op via de contactpagina.
                 </p>
               </section>
+
+              <section>
+                <h2 className="text-2xl font-bold text-white mb-4">6. Nauwkeurigheid & disclaimer van data</h2>
+                <p>
+                  Indachtig onze dienstverlening is het verwerken en tonen van voertuiginformatie en AI-analyse-uitkomsten puur adviserend en indicatief van aard. OccasionScan aggregeert informatie uit diverse externe openbare bronnen en registers. Wij kunnen de absolute juistheid, volledigheid of foutloosheid van deze gegevens of de daarop gebaseerde berekeningen en voorspellingen niet garanderen. Voor onze uitgebreide aansprakelijkheidsbeperkingen en uitsluitingen in relatie tot de geleverde rapporten verwijzen wij je uitdrukkelijk naar onze <a href="/voorwaarden" className="text-accent-green hover:underline">Algemene Voorwaarden</a>.
+                </p>
+              </section>
               
               <div className="pt-8 border-t border-white/5 text-gray-500 italic text-xs">
                 Laatst bijgewerkt: {new Date().toLocaleDateString('nl-NL')}
