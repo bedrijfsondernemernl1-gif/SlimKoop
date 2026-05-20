@@ -7,14 +7,25 @@ export const ShaderBackground: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl', { 
+      alpha: false, 
+      antialias: false, 
+      depth: false, 
+      stencil: false,
+      powerPreference: 'low-power'
+    });
     if (!gl) return;
 
     let requestID: number;
 
+    const getScale = () => {
+      return window.innerWidth < 768 ? 0.25 : 0.4;
+    };
+
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const scale = getScale();
+      canvas.width = Math.max(120, Math.ceil(window.innerWidth * scale));
+      canvas.height = Math.max(120, Math.ceil(window.innerHeight * scale));
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
 
@@ -29,7 +40,7 @@ export const ShaderBackground: React.FC = () => {
     `;
 
     const fragmentShaderSource = `
-      precision highp float;
+      precision mediump float;
       uniform vec2 iResolution;
       uniform float iTime;
       uniform vec2 iMouse;
@@ -56,29 +67,21 @@ export const ShaderBackground: React.FC = () => {
           float bestDistance = 999.0;
           float lastBestDistance = 999.0;
           
-          int loopCount = isMobile ? 6 : 14; 
           vec2 p_uv = uv * 4.0 - 1.0;
           
           for (int i = 0; i < 14; i++) {
-              if (i >= 14) break; 
+              if (isMobile && i >= 6) {
+                  break;
+              }
               float fi = float(i);
               vec2 p = vec2(mod(fi, 1.0) * 0.1 + sin(fi), -0.05 + 0.15 * fi * 0.1 + cos(fi + time * cos(p_uv.x * 0.025)));
               p.x += 0.01 * sin(iMouse.x / iResolution.x * 3.14);
               p.y += 0.01 * cos(iMouse.y / iResolution.y * 3.14);
               float d = distance(p_uv, p);
               
-              bool shouldCompute = false;
-              if (isMobile) {
-                if (i < 6) shouldCompute = true;
-              } else {
-                if (i < 14) shouldCompute = true;
-              }
-              
-              if (shouldCompute) {
-                if (d < bestDistance) {
-                    lastBestDistance = bestDistance;
-                    bestDistance = d;
-                }
+              if (d < bestDistance) {
+                  lastBestDistance = bestDistance;
+                  bestDistance = d;
               }
           }
           
@@ -136,15 +139,28 @@ export const ShaderBackground: React.FC = () => {
     };
     window.addEventListener('mousemove', handleMouseMove);
 
+    let lastRenderTime = 0;
     const render = () => {
       requestID = requestAnimationFrame(render);
+      const now = Date.now();
+      const delta = now - lastRenderTime;
+      
+      // Throttle rendering to ~30 FPS max (approx 33ms interval)
+      // This massively improves performance and saves layout rasterization threads on Chrome.
+      if (delta < 33) {
+        return;
+      }
+      lastRenderTime = now;
+
       const elapsedTime = (Date.now() - startTime) / 1000;
       const isMobile = window.innerWidth < 768;
+      const scale = getScale();
       
       gl.useProgram(program);
       gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
       gl.uniform1f(timeUniformLocation, elapsedTime);
-      gl.uniform2f(mouseUniformLocation, mouseX, mouseY);
+      // Pass the mouse coordinates scaled down to match the canvas resolution
+      gl.uniform2f(mouseUniformLocation, mouseX * scale, mouseY * scale);
       gl.uniform1f(brightnessUniformLocation, brightness);
       gl.uniform1i(isMobileUniformLocation, isMobile ? 1 : 0);
       

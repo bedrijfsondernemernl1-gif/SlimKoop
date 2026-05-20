@@ -76,7 +76,7 @@ export const Navbar: React.FC = () => {
             <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 group z-50">
               <img 
                 src="https://i.ibb.co/Y7MMQR76/f06abe35-17e0-4185-96aa-eae12841c0f5-removalai-preview.png" 
-                alt="Logo" 
+                alt="OccasionScan - AI auto scan tool voor Marktplaats & AutoScout" 
                 loading="eager"
                 className="h-14 sm:h-16 w-auto object-contain transition-transform duration-500 group-hover:scale-105" 
                 referrerPolicy="no-referrer"

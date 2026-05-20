@@ -4,6 +4,7 @@ import { Mail, Clock, MapPin, Send, CheckCircle } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { Footer } from '@/src/components/Footer';
+import { SEO } from '@/src/components/SEO';
 
 export const ContactPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +41,10 @@ export const ContactPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black pt-40 flex flex-col relative overflow-hidden">
+      <SEO 
+        title="Contact & Support — Stel Je Vraag over Onze Auto Check | OccasionScan"
+        description="Heb je vragen over een uitgevoerde auto check, de RDW apk scan of over onze pakketten? Neem eenvoudig contact op met de experts van OccasionScan."
+      />
       <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-accent-green/5 blur-[150px] rounded-full pointer-events-none"></div>
 
       <div className="container mx-auto px-6 relative z-10 flex-1 pb-24">
@@ -49,7 +54,7 @@ export const ContactPage: React.FC = () => {
           className="max-w-4xl mx-auto"
         >
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-white mb-6">Contacteer Ons</h1>
+            <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-white mb-6">Contact & Support</h1>
             <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto">
               Heb je een vraag over een rapport, ons abonnement of iets anders? We helpen je graag verder.
             </p>

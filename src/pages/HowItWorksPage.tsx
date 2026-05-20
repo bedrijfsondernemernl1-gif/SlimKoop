@@ -2,10 +2,15 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Footer } from '@/src/components/Footer';
 import { CheckCircle2, Search, Link as LinkIcon, Cpu, ShieldCheck } from 'lucide-react';
+import { SEO } from '@/src/components/SEO';
 
 export const HowItWorksPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-black pt-40 flex flex-col">
+      <SEO 
+        title="Hoe Werkt een Auto Check Online? — OccasionScan"
+        description="Ontdek hoe onze auto scan tool werkt. In 3 eenvoudige stappen voer je een complete schade check auto gratis uit via een RDW apk check en AI-analyse."
+      />
       <div className="container mx-auto px-6 relative z-10 flex-1 pb-24">
         
         <div className="text-center max-w-3xl mx-auto mb-24 relative">
@@ -14,7 +19,7 @@ export const HowItWorksPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl lg:text-7xl font-heading font-extrabold text-white mb-6 tracking-tight drop-shadow-lg"
           >
-            Hoe werkt <span className="text-accent-green">OccasionScan</span>?
+            Hoe werkt je <span className="text-accent-green">Auto Check</span>?
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}

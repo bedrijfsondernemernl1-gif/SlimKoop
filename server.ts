@@ -48,6 +48,15 @@ async function startServer() {
     }
   }));
 
+  // Standard health check endpoints for cloud/Railway deployments
+  app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   app.get("/api/verify-checkout-session", async (req, res) => {
     const { session_id } = req.query;
     if (!session_id || typeof session_id !== "string") {

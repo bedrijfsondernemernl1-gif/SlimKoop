@@ -4,10 +4,22 @@ import { Link } from 'react-router-dom';
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { Footer } from '../components/Footer';
 import { BLOGS } from '../constants/blogData';
+import { SEO } from '../components/SEO';
 
 export const BlogPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-black pt-40 pb-20 relative overflow-hidden">
+      <SEO 
+        title="Blog — Tips voor Tweedehands Auto Kopen | OccasionScan"
+        description="Lees onze expertartikelen en handige tips over een tweedehands auto kopen, kilometerstand fraude herkenning en betrouwbaar onderhandelen."
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "Blog",
+          "name": "OccasionScan Blog",
+          "url": "https://occasionscan.nl/blog",
+          "description": "Alles over het veilig, onafhankelijk en voordelig kopen van een tweedehands auto."
+        }}
+      />
       {/* Ambient background effects */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-accent-green/5 blur-3xl rounded-full -translate-y-1/2 pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-accent-green/5 blur-3xl rounded-full translate-x-1/2 pointer-events-none"></div>

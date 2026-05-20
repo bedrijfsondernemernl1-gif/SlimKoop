@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Footer } from '../components/Footer';
 import { BLOGS, Blog } from '../constants/blogData';
+import { SEO } from '../components/SEO';
 
 export const BlogPostPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -69,6 +70,32 @@ export const BlogPostPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden text-gray-200">
+      <SEO 
+        title={post.metaTitle || `${post.title} | OccasionScan`}
+        description={post.metaDescription || post.excerpt}
+        ogType="article"
+        ogImage={post.featuredImage}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          "headline": post.title,
+          "image": post.featuredImage,
+          "datePublished": post.createdAt,
+          "author": {
+            "@type": "Person",
+            "name": post.author || "OccasionScan Expert"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "OccasionScan",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://occasionscan.nl/favicon.ico"
+            }
+          },
+          "description": post.excerpt
+        }}
+      />
       {/* Reading Progress Bar */}
       <div className="fixed top-0 left-0 w-full h-1 z-[100] bg-white/5">
         <motion.div 

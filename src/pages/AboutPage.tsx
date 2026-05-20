@@ -2,10 +2,15 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Target, Shield, Cpu } from 'lucide-react';
 import { Footer } from '@/src/components/Footer';
+import { SEO } from '@/src/components/SEO';
 
 export const AboutPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-black pt-40 flex flex-col relative overflow-hidden">
+      <SEO 
+        title="Over Ons — Onafhankelijke RDW Auto Check | OccasionScan"
+        description="Ontmoet het team achter OccasionScan. Wij geloven in volledige transparantie en onafhankelijke data bij het kopen van een tweedehands auto."
+      />
       <div className="absolute top-1/3 left-0 w-[600px] h-[600px] bg-accent-green/10 blur-[150px] rounded-full pointer-events-none"></div>
 
       <div className="container mx-auto px-6 relative z-10 flex-1 pb-24">
@@ -15,7 +20,7 @@ export const AboutPage: React.FC = () => {
           className="max-w-4xl mx-auto"
         >
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6">Over OccasionScan</h1>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-extrabold text-white mb-6">Over OccasionScan Auto Check</h1>
             <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto">
               Wij maken de verborgen patronen in de tweedehands automarkt zichtbaar, zodat jij altijd met een voorsprong onderhandelt.
             </p>

@@ -10,6 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useStore } from '@/src/store/useStore';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
+import { SEO } from '@/src/components/SEO';
 
 const PRICE_IDS: Record<string, string> = {
   "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
@@ -139,6 +140,60 @@ export const LandingPage: React.FC = () => {
 
   return (
       <div className="relative overflow-hidden min-h-screen scroll-smooth" ref={containerRef}>
+      <SEO 
+        title="OccasionScan — Auto Check & Schade Scan voor Tweedehands Auto's"
+        description="Tweedehands auto kopen? Doe een grondige auto check met OccasionScan. Onthul verborgen schade, doe een kilometerstand check en bepaal de auto waarde."
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "OccasionScan",
+            "url": "https://occasionscan.nl/",
+            "image": "https://i.ibb.co/0yGyYTqW/Screen-Shot-Tool-20260519181200.png",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "All",
+            "browserRequirements": "Requires HTML5",
+            "description": "Premium AI-aangedreven auto check en schade scan tool voor tweedehands auto's op Marktplaats en AutoScout24."
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "OccasionScan",
+            "url": "https://occasionscan.nl/",
+            "logo": "https://occasionscan.nl/favicon.ico"
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Wat is een auto check?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Een auto check is een grondige controle van een tweedehands voertuig op basis van RDW-gegevens en online advertentiedata om de betrouwbaarheid, kilometerstand en eventuele verborgen gebreken te onthullen."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Hoe werkt een RDW APK check?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Met onze RDW APK check halen we direct de officiële kilometerstand, APK-vervaldatum en voertuighistorie op uit de RDW database. Onze AI analyseert deze data vervolgens om eventuele onregelmatigheden te signaleren."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Kan ik een schade check auto gratis uitvoeren?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Ja, met onze basis scan kun je een kenteken check gratis uitvoeren en direct belangrijke openbare RDW-gegevens inzien om schade en kilometerstand-onregelmatigheden op te sporen."
+                }
+              }
+            ]
+          }
+        ]}
+      />
       
       {/* Login Notification Toast */}
       <AnimatePresence>
@@ -574,11 +629,13 @@ export const LandingPage: React.FC = () => {
          <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-12 text-center">Veelgestelde vragen</h2>
          <Accordion type="single" collapsible className="w-full space-y-4">
            {[
-             { q: "Werkt het alleen voor Marktplaats?", a: "Nee, we ondersteunen momenteel zowel Marktplaats als AutoScout24." },
-             { q: "Hoe nauwkeurig is de prijsanalyse?", a: "We vergelijken met 10–20 actuele vergelijkbare advertenties in heel Nederland op het moment van analyse." },
-             { q: "Is mijn data veilig?", a: "Ja, je data is veilig. We verwerken en beveiligen je persoonlijke gegevens in overeenstemming met ons privacybeleid en de geldende privacywetgeving (AVG)." },
-             { q: "Kan ik het rapport delen?", a: "Ja, elk rapport heeft een unieke deelbare link die je via WhatsApp of e-mail kunt sturen." },
-             { q: "Hoe werkt de foto-analyse?", a: "Onze AI (Visual Intelligence) scant de foto's op kleurverschillen, spuitwerk, verborgen schades, deuken en slijtage aan het interieur." }
+             { q: "Wat is een auto check?", a: "Een auto check met OccasionScan is een diepgaande controle van een tweedehands auto op basis van het kenteken, RDW-gegevens en online advertentiedata. Zo ontdek je de betrouwbaarheid, kilometerstand en eventuele verborgen gebreken voordat je tot aankoop overgaat." },
+              { q: "Hoe werkt een RDW APK check?", a: "Via onze RDW apk check halen we direct de officiële kilometerstand, APK rdw check-historie en openbare RDW-voertuiggegevens op. Onze AI analyseert deze data vervolgens om eventuele onregelmatigheden zoals logische of onlogische tellerstanden te signaleren." },
+              { q: "Kan ik een schade check auto gratis uitvoeren?", a: "Ja, met onze basis scan kun je een kenteken check gratis uitvoeren. Je krijgt direct inzicht in de RDW apk check statussen en basale voertuigkenmerken om verborgen gebreken van de auto te herkennen." },
+             { q: "Hoe nauwkeurig is de AI auto analyse?", a: "Onze AI auto analyse vergelijkt de advertentie met 10-20 actuele vergelijkbare occasions in heel Nederland en scant de foto's op eventuele schade, kleurverschillen en interieurslijtage om een betrouwbare DealScore te bepalen." },
+             { q: "Is mijn data veilig?", a: "Ja, je data is veilig. We verwerken en beveiligen je persoonlijke gegevens in overeenstemming met ons privacybeleid en de geldende privacywetgeving (AVG), waaronder de opslag van contactgegevens voor account- en bestelbeheer." },
+             { q: "Kan ik het rapport delen met anderen?", a: "Zeker! Elk rapport krijgt een unieke, deelbare link. Handig om te overleggen met een expert of om te gebruiken tijdens het onderhandelen over de tweedehands auto." },
+             { q: "Hoe helpt de tool bij het onderhandelen over een tweedehands auto?", a: "Elk eindrapport bevat een persoonlijk, AI-gegenereerd onderhandelingsscript op basis van de gevonden minpunten en openstaande RDW-punten, zodat je sterk staat bij de verkoper." }
            ].map((faq, i) => (
              <AccordionItem value={`item-${i}`} key={i} className="bg-white/[0.02] border border-white/10 rounded-2xl px-6 data-[state=open]:bg-white/[0.05] transition-colors">
                <AccordionTrigger className="text-white hover:text-accent-green hover:no-underline font-semibold text-left py-6">{faq.q}</AccordionTrigger>

@@ -7,6 +7,7 @@ import { useStore } from '@/src/store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
+import { SEO } from '@/src/components/SEO';
 
 const PRICE_IDS: Record<string, string> = {
   "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
@@ -67,6 +68,52 @@ export const PricingPage: React.FC = () => {
   };
   return (
     <div className="min-h-screen bg-black pt-40 flex flex-col relative overflow-hidden">
+      <SEO 
+        title="Prijzen Auto Check — Betrouwbaar een Tweedehands Auto Kopen | OccasionScan"
+        description="Wil je met zekerheid een tweedehands auto kopen? Bekijk onze tarieven voor een volledige RDW apk check, kilometerstand check en AI schade check auto."
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "OccasionScan - Auto Check Slimme Koper",
+            "image": "https://i.ibb.co/0yGyYTqW/Screen-Shot-Tool-20260519181200.png",
+            "description": "Met dit pakket van 3 scans vergelijkt de koper meerdere occasions met DealScore, complete RDW APK check en AI-foto-analyse.",
+            "brand": {
+              "@type": "Brand",
+              "name": "OccasionScan"
+            },
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "EUR",
+              "price": "19.99",
+              "url": "https://occasionscan.nl/prijzen",
+              "priceValidUntil": "2027-12-31",
+              "itemCondition": "https://schema.org/NewCondition",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "OccasionScan - Losse Scan",
+            "image": "https://i.ibb.co/0yGyYTqW/Screen-Shot-Tool-20260519181200.png",
+            "description": "Eenmalige volledige auto check inclusief DealScore, waardebepaling, rode vlaggen en RDW kilometercheck.",
+            "brand": {
+              "@type": "Brand",
+              "name": "OccasionScan"
+            },
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "EUR",
+              "price": "9.99",
+              "url": "https://occasionscan.nl/prijzen",
+              "priceValidUntil": "2027-12-31",
+              "itemCondition": "https://schema.org/NewCondition",
+              "availability": "https://schema.org/InStock"
+            }
+          }
+        ]}
+      />
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-dark/20 blur-[120px] rounded-full pointer-events-none"></div>
       
       <div className="container mx-auto px-6 relative z-10 flex-1 pb-24">

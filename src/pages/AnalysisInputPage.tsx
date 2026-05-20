@@ -6,6 +6,7 @@ import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { Footer } from '@/src/components/Footer';
 import { useStore } from '@/src/store/useStore';
+import { SEO } from '@/src/components/SEO';
 
 export const AnalysisInputPage: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -43,6 +44,10 @@ export const AnalysisInputPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black pt-40 flex flex-col relative overflow-hidden">
+      <SEO 
+        title="Gratis Auto Check — Scan Marktplaats & AutoScout24 Advertenties | OccasionScan"
+        description="Gratis auto check: plak direct een Marktplaats of AutoScout24 advertentie link in onze auto scan tool. Start een schade check auto gratis online."
+      />
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent-green/10 blur-[150px] rounded-full pointer-events-none"></div>
 
@@ -132,6 +137,18 @@ export const AnalysisInputPage: React.FC = () => {
            <div className="flex items-center gap-2 text-sm text-gray-400"><CheckCircle2 className="w-4 h-4 text-accent-green" /> RDW Historie</div>
            <div className="flex items-center gap-2 text-sm text-gray-400"><CheckCircle2 className="w-4 h-4 text-accent-green" /> Exclusieve DealScore</div>
            <div className="flex items-center gap-2 text-sm text-gray-400"><CheckCircle2 className="w-4 h-4 text-accent-green" /> AI Foto Scanner</div>
+        </motion.div>
+
+        {/* Informative SEO copy */}
+        <motion.div
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           transition={{ delay: 0.4 }}
+           className="mt-12 text-center max-w-xl mx-auto px-4"
+        >
+          <p className="text-xs text-gray-500 font-light leading-relaxed">
+            Met onze geavanceerde <strong>auto scan tool</strong> voer je binnen 60 seconden een uitgebreide <strong>schade check auto gratis</strong> uit. Of je nu op Marktplaats of AutoScout aan het zoeken bent, onze online occasion check analyseert realtime RDW apk check voertuigdata, kilometerstanden en verborgen gebreken zodat je met zekerheid en een scherpe prijs jouw volgende <strong>tweedehands auto kopen</strong> kunt.
+          </p>
         </motion.div>
       </div>
       
