@@ -199,7 +199,7 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
     const run = await client.actor(actorId).call({
       urls: [{ url: searchUrl }],
-      maxRecords: 30
+      maxRecords: 10
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
@@ -344,7 +344,7 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       countries: ["NL"],
       yearFrom: jaar > 1900 ? jaar - 1 : undefined,
       yearTo: jaar > 1900 ? jaar + 1 : undefined,
-      maxResults: 30,
+      maxResults: 10,
       compact: true
     });
 
