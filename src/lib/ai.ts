@@ -71,6 +71,8 @@ export async function analyseerdeTekst(listingData: any, vergelijkbareAutos: any
     const textPrompt = `Analyseer autorapport. JSON response ONLY:
 {"dealScore": 0-100, "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje", "eerlijkePrijs": num, "directeWinst": num, "positievePunten": [".."], "aandachtspunten": [".."], "rodeVlaggen": [{"ernst": "hoog"|"middel"|"laag", "titel": "..", "uitleg": ".."}], "advertentieAnalyse": {"taalgebruik": "..", "volledigheid": "..", "onlineSinds": "..", "prijsWijzigingen": ".."}, "onderhandelingsScript": "..", "openingsBod": num, "onderhandelingsTips": [".."], "samenvatting": [".."]}
 
+Houd je antwoorden beknopt. Ik wil wel dat het lang is maar niet heel lang, het MAG NIET KORT ZIJN DOOR DE BOCHT MET PAAR WOORDEN PER PUNT!
+
 Auto: ${listingData.titel}
 Prijs: €${listingData.prijs}
 KM: ${listingData.kilometerstand} km

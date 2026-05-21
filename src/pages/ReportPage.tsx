@@ -881,7 +881,7 @@ export const ReportPage: React.FC = () => {
                         </h3>
                         
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                          {data.fotoAnalyse.map((foto: any, i: number) => (
+                          {data.fotoAnalyse.slice(0, 3).map((foto: any, i: number) => (
                             <div key={i} className="group">
                               <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
                                 <img 

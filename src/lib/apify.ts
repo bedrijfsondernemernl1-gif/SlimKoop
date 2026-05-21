@@ -199,7 +199,7 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
     const run = await client.actor(actorId).call({
       urls: [{ url: searchUrl }],
-      maxRecords: 15
+      maxRecords: 10
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);

@@ -96,7 +96,7 @@ export const HowItWorksPage: React.FC = () => {
               <div className="text-primary font-bold text-lg mb-2">Stap 02</div>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-4">De AI analyseert álles</h2>
               <p className="text-gray-400 text-lg leading-relaxed mb-6">
-                Onze bot downloadt de foto's, leest de beschrijving, controleert het RDW kenteken en vergelijkt de vraagprijs met 10.000 andere advertenties in seconden.
+                Onze bot downloadt de foto's, leest de beschrijving, controleert het RDW kenteken en vergelijkt de vraagprijs met andere advertenties in seconden.
               </p>
               <ul className="space-y-3">
                  <li className="flex items-center gap-3 text-gray-300"><CheckCircle2 className="w-5 h-5 text-primary" /> Visual AI scant op deuken, roest & slijtage</li>
