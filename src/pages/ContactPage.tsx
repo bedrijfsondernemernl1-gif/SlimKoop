@@ -18,7 +18,7 @@ export const ContactPage: React.FC = () => {
     const data = new FormData(form);
     
     try {
-      const response = await fetch("https://formspree.io/f/mqenndyv", {
+      const response = await fetch("https://formspree.io/f/meedgkzq", {
         method: "POST",
         body: data,
         headers: {
