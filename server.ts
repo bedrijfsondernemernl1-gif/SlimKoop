@@ -552,7 +552,7 @@ async function startServer() {
           ...rawData,
           tier: 'free',
           rodeVlaggen: rawData.rodeVlaggen ? rawData.rodeVlaggen.slice(0, 1) : [],
-          vergelijkbareAutos: [],
+          vergelijkbareAutos: rawData.vergelijkbareAutos || [],
           fotoAnalyse: [],
           onderhandelingsScript: null,
           openingsBod: null,
