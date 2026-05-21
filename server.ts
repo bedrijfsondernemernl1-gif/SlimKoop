@@ -57,6 +57,14 @@ async function startServer() {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  app.get("/sitemap.xml", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "sitemap.xml"));
+  });
+
+  app.get("/robots.txt", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "robots.txt"));
+  });
+
   app.get("/api/verify-checkout-session", async (req, res) => {
     const { session_id } = req.query;
     if (!session_id || typeof session_id !== "string") {
