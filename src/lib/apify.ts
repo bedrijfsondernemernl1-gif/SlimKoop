@@ -199,7 +199,7 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
     const run = await client.actor(actorId).call({
       urls: [{ url: searchUrl }],
-      maxRecords: 10
+      maxRecords: 30
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
@@ -227,7 +227,6 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
         return true;
       })
-      .slice(0, 10)
       .map((item: any) => {
         const attrs = item.attributes || {};
         const prijs = item.price?.priceCents ? Math.round(item.price.priceCents / 100) : 0;
@@ -247,8 +246,9 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
         };
       });
 
-    console.log(`[SCRAPER] ${vergelijkbaar.length} vergelijkbare auto's gevonden`);
-    return vergelijkbaar;
+    const sliced = vergelijkbaar.slice(0, 10);
+    console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden`);
+    return sliced;
   } catch (error) {
     console.error("Fout tijdens scrapeVergelijkbaar:", error);
     return [];
@@ -344,7 +344,7 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       countries: ["NL"],
       yearFrom: jaar > 1900 ? jaar - 1 : undefined,
       yearTo: jaar > 1900 ? jaar + 1 : undefined,
-      maxResults: 10,
+      maxResults: 30,
       compact: true
     });
 
@@ -359,8 +359,9 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       url: item.url || ""
     }));
 
-    console.log(`[SCRAPER] ${vergelijkbaar.length} vergelijkbare auto's gevonden via AutoScout24`);
-    return vergelijkbaar;
+    const sliced = vergelijkbaar.slice(0, 10);
+    console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden via AutoScout24`);
+    return sliced;
   } catch (error) {
     console.error("Fout tijdens scrapeAutoScout24Vergelijkbaar:", error);
     return [];

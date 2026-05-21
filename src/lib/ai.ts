@@ -71,13 +71,13 @@ export async function analyseerdeTekst(listingData: any, vergelijkbareAutos: any
     const textPrompt = `Analyseer autorapport. JSON response ONLY:
 {"dealScore": 0-100, "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje", "eerlijkePrijs": num, "directeWinst": num, "positievePunten": [".."], "aandachtspunten": [".."], "rodeVlaggen": [{"ernst": "hoog"|"middel"|"laag", "titel": "..", "uitleg": ".."}], "advertentieAnalyse": {"taalgebruik": "..", "volledigheid": "..", "onlineSinds": "..", "prijsWijzigingen": ".."}, "onderhandelingsScript": "..", "openingsBod": num, "onderhandelingsTips": [".."], "samenvatting": [".."]}
 
-Wees beknopt. Max 1-2 zinnen per punt. Geen lange paragrafen.
+Wees beknopt voor lijsten. Max 1-2 zinnen per punt. Geen lange paragrafen, Tenzij anders gespecificeerd.
 
 Specifieke richtlijnen voor de lengte en structuur van de JSON velden:
 - positievePunten: max 4-5 bullets, elk 1 concreet geformuleerde zin (NIET TE LANG).
 - aandachtspunten: max 4-5 bullets, elk 1 concreet geformuleerde zin (NIET TE LANG).
-- rodeVlaggen: max 3-4 items met korte titel + uitleg van max 2 zinnen.
-- onderhandelingsScript: max 4-5 zinnen, recht op het doel af.
+- rodeVlaggen: GENEREER ALTIJD MINIMAAL 1 OF MEER RODE VLAGGEN/RISICO'S. max 3-4 items met korte titel + uitleg van max 2 zinnen.
+- onderhandelingsScript: Schrijf een krachtig, persoonlijk en lang onderhandelingsbericht dat de koper direct kan kopiëren. Het moet klinken als een zelfverzekerd maar beleefd gesprek. Benoit expliciet de vraagprijs, het marktgemiddelde, specifieke gebreken/rode vlaggen uit de advertentie en eindig met een concreet openingsbod. Geen bullets.
 - onderhandelingsTips: max 3 bullets, elk 1 zin.
 - advertentieAnalyse: elk veld (taalgebruik, volledigheid, onlineSinds, prijsWijzigingen) mag maximaal 1-2 korte zinnen bevatten.
 - samenvatting: max 3-4 bullets, elk 1-2 korte zinnen.
