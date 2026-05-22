@@ -50,6 +50,74 @@ function extractNumber(val: any): number {
   return parseInt(String(val).replace(/[^0-9]/g, '')) || 0;
 }
 
+/**
+ * Resolves a mobile Marktplaats short-link (e.g. link.marktplaats.nl/m123456)
+ * to its standard browser URL.
+ */
+export async function resolveMarktplaatsUrl(url: string): Promise<string> {
+  if (!url || !url.includes("link.marktplaats.nl")) {
+    return url;
+  }
+
+  console.log(`[RESOLVER] Marktplaats mobiele link gedetecteerd: ${url}`);
+  try {
+    // We let fetch automatically follow redirects (default behavior).
+    // response.url will contain the final destination URL!
+    const response = await fetch(url, {
+      method: "HEAD",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (response.url && response.url !== url && (response.url.includes("marktplaats.nl") || response.url.includes("marktplaats.com"))) {
+      try {
+        const u = new URL(response.url);
+        u.search = "";
+        const cleaned = u.toString();
+        console.log(`[RESOLVER] Succesvol omgeleid via HEAD naar (schoon): ${cleaned}`);
+        return cleaned;
+      } catch {
+        console.log(`[RESOLVER] Succesvol omgeleid via HEAD naar: ${response.url}`);
+        return response.url;
+      }
+    }
+
+    // Try GET if HEAD didn't yield a redirect difference or failed
+    const responseGet = await fetch(url, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (responseGet.url && responseGet.url !== url && (responseGet.url.includes("marktplaats.nl") || responseGet.url.includes("marktplaats.com"))) {
+      try {
+        const u = new URL(responseGet.url);
+        u.search = "";
+        const cleaned = u.toString();
+        console.log(`[RESOLVER] Succesvol omgeleid via GET naar (schoon): ${cleaned}`);
+        return cleaned;
+      } catch {
+        console.log(`[RESOLVER] Succesvol omgeleid via GET naar: ${responseGet.url}`);
+        return responseGet.url;
+      }
+    }
+  } catch (error) {
+    console.error("[RESOLVER] Fout bij het achterhalen van omleiding via fetch:", error);
+  }
+
+  // Fallback if HTTP call fails: construct a cleaner/original URL.
+  // We do not change it if we can't resolve it, to let the scraper try its best, or we just remove tracking queries.
+  try {
+    const cleanUrl = new URL(url);
+    cleanUrl.search = "";
+    return cleanUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
 function getAttribute(scrapedData: any, keys: string[]): string {
   const attrs = scrapedData.attributes || scrapedData.specifications || scrapedData.properties || scrapedData.characteristics || [];
   if (Array.isArray(attrs)) {
@@ -68,11 +136,12 @@ function getAttribute(scrapedData: any, keys: string[]): string {
 
 export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | null> {
   try {
+    const resolvedUrl = await resolveMarktplaatsUrl(url);
     const client = getApifyClient();
     const actorId = getActorId();
 
     const run = await client.actor(actorId).call({
-      urls: [{ url }],
+      urls: [{ url: resolvedUrl }],
       maxRecords: 5
     });
 
@@ -141,7 +210,7 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
 
     // Extract advertentieId van URL (begint vaak met 'm' gevolgd door nummers in the path)
     let advertentieId = "Niet beschikbaar";
-    const m = url.match(/\/([ma]\d{9,10})-/i) || url.match(/([ma]\d{9,10})/i);
+    const m = resolvedUrl.match(/\/([ma]\d{9,10})-/i) || resolvedUrl.match(/([ma]\d{9,10})/i);
     if (m && m[1]) {
       advertentieId = m[1];
     } else if (scrapedData.id) {

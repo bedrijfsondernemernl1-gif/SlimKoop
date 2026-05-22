@@ -3,7 +3,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import Stripe from "stripe";
-import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar } from './src/lib/apify';
+import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar, resolveMarktplaatsUrl } from './src/lib/apify';
 import { checkRDW } from './src/lib/rdw';
 import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
 
@@ -291,12 +291,16 @@ async function startServer() {
   });
 
   app.post("/api/scrape-marktplaats", async (req, res) => {
-    const { url } = req.body;
-    if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {
+    let { url } = req.body;
+    const lowercaseUrl = (url || "").toLowerCase();
+    if (!url || (!lowercaseUrl.includes("marktplaats.nl") && !lowercaseUrl.includes("autoscout24"))) {
       return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
     }
 
     try {
+      if (lowercaseUrl.includes("link.marktplaats.nl")) {
+        url = await resolveMarktplaatsUrl(url);
+      }
       console.log(`[SERVER] Start scraping for URL: ${url}`);
       
       let listing;
@@ -371,14 +375,19 @@ async function startServer() {
   });
 
   app.post("/api/analyseer", async (req, res) => {
-    const { url, userId } = req.body;
+    let { url, userId } = req.body;
     const xff = req.headers['x-forwarded-for'];
     const clientIp = typeof xff === 'string' ? xff.split(',')[0].trim() : (Array.isArray(xff) ? xff[0] : req.socket.remoteAddress);
     // Replace dots and colons for firestore ID safety (IPv4 and IPv6)
     const ipString = (clientIp || 'unknown').replace('::ffff:', '').replace(/[\.\:]/g, '_'); 
 
-    if (!url || (!url.includes("marktplaats.nl") && !url.includes("autoscout24"))) {
+    const lowercaseUrl = (url || "").toLowerCase();
+    if (!url || (!lowercaseUrl.includes("marktplaats.nl") && !lowercaseUrl.includes("autoscout24"))) {
       return res.status(400).json({ error: "Geldige Marktplaats of AutoScout24 URL is vereist" });
+    }
+
+    if (lowercaseUrl.includes("link.marktplaats.nl")) {
+      url = await resolveMarktplaatsUrl(url);
     }
     
     // Check permissions / deduct scans
