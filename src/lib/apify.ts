@@ -326,6 +326,16 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
 export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | null> {
   try {
+    // Strip query parameters and hash to avoid proxy/routing issues with tracking parameters
+    try {
+      const parsedUrl = new URL(url);
+      parsedUrl.search = "";
+      parsedUrl.hash = "";
+      url = parsedUrl.toString();
+    } catch (e) {
+      console.warn("[SCRAPER] Kon AutoScout24 URL niet opschonen:", e);
+    }
+
     const client = getApifyClient();
     // Specialized listing scraper: fayoussef/autoscout24
     const actorId = 'kxvqbfZknFYLcVyfx';

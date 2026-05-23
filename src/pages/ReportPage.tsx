@@ -40,9 +40,8 @@ export const ReportPage: React.FC = () => {
 
   // Access check for local UI masking (server also redacts)
   const isUnlimited = permissies === 'autohandelaar';
-  const hasPremiumReport = !!(reportData?.tier && reportData?.tier !== 'free');
-  const hasFullAccess = isUnlimited || hasPremiumReport;
-  const hasPaidAccess = hasFullAccess; // Users with 0 scans see free reports as free.
+  const hasPaidAccess = isUnlimited || !!(reportData?.tier && reportData?.tier !== 'free');
+  const hasFullAccess = isUnlimited || !!(reportData?.tier && reportData?.tier !== 'free' && reportData?.tier !== 'losse_scan');
 
   useEffect(() => {
     if (!id) return;
@@ -696,7 +695,12 @@ export const ReportPage: React.FC = () => {
                 transition={{ duration: 0.3 }}
                 className="relative h-full"
               >
-                <div>
+                <div className={
+                  ((['prijs', 'vlaggen'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
+                   (['foto', 'script'].indexOf(activeTab) !== -1 && !hasFullAccess))
+                     ? "blur-xl select-none pointer-events-none transition-all duration-300"
+                     : ""
+                }>
                   {/* TAB 2: PRIJS */}
                   {activeTab === 'prijs' && (() => {
                     const vPr = data.vraagprijs;
@@ -873,89 +877,130 @@ export const ReportPage: React.FC = () => {
                   )}
 
                   {/* TAB 4: FOTO ANALYSE */}
-                  {activeTab === 'foto' && (
-                    <div className="space-y-6">
-                      <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                        <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
-                          <Camera className="w-5 h-5 text-gray-400" /> AI Foto Analyse
-                        </h3>
-                        
-                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                          {data.fotoAnalyse.slice(0, 3).map((foto: any, i: number) => (
-                            <div key={i} className="group">
-                              <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
-                                <img 
-                                   src={`/api/proxy-image?url=${encodeURIComponent(foto.url || '')}`} 
-                                   alt={foto.label} 
-                                   className="w-full h-full object-cover" 
-                                   referrerPolicy="no-referrer" 
-                                   crossOrigin="anonymous"
-                                   loading="lazy"
-                                 />
-                                
-                                <div className="absolute right-3 bottom-3 shadow-lg">
-                                  {foto.ernst === 'ok' && <div className="bg-accent-green text-black rounded-full p-2"><CheckCircle className="w-4 h-4" /></div>}
-                                  {(foto.ernst === 'waarschuwing' || foto.ernst === 'middel') && <div className="bg-amber-500 text-black rounded-full p-2"><AlertTriangle className="w-4 h-4" /></div>}
-                                  {(foto.ernst === 'probleem' || foto.ernst === 'hoog') && <div className="bg-red-500 text-white rounded-full p-2"><XCircle className="w-4 h-4" /></div>}
+                  {activeTab === 'foto' && (() => {
+                    const displayFotoAnalyse = (data.fotoAnalyse && data.fotoAnalyse.length > 0 && hasFullAccess)
+                      ? data.fotoAnalyse 
+                      : [
+                          {
+                            url: data.photoUrls[0] || "",
+                            label: "Voorkant & Grille check",
+                            ernst: "ok",
+                            bevinding: "Naden tussen motorkap en zijpanelen zijn consistent en symmetrisch. Geen direct bewijs van herstelde voorschade gedetecteerd."
+                          },
+                          {
+                            url: data.photoUrls[1] || "",
+                            label: "Slijtage interieur & stuurwiel",
+                            ernst: "waarschuwing",
+                            bevinding: "Lichte glans en slijtage op de stuurwielrand gedetecteerd. Komt overeen met rijstijl of km-stand."
+                          },
+                          {
+                            url: data.photoUrls[2] || "",
+                            label: "Banden & Velgen inspectie",
+                            ernst: "ok",
+                            bevinding: "Bandenprofiel lijkt ruim voldoende. Geen direct zichtbare diepe stoepkrandschade op de lichtmetalen velgen."
+                          }
+                        ];
+
+                    return (
+                      <div className="space-y-6">
+                        <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                          <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
+                            <Camera className="w-5 h-5 text-gray-400" /> AI Foto Analyse
+                          </h3>
+                          
+                          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                            {displayFotoAnalyse.slice(0, 3).map((foto: any, i: number) => (
+                              <div key={i} className="group">
+                                <div className="relative aspect-[4/3] bg-[#131B2A] rounded-2xl overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
+                                  {foto.url ? (
+                                    <img 
+                                       src={`/api/proxy-image?url=${encodeURIComponent(foto.url || '')}`} 
+                                       alt={foto.label} 
+                                       className="w-full h-full object-cover" 
+                                       referrerPolicy="no-referrer" 
+                                       crossOrigin="anonymous"
+                                       loading="lazy"
+                                     />
+                                  ) : (
+                                    <div className="w-full h-full bg-slate-800 flex items-center justify-center text-gray-500 text-xs">Foto</div>
+                                  )}
+                                  
+                                  <div className="absolute right-3 bottom-3 shadow-lg">
+                                    {foto.ernst === 'ok' && <div className="bg-accent-green text-black rounded-full p-2"><CheckCircle className="w-4 h-4" /></div>}
+                                    {(foto.ernst === 'waarschuwing' || foto.ernst === 'middel') && <div className="bg-amber-500 text-black rounded-full p-2"><AlertTriangle className="w-4 h-4" /></div>}
+                                    {(foto.ernst === 'probleem' || foto.ernst === 'hoog') && <div className="bg-red-500 text-white rounded-full p-2"><XCircle className="w-4 h-4" /></div>}
+                                  </div>
                                 </div>
+                                <h4 className="font-bold text-white text-base mb-1">{foto.label}</h4>
+                                <p className="text-sm text-gray-400">{foto.bevinding}</p>
                               </div>
-                              <h4 className="font-bold text-white text-base mb-1">{foto.label}</h4>
-                              <p className="text-sm text-gray-400">{foto.bevinding}</p>
-                            </div>
-                          ))}
-                        </div>
-
-
-                      </Card>
-                    </div>
-                  )}
+                            ))}
+                          </div>
+                        </Card>
+                      </div>
+                    );
+                  })()}
 
                   {/* TAB 5: ONDERHANDELEN */}
-                  {activeTab === 'script' && (
-                    <div className="space-y-6">
-                      <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
-                        <div className="text-center mb-10 pt-4">
-                          <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mb-4">Aanbevolen Openingsbod</p>
-                          <p className="text-5xl md:text-7xl font-heading font-extrabold text-accent-green mb-6 drop-shadow-md">€ {data.openingsBod.toLocaleString('nl-NL')}</p>
-                          <p className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full text-sm text-gray-300 font-medium">
-                            € {(data.vraagprijs - data.openingsBod).toLocaleString('nl-NL')} onder vraagprijs
-                          </p>
-                        </div>
+                  {activeTab === 'script' && (() => {
+                    const displayOpeningsBod = (data.openingsBod && hasFullAccess) ? data.openingsBod : Math.round(data.vraagprijs * 0.92);
+                    const displayScript = (data.onderhandelingsScript && hasFullAccess) 
+                      ? data.onderhandelingsScript 
+                      : `Beste ${data.verkoper.naam || 'verkoper'},\n\nIk heb veel interesse in uw ${data.autoNaam}. Na een uitgebreide markt- en waardecheck te hebben uitgevoerd, zie ik dat er een aantal specifieke risico's/aandachtspunten zijn. Op basis hiervan wil ik graag een reëel openingsbod doen van € ${Math.round(data.vraagprijs * 0.92).toLocaleString('nl-NL')}.\n\nGraag hoor ik of we op deze basis met elkaar in gesprek kunnen gaan.\n\nMet vriendelijke groet,\nEen geïnteresseerde koper`;
+                    const displayTips = (data.onderhandelingsTips && data.onderhandelingsTips.length > 0 && hasFullAccess)
+                      ? data.onderhandelingsTips
+                      : [
+                          "Noem specifieke lakdiktes en cosmetische aandachtspunten uit ons advies.",
+                          "Houd voet bij stuk wat betreft de eerlijke marktprijs.",
+                          "Gebruik de APK vervaldatum of bandenstatus als direct hefboompunt tijdens de onderhandeling."
+                        ];
 
-                        <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 relative mt-12 mb-10 overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-                          <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
-                          <div className="p-6 md:p-8">
-                            <h4 className="flex items-center gap-2 text-amber-500 font-bold mb-6 text-lg">
-                              <FileText className="w-5 h-5" /> Jouw persoonlijke script
-                            </h4>
-                            <div className="bg-black p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
-                              "{data.onderhandelingsScript}"
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-4">
-                              <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">
-                                {copied ? <Check className="w-5 h-5 mr-2 text-accent-green" /> : <Copy className="w-5 h-5 mr-2" />} Kopiëren
-                              </Button>
-                              <Button onClick={handleWhatsAppShare} className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl h-14 font-bold border-transparent">
-                                <MessageCircle className="w-5 h-5 mr-2" /> Verstuur via WhatsApp
-                              </Button>
+                    return (
+                      <div className="space-y-6">
+                        <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                          <div className="text-center mb-10 pt-4">
+                            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mb-4">Aanbevolen Openingsbod</p>
+                            <p className="text-5xl md:text-7xl font-heading font-extrabold text-accent-green mb-6 drop-shadow-md">€ {displayOpeningsBod.toLocaleString('nl-NL')}</p>
+                            <p className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full text-sm text-gray-300 font-medium">
+                              € {(data.vraagprijs - displayOpeningsBod).toLocaleString('nl-NL')} onder vraagprijs
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 relative mt-12 mb-10 overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)]">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
+                            <div className="p-6 md:p-8">
+                              <h4 className="flex items-center gap-2 text-amber-500 font-bold mb-6 text-lg">
+                                <FileText className="w-5 h-5" /> Jouw persoonlijke script
+                              </h4>
+                              <div className="bg-black p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
+                                "{displayScript}"
+                              </div>
+                              <div className="flex flex-col sm:flex-row gap-4">
+                                <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">
+                                  {copied ? <Check className="w-5 h-5 mr-2 text-accent-green" /> : <Copy className="w-5 h-5 mr-2" />} Kopiëren
+                                </Button>
+                                <Button onClick={handleWhatsAppShare} className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl h-14 font-bold border-transparent">
+                                  <MessageCircle className="w-5 h-5 mr-2" /> Verstuur via WhatsApp
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <h4 className="font-bold text-white mb-6 text-lg">Onderhandelingstips</h4>
-                        <div className="grid gap-3">
-                          {data.onderhandelingsTips.map((tip: string, i: number) => (
-                            <div key={i} className="bg-[#131B2A] border border-white/5 rounded-xl p-5 flex gap-4 items-center">
-                              <div className="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center shrink-0">
-                                <div className="w-2 h-2 rounded-full bg-accent-green"></div>
+                          <h4 className="font-bold text-white mb-6 text-lg">Onderhandelingstips</h4>
+                          <div className="grid gap-3">
+                            {displayTips.map((tip: string, i: number) => (
+                              <div key={i} className="bg-[#131B2A] border border-white/5 rounded-xl p-5 flex gap-4 items-center">
+                                <div className="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center shrink-0">
+                                  <div className="w-2 h-2 rounded-full bg-accent-green"></div>
+                                </div>
+                                <span className="text-gray-300 text-sm md:text-base font-medium">{tip}</span>
                               </div>
-                              <span className="text-gray-300 text-sm md:text-base font-medium">{tip}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
-                    </div>
-                  )}
+                            ))}
+                          </div>
+                        </Card>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* PAYWALL OVERLAY */}
@@ -970,7 +1015,7 @@ export const ReportPage: React.FC = () => {
                       <h3 className="text-2xl font-bold text-white mb-4">Ontgrendel deze sectie</h3>
                       <p className="text-gray-400 mb-8">
                         {['foto', 'script'].indexOf(activeTab) !== -1
-                           ? "Krijg direct toegang tot AI Foto Analyse en het Onderhandelingsscript met een premium abonnement."
+                           ? "Upgrade naar Slimme Koper voor AI Foto-analyse en Onderhandelingsscript."
                            : "Krijg direct toegang tot Prijsanalyse en alle Risico's met een losse scan of premium abonnement."}
                       </p>
                       <Button 

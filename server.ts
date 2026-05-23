@@ -301,6 +301,17 @@ async function startServer() {
       if (lowercaseUrl.includes("link.marktplaats.nl")) {
         url = await resolveMarktplaatsUrl(url);
       }
+
+      // Clean query parameters and hash for both Marktplaats and AutoScout24
+      try {
+        const u = new URL(url);
+        u.search = "";
+        u.hash = "";
+        url = u.toString();
+      } catch (e) {
+        console.warn("[SERVER] Failed to parse and clean URL in scrape-marktplaats:", e);
+      }
+      
       console.log(`[SERVER] Start scraping for URL: ${url}`);
       
       let listing;
@@ -388,6 +399,16 @@ async function startServer() {
 
     if (lowercaseUrl.includes("link.marktplaats.nl")) {
       url = await resolveMarktplaatsUrl(url);
+    }
+
+    // Clean query parameters and hash for both Marktplaats and AutoScout24
+    try {
+      const u = new URL(url);
+      u.search = "";
+      u.hash = "";
+      url = u.toString();
+    } catch (e) {
+      console.warn("[SERVER] Failed to parse and clean URL in analyseer:", e);
     }
     
     // Check permissions / deduct scans
