@@ -110,11 +110,7 @@ export const useStore = create<StoreState>((set) => {
                let computedIsPremium = perms !== 'free';
                let computedPerms = perms;
 
-               // Revoke paid rights if limit is reached
-               if (!isAdmin && sO <= 0) {
-                   computedIsPremium = false;
-                   computedPerms = 'free';
-               }
+
 
                set({ 
                    isPremium: isAdmin ? true : computedIsPremium,

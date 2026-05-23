@@ -557,9 +557,10 @@ async function startServer() {
   app.get("/api/rapport/:id", async (req, res) => {
     try {
       const rapportId = req.params.id;
-      const { isBetaald, permissies } = req.query;
+      const { isBetaald, permissies, userId } = req.query;
       const isPaidUser = isBetaald === 'true';
       const userPerms = (permissies as string) || 'free';
+      const uId = (userId as string) || '';
 
       const docRef = doc(adminDb, 'rapporten', rapportId);
       const docSnap = await getDoc(docRef);
@@ -584,6 +585,32 @@ async function startServer() {
         effectiveTier = 'losse_scan';
       } else {
         effectiveTier = 'free';
+      }
+
+      // Fetch dynamic scan counts for depleted checks if viewing a free report
+      let scansOver = 0;
+      if (uId) {
+        try {
+          const userRef = doc(adminDb, "gebruikers", uId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const uData = userSnap.data() as any;
+            const sG = Number(uData.scansGebruikt || 0);
+            const sL = Number(uData.scanLimiet || 0);
+            scansOver = uData.scansOver !== undefined ? Number(uData.scansOver) : Math.max(0, sL - sG);
+          }
+        } catch (err) {
+          console.error("[SERVER] Failed to fetch user dynamically in GET rapport hook:", err);
+        }
+      }
+
+      // If they run out of scans (scansOver <= 0), and they start/view a 'free' report, they see the gratis version.
+      // But they can ALWAYS view their existing/old premium reports (which were generated under 'losse_scan' or 'slimme_koper') without limit!
+      if (effectiveTier !== 'free' && reportTier === 'free' && !isAdmin && userPerms !== 'autohandelaar') {
+        if (scansOver <= 0) {
+          effectiveTier = 'free';
+          console.log(`[ACCESS] User ${uId || 'anonymous'} has no scans left and is viewing a 'free' report. Restricting effective view to free.`);
+        }
       }
 
       // ── REDACTION LOGIC ──

@@ -51,7 +51,8 @@ export const ReportPage: React.FC = () => {
     const fetchReport = async () => {
       try {
         const emailParam = user?.email ? `&email=${encodeURIComponent(user.email)}` : '';
-        const res = await fetch(`/api/rapport/${id}?isBetaald=${isPremium}&permissies=${permissies}${emailParam}`);
+        const userParam = user?.uid ? `&userId=${user.uid}` : '';
+        const res = await fetch(`/api/rapport/${id}?isBetaald=${isPremium}&permissies=${permissies}${emailParam}${userParam}`);
         const data = await res.json();
         
         if (res.status === 404 && isPolling) {
