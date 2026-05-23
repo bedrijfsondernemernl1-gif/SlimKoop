@@ -191,15 +191,6 @@ export const DashboardHistory: React.FC = () => {
                           <div className="flex justify-end gap-2">
                             <Button 
                               variant="ghost" 
-                              size="icon"
-                              onClick={() => navigate(`/analyze?url=${encodeURIComponent(row.url)}`)}
-                              title="Heranalyseren"
-                              className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                            >
-                              <Play className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
                               onClick={() => navigate(`/rapport/${row.rapportId}`)}
                               className="h-10 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-primary transition-colors text-sm font-medium border border-white/5"
                             >

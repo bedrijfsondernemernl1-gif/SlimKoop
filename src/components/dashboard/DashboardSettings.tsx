@@ -157,7 +157,7 @@ export const DashboardSettings: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-400">Naam</label>
-                  <Input defaultValue={user?.displayName || ''} placeholder="Je naam" className="h-12 bg-black/50 border-white/10 text-white rounded-xl focus-visible:ring-accent-green" />
+                  <Input defaultValue={user?.displayName || ''} placeholder="Je naam" disabled className="h-12 bg-black/50 border-white/10 text-gray-400 rounded-xl focus-visible:ring-transparent cursor-not-allowed" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-400">Email adres</label>
