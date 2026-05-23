@@ -474,13 +474,33 @@ async function startServer() {
         })[0];
         
         const data = existingReport.data();
-        if (data.status === 'compleet' || data.status === 'verwerking' || data.status === 'analyseren' || data.status === 'vergelijken') {
-          console.log(`[CACHE] Reusing report ${existingReport.id} for URL: ${url}`);
+        const existingReportTier = data.tier || 'free';
+        
+        let canReuse = false;
+        if (reportTier === 'free') {
+          // Free users can reuse any report
+          canReuse = true;
+        } else if (reportTier === 'losse_scan') {
+          // Paid 'losse_scan' users can reuse any paid report (not free)
+          if (existingReportTier !== 'free') {
+            canReuse = true;
+          }
+        } else if (reportTier === 'slimme_koper' || reportTier === 'autohandelaar') {
+          // Premium users can only reuse premium reports with photo analysis (slimme_koper or autohandelaar)
+          if (existingReportTier === 'slimme_koper' || existingReportTier === 'autohandelaar') {
+            canReuse = true;
+          }
+        }
+
+        if (canReuse && (data.status === 'compleet' || data.status === 'verwerking' || data.status === 'analyseren' || data.status === 'vergelijken')) {
+          console.log(`[CACHE] Reusing report ${existingReport.id} for URL: ${url} (Current User: ${userId || 'anonymous'}, Current Tier: ${reportTier}, Cached Tier: ${existingReportTier})`);
           return res.json({
             success: true,
             rapportId: existingReport.id,
             cached: true
           });
+        } else {
+          console.log(`[CACHE] Cannot reuse report ${existingReport.id} (Current User: ${userId || 'anonymous'}, Current Tier: ${reportTier}, Cached Tier: ${existingReportTier}) - triggering fresh background analysis.`);
         }
       }
     } catch (cacheError) {
@@ -554,24 +574,16 @@ async function startServer() {
       const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
       const isAdmin = adminEmails.includes(userEmail.toLowerCase());
 
-      // Access logic:
-      // Reports carry their generation tier (which affects what data is actually present in DB).
-      // However, even if a report was generated as 'free', a viewing user with a paid plan should see 
-      // whatever premium data IS available (Price, Risks, RDW).
-      
-      let effectiveTier = reportTier; 
-      
-      // Upgrade view based on WHO is looking
+      // Access logic is STRICTLY based on the current user's active tier (not the tier of the generated report itself)
+      let effectiveTier = 'free';
       if (isAdmin || userPerms === 'autohandelaar') {
         effectiveTier = 'autohandelaar';
       } else if (userPerms === 'slimme_koper') {
-        if (effectiveTier === 'free' || effectiveTier === 'losse_scan') {
-          effectiveTier = 'slimme_koper';
-        }
+        effectiveTier = 'slimme_koper';
       } else if (userPerms === 'losse_scan') {
-        if (effectiveTier === 'free') {
-          effectiveTier = 'losse_scan';
-        }
+        effectiveTier = 'losse_scan';
+      } else {
+        effectiveTier = 'free';
       }
 
       // ── REDACTION LOGIC ──
