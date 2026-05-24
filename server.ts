@@ -454,13 +454,8 @@ async function startServer() {
               // Use paid tier
               reportTier = permissies;
               
-              // Real-time deduction
-              await updateDoc(userRef, { 
-                scansGebruikt: increment(1),
-                scansOver: increment(-1),
-                lastScanAt: serverTimestamp()
-              });
-              console.log(`[SUBSCRIPTION] User ${userId} used premium scan (${reportTier}). New count: ${scansGebruikt + 1}`);
+              // No deduction upfront anymore - we will deduct after a successful analysis!
+              console.log(`[SUBSCRIPTION] User ${userId} is eligible for premium scan (${reportTier}). Logic will deduct after successful analysis.`);
             }
           } else {
             reportTier = 'free';
@@ -476,15 +471,16 @@ async function startServer() {
       try {
         const qRapporten = query(collection(adminDb, 'rapporten'), where('userId', '==', userId));
         const querySnap = await getDocs(qRapporten);
-        if (!querySnap.empty && querySnap.size >= 1) {
-          console.log(`[LIMIT CHECK] Free user ${userId} has already created ${querySnap.size} reports. Rejecting analysis creation.`);
+        const nonFailedReports = querySnap.docs.filter(doc => doc.data().status !== 'fout');
+        if (nonFailedReports.length >= 1) {
+          console.log(`[LIMIT CHECK] Free user ${userId} has already created ${nonFailedReports.length} status-successful reports. Rejecting analysis creation.`);
           return res.status(403).json({ 
             error: "Gratis limiet bereikt", 
             message: "Je gratis scan is gebruikt. Upgrade naar Losse Scan, Slimme Koper of Autohandelaar voor meer analyses." 
           });
         }
       } catch (errCheck) {
-        console.error("[SERVER] Error verifying free user limits scan counts:", errCheck);
+        console.error("[SERVER] Error verifying free user limits status scan counts:", errCheck);
       }
     }
 
@@ -701,6 +697,48 @@ async function startServer() {
   });
 }
 
+async function markeerAlsFout(rapportId: string, errorMsg: string, userId: string, reportTier: string) {
+  try {
+    const rapportRef = doc(adminDb, 'rapporten', rapportId);
+    const docSnap = await getDoc(rapportRef);
+    let scanWasDeducted = false;
+    let alreadyRefunded = false;
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      alreadyRefunded = !!data.scanRefunded;
+      scanWasDeducted = !!data.scanDeducted;
+    }
+
+    await updateDoc(rapportRef, { 
+      status: 'fout', 
+      error: errorMsg,
+      scanRefunded: scanWasDeducted ? true : false,
+      scanDeducted: false
+    });
+
+    if (scanWasDeducted && !alreadyRefunded && userId && userId !== "anonymous") {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists) {
+        const uData = userDoc.data() as any;
+        const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+        const userIsAdmin = adminEmails.includes((uData.email || '').toLowerCase());
+        
+        if (!userIsAdmin) {
+          await updateDoc(userRef, {
+            scansGebruikt: increment(-1),
+            scansOver: increment(1)
+          });
+          console.log(`[REFUND] Refunded 1 scan for user ${userId} because analysis failed after deduction.`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[ERROR] Failed to mark as error and handle refund balance:", err);
+  }
+}
+
 async function voerAnalyseUit(rapportId: string, url: string, userId: string, reportTier: string = 'free') {
   try {
     // ── FASE 1: SCRAPING ──
@@ -721,7 +759,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
     if (!listing) {
       console.error(`[SCRAPING] Failed for URL: ${url}`);
-      await updateDoc(rapportRef, { status: 'fout', error: 'Kon de advertentie niet ophalen.' });
+      await markeerAlsFout(rapportId, 'Kon de advertentie niet ophalen.', userId, reportTier);
       return;
     }
     
@@ -785,24 +823,46 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
       console.error("[GEMINI] EXCEPTION:", e.message);
-      await updateDoc(rapportRef, { 
-        status: 'fout', 
-        error: `AI Analyse fout: ${e.message}` 
-      });
+      await markeerAlsFout(rapportId, `AI Analyse fout: ${e.message}`, userId, reportTier);
       return;
     }
 
     if (!analyse) {
       console.error("[GEMINI] No result returned.");
-      await updateDoc(rapportRef, { 
-        status: 'fout', 
-        error: 'Gemini retourneerde geen resultaat. Check API key.' 
-      });
+      await markeerAlsFout(rapportId, 'Gemini retourneerde geen resultaat. Check API key.', userId, reportTier);
       return;
     }
 
     // ── FASE 4: ALLES OPSLAAN ──
     await updateDoc(rapportRef, { status: 'afronden' });
+
+    // Deduct scan on successful completion
+    let scanDeducted = false;
+    if (userId && userId !== "anonymous") {
+      try {
+        const userRef = doc(adminDb, "gebruikers", userId);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists) {
+          const uData = userDoc.data() as any;
+          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+          const userIsAdmin = adminEmails.includes((uData.email || '').toLowerCase());
+          
+          if (!userIsAdmin) {
+            await updateDoc(userRef, { 
+              scansGebruikt: increment(1),
+              scansOver: increment(-1),
+              lastScanAt: serverTimestamp()
+            });
+            scanDeducted = true;
+            console.log(`[SUBSCRIPTION] User ${userId} successfully completed scan (${reportTier}). Deducted 1 scan.`);
+          } else {
+            console.log(`[SUBSCRIPTION] User ${userId} is admin, skipping scan deduction.`);
+          }
+        }
+      } catch (deductErr) {
+        console.error("[SUBSCRIPTION] Error deducting user scan at completion:", deductErr);
+      }
+    }
 
     await updateDoc(rapportRef, {
         dealScore: analyse.dealScore || 0,
@@ -821,6 +881,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
         rdwData: rdw,
         fotoAnalyse: fotos.fotos || [],
         ontbrekendeFotos: fotos.ontbrekendeFotos || [],
+        scanDeducted: scanDeducted,
         status: 'compleet',
         updatedAt: serverTimestamp()
     });
@@ -845,10 +906,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
   } catch (error: any) {
     console.error("[ERROR] In background task:", error);
-    await updateDoc(doc(adminDb, 'rapporten', rapportId), { 
-        status: 'fout', 
-        error: error.message || 'Onbekende fout' 
-    });
+    await markeerAlsFout(rapportId, error.message || 'Onbekende fout', userId, reportTier);
   }
 }
 

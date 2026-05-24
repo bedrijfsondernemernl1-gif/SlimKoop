@@ -46,7 +46,7 @@ export const Footer: React.FC = () => {
         <div className="border-t border-white/10 mt-16 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-gray-500 text-sm">© {new Date().getFullYear()} OccasionScan. Alle rechten voorbehouden.</p>
           <div className="flex items-center gap-4 text-sm text-gray-500">
-            KVK: 42044846
+            KVK: 12345678
           </div>
         </div>
       </div>

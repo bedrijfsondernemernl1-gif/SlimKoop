@@ -282,7 +282,7 @@ export const LandingPage: React.FC = () => {
             </Button>
             
             <p className="text-xs md:text-sm text-gray-500 flex items-center gap-2 mt-2">
-              <CheckCircle2 className="w-4 h-4 text-accent-green" /> Eerste analyse gratis · Geen account nodig
+              <CheckCircle2 className="w-4 h-4 text-accent-green" /> Eerste analyse gratis
             </p>
           </motion.form>
         </motion.div>
