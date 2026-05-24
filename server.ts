@@ -780,8 +780,8 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     
     let analyse;
     try {
-      console.log("[GEMINI] Calling with model: gemini-3-flash-preview");
-      analyse = await analyseerdeTekst(listing, vergelijkbareAutos || []);
+      console.log("[GEMINI] Calling with model: gemini-3.5-flash");
+      analyse = await analyseerdeTekst(listing, vergelijkbareAutos || [], rdw);
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
       console.error("[GEMINI] EXCEPTION:", e.message);

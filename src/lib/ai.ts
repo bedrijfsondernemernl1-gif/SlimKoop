@@ -59,14 +59,38 @@ function getAIClient() {
   return new GoogleGenAI({ apiKey: apiKey || "" });
 }
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 
-export async function analyseerdeTekst(listingData: any, vergelijkbareAutos: any[] = []): Promise<TextAnalysisResult | null> {
+export async function analyseerdeTekst(
+  listingData: any,
+  vergelijkbareAutos: any[] = [],
+  rdwData: any = null
+): Promise<TextAnalysisResult | null> {
   try {
     const ai = getAIClient();
 
     // Limit description
     const shortBeschrijving = (listingData.beschrijving || "").substring(0, 800);
+
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString('nl-NL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const longDateStr = currentDate.toLocaleDateString('nl-NL', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    const rdwInfo = rdwData ? `
+RDW Gegevens:
+- Kenteken: ${rdwData.kenteken || 'onbekend'}
+- APK Vervaldatum: ${rdwData.apkVervaldatum || 'onbekend'}
+- Aantal Eigenaren: ${rdwData.aantalEigenaren || 'onbekend'}
+- Gestolen: ${rdwData.isGestolen ? 'Ja' : 'Nee'}
+` : '';
 
     const textPrompt = `Analyseer autorapport. JSON response ONLY:
 {"dealScore": 0-100, "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje", "eerlijkePrijs": num, "directeWinst": num, "positievePunten": [".."], "aandachtspunten": [".."], "rodeVlaggen": [{"ernst": "hoog"|"middel"|"laag", "titel": "..", "uitleg": ".."}], "advertentieAnalyse": {"taalgebruik": "..", "volledigheid": "..", "onlineSinds": "..", "prijsWijzigingen": ".."}, "onderhandelingsScript": "..", "openingsBod": num, "onderhandelingsTips": [".."], "samenvatting": [".."]}
@@ -82,12 +106,18 @@ Specifieke richtlijnen voor de lengte en structuur van de JSON velden:
 - advertentieAnalyse: elk veld (taalgebruik, volledigheid, onlineSinds, prijsWijzigingen) mag maximaal 1-2 korte zinnen bevatten.
 - samenvatting: max 3-4 bullets, elk 1-2 korte zinnen.
 
+CRITICAL TIJD- EN DATUMCONTEXT:
+- De huidige datum van vandaag (uiterst belangrijk): ${longDateStr} (${formattedDate}). We zitten definitief in het jaar 2026.
+- Gebruik de huidige datum van vandaag (${longDateStr}) voor ALLE berekeningen over APK geldigheid, leeftijd van de auto, dagen online, en alle andere tijdgerelateerde of kalender-gerelateerde analyses.
+- Indien er een APK vervaldatum bekend is (bijv. van RDW: ${rdwData?.apkVervaldatum || 'onbekend'}), vergelijk deze dan exact met vandaag: ${longDateStr}. Als deze APK binnenkort of zeer binnenkort verloopt (zoals over enkele dagen of weken), noem dat dan ALTIJD als een nadeel, risico of rode vlag en zeg NOOIT dat de auto een 'lange APK' of 'ruime geldigheid' heeft. Doe dit ook als de verkoper dat in de beschrijving claimt ("APK tot 2026" is bijvoorbeeld heel kort als we al in de zomer van 2026 zitten!).
+- Bereken de leeftijd van de auto nauwkeurig op basis van het huidige jaar 2026 en het bouwjaar van de auto (${listingData.bouwjaar}). Zoek ook in de verstrekte advertentiebeschrijving naar data om mee te wegen.
+
 Auto: ${listingData.titel}
 Prijs: €${listingData.prijs}
 KM: ${listingData.kilometerstand} km
 Jaar: ${listingData.bouwjaar}
 Online: ${listingData.dagenOnline} dgn
-Verkoper: ${listingData.verkoper} (${listingData.verkoperType || 'Particulier'})
+Verkoper: ${listingData.verkoper} (${listingData.verkoperType || 'Particulier'})${rdwInfo}
 Beschrijving: ${shortBeschrijving}
 Vergelijking: ${JSON.stringify(vergelijkbareAutos.slice(0, 5).map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}`;
 

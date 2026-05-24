@@ -32,6 +32,7 @@ export const DashboardOverview: React.FC = () => {
   const permissies = useStore(state => state.permissies);
   const scansOver = useStore(state => state.scansOver);
   const scanLimiet = useStore(state => state.scanLimiet);
+  const openScanLimitModal = useStore(state => state.openScanLimitModal);
 
   const isFreePlan = !isPremium || permissies === 'free';
   const displayLimit = (isFreePlan) ? 3 : 10; // Show more for paid users even if scans=0
@@ -97,15 +98,28 @@ export const DashboardOverview: React.FC = () => {
         }),
       });
 
+      if (response.status === 403) {
+        openScanLimitModal();
+        return;
+      }
+
       const data = await response.json();
       
       if (!response.ok) {
+        if (data.error === 'Gratis limiet bereikt' || (data.message && data.message.includes('gratis scan'))) {
+          openScanLimitModal();
+          return;
+        }
         throw new Error(data.message || data.error || 'Analyse mislukt');
       }
 
       if (data.rapportId) {
         navigate(`/rapport/${data.rapportId}`);
       } else if (data.error) {
+        if (data.error === 'Gratis limiet bereikt' || (data.message && data.message.includes('gratis scan'))) {
+          openScanLimitModal();
+          return;
+        }
         throw new Error(data.message || data.error);
       }
     } catch (error: any) {

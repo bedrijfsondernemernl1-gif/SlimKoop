@@ -4,7 +4,8 @@ import { Analytics } from '@vercel/analytics/react';
 import { ShaderBackground } from './components/ShaderBackground';
 import { Navbar } from './components/Navbar';
 import { CookieConsent } from './components/CookieConsent';
-import { useStore } from './store/useStore';
+import { ScanLimitModal } from './components/ScanLimitModal';
+import { useStore } from '@/src/store/useStore';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load pages
@@ -89,6 +90,7 @@ function Layout() {
         </Routes>
       </Suspense>
       <CookieConsent />
+      <ScanLimitModal />
     </div>
   );
 }

@@ -60,6 +60,7 @@ interface StoreState {
   scanLimiet: number;
   scansOver: number;
   isAuthModalOpen: boolean;
+  isScanLimitModalOpen: boolean;
   user: User | null;
   authLoading: boolean;
   login: () => void;
@@ -67,6 +68,8 @@ interface StoreState {
   upgrade: () => void;
   openAuthModal: () => void;
   closeAuthModal: () => void;
+  openScanLimitModal: () => void;
+  closeScanLimitModal: () => void;
 }
 
 let unsubUserDoc: (() => void) | null = null;
@@ -155,6 +158,7 @@ export const useStore = create<StoreState>((set) => {
     scanLimiet: 0,
     scansOver: 0,
     isAuthModalOpen: false,
+    isScanLimitModalOpen: false,
     user: null,
     authLoading: true,
     login: () => set({ isLoggedIn: true }), // Keeping this for manual overrides if needed
@@ -175,5 +179,7 @@ export const useStore = create<StoreState>((set) => {
     upgrade: () => set({ isPremium: true, isLoggedIn: true }),
     openAuthModal: () => set({ isAuthModalOpen: true }),
     closeAuthModal: () => set({ isAuthModalOpen: false }),
+    openScanLimitModal: () => set({ isScanLimitModalOpen: true }),
+    closeScanLimitModal: () => set({ isScanLimitModalOpen: false }),
   };
 });

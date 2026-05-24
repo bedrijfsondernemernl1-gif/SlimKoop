@@ -28,6 +28,7 @@ export const LandingPage: React.FC = () => {
   const user = useStore(state => state.user);
   const isLoggedIn = useStore(state => state.isLoggedIn);
   const openAuthModal = useStore(state => state.openAuthModal);
+  const openScanLimitModal = useStore(state => state.openScanLimitModal);
   
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
@@ -114,11 +115,21 @@ export const LandingPage: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, userId: user.uid })
         });
+        
+        if (res.status === 403) {
+          openScanLimitModal();
+          return;
+        }
+
         const data = await res.json();
         if (res.ok && data.success) {
           navigate(`/rapport/${data.rapportId}`);
         } else {
-          alert('Fout bij analyseren: ' + (data.message || data.error || 'Onbekende fout'));
+          if (data.error === 'Gratis limiet bereikt' || (data.message && data.message.includes('gratis scan'))) {
+            openScanLimitModal();
+          } else {
+            alert('Fout bij analyseren: ' + (data.message || data.error || 'Onbekende fout'));
+          }
         }
       } catch (err) {
         alert('Fout bij verbinden met de server.');

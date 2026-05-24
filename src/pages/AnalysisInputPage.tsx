@@ -12,7 +12,7 @@ export const AnalysisInputPage: React.FC = () => {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { scansOver, permissies, isPremium, subscriptionPlan, scanLimiet, isLoggedIn, user, openAuthModal } = useStore();
+  const { scansOver, permissies, isPremium, subscriptionPlan, scanLimiet, isLoggedIn, user, openAuthModal, openScanLimitModal } = useStore();
 
   const isFreeAccount = !isPremium || permissies === 'free';
   const outOfScans = scansOver <= 0 && scanLimiet > 0 && subscriptionPlan !== 'free';
@@ -31,11 +31,21 @@ export const AnalysisInputPage: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, userId: user.uid })
         });
+        
+        if (res.status === 403) {
+          openScanLimitModal();
+          return;
+        }
+
         const data = await res.json();
         if (res.ok && data.rapportId) {
           navigate(`/rapport/${data.rapportId}`);
         } else {
-          alert('Fout bij analyseren: ' + (data.message || data.error || 'Onbekende fout'));
+          if (data.error === 'Gratis limiet bereikt' || (data.message && data.message.includes('gratis scan'))) {
+            openScanLimitModal();
+          } else {
+            alert('Fout bij analyseren: ' + (data.message || data.error || 'Onbekende fout'));
+          }
         }
       } catch (err) {
         alert('Fout bij verbinden met de server.');
