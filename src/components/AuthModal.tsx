@@ -214,9 +214,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     <CheckCircle className="w-8 h-8 text-accent-green" />
                   </div>
                   <h2 className="text-xl font-bold text-white mb-2">Verifieer je e-mail</h2>
-                  <p className="text-gray-400 text-sm mb-6">
+                  <p className="text-gray-400 text-sm mb-5">
                     We hebben een verificatielink gestuurd naar <strong>{email}</strong>. Klik op de link om je account te activeren.
                   </p>
+
+                  <div className="mb-6 bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl text-left animate-pulse">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-xs font-bold text-amber-400 block mb-0.5">Let op: check je SPAM folder!</span>
+                        <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                          Heb je de mail na 2 minuten nog niet binnen? Controleer dan direct je <strong>ongewenste e-mail (spam of reclame) folder</strong>. Soms belandt onze activatiemail daar per ongeluk tussen.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <Button 
                     onClick={() => setMode('login')}
                     className="w-full bg-accent-green text-black font-semibold rounded-xl"
