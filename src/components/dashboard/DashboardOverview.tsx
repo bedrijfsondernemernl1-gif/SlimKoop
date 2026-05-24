@@ -100,13 +100,13 @@ export const DashboardOverview: React.FC = () => {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Analyse mislukt');
+        throw new Error(data.message || data.error || 'Analyse mislukt');
       }
 
       if (data.rapportId) {
         navigate(`/rapport/${data.rapportId}`);
       } else if (data.error) {
-         throw new Error(data.error);
+        throw new Error(data.message || data.error);
       }
     } catch (error: any) {
       console.error("Error analyzing car:", error);

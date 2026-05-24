@@ -102,20 +102,23 @@ export const LandingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLoggedIn || !user) {
+      openAuthModal();
+      return;
+    }
     if (url) {
       setIsLoading(true);
       try {
-        const { auth } = await import('@/src/lib/firebase');
         const res = await fetch('/api/analyseer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, userId: auth.currentUser?.uid })
+          body: JSON.stringify({ url, userId: user.uid })
         });
         const data = await res.json();
         if (res.ok && data.success) {
           navigate(`/rapport/${data.rapportId}`);
         } else {
-          alert('Fout bij analyseren: ' + (data.error || 'Onbekende fout'));
+          alert('Fout bij analyseren: ' + (data.message || data.error || 'Onbekende fout'));
         }
       } catch (err) {
         alert('Fout bij verbinden met de server.');

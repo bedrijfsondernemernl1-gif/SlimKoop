@@ -387,6 +387,15 @@ async function startServer() {
 
   app.post("/api/analyseer", async (req, res) => {
     let { url, userId } = req.body;
+    
+    // 1. Mandatory Login Check
+    if (!userId || userId === "anonymous") {
+      return res.status(401).json({ 
+        error: "Verplichte registratie", 
+        message: "Inloggen of registreren is verplicht om een analyse te starten." 
+      });
+    }
+
     const xff = req.headers['x-forwarded-for'];
     const clientIp = typeof xff === 'string' ? xff.split(',')[0].trim() : (Array.isArray(xff) ? xff[0] : req.socket.remoteAddress);
     // Replace dots and colons for firestore ID safety (IPv4 and IPv6)
@@ -415,49 +424,67 @@ async function startServer() {
     let reportTier = 'free';
     let isAdmin = false;
     let limitReached = false;
+    let isFreeUser = true;
     
-    if (userId && userId !== "anonymous") {
-      try {
-        const userRef = doc(adminDb, "gebruikers", userId);
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists) {
-          const data = userDoc.data() as any;
-          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
-          isAdmin = adminEmails.includes((data.email || '').toLowerCase());
-          
-          if (isAdmin) {
-            reportTier = 'autohandelaar';
-          } else {
-            const scansGebruikt = Number(data.scansGebruikt || 0);
-            const scanLimiet = Number(data.scanLimiet || 0);
-            const permissies = data.permissies || 'free';
-            const pakket = data.pakket || 'free';
+    try {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists) {
+        const data = userDoc.data() as any;
+        const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+        isAdmin = adminEmails.includes((data.email || '').toLowerCase());
+        
+        if (isAdmin) {
+          reportTier = 'autohandelaar';
+          isFreeUser = false;
+        } else {
+          const scansGebruikt = Number(data.scansGebruikt || 0);
+          const scanLimiet = Number(data.scanLimiet || 0);
+          const permissies = data.permissies || 'free';
+          const pakket = data.pakket || 'free';
 
-            if (pakket !== 'free') {
-              if (scansGebruikt >= scanLimiet && scanLimiet < 999) {
-                // Limit reached, fallback to free
-                reportTier = 'free';
-                limitReached = true;
-                console.log(`[SUBSCRIPTION] User ${userId} has reached limit (${scansGebruikt}/${scanLimiet}). Falling back to free.`);
-              } else {
-                // Use paid tier
-                reportTier = permissies;
-                
-                // Real-time deduction
-                await updateDoc(userRef, { 
-                  scansGebruikt: increment(1),
-                  scansOver: increment(-1),
-                  lastScanAt: serverTimestamp()
-                });
-                console.log(`[SUBSCRIPTION] User ${userId} used premium scan (${reportTier}). New count: ${scansGebruikt + 1}`);
-              }
-            } else {
+          if (pakket !== 'free') {
+            isFreeUser = false;
+            if (scansGebruikt >= scanLimiet && scanLimiet < 999) {
+              // Limit reached, fallback to free
               reportTier = 'free';
+              limitReached = true;
+              console.log(`[SUBSCRIPTION] User ${userId} has reached limit (${scansGebruikt}/${scanLimiet}). Falling back to free.`);
+            } else {
+              // Use paid tier
+              reportTier = permissies;
+              
+              // Real-time deduction
+              await updateDoc(userRef, { 
+                scansGebruikt: increment(1),
+                scansOver: increment(-1),
+                lastScanAt: serverTimestamp()
+              });
+              console.log(`[SUBSCRIPTION] User ${userId} used premium scan (${reportTier}). New count: ${scansGebruikt + 1}`);
             }
+          } else {
+            reportTier = 'free';
           }
         }
-      } catch (e) {
-        console.error("Error checking permissions", e);
+      }
+    } catch (e) {
+      console.error("Error checking permissions", e);
+    }
+
+    // 2. Limit free tier to exactly 1 report total per user
+    if (isFreeUser && !isAdmin) {
+      try {
+        const qRapporten = query(collection(adminDb, 'rapporten'), where('userId', '==', userId));
+        const querySnap = await getDocs(qRapporten);
+        if (!querySnap.empty && querySnap.size >= 1) {
+          console.log(`[LIMIT CHECK] Free user ${userId} has already created ${querySnap.size} reports. Rejecting analysis creation.`);
+          return res.status(403).json({ 
+            error: "Gratis limiet bereikt", 
+            message: "Je gratis scan is gebruikt. Upgrade naar Losse Scan, Slimme Koper of Autohandelaar voor meer analyses." 
+          });
+        }
+      } catch (errCheck) {
+        console.error("[SERVER] Error verifying free user limits scan counts:", errCheck);
       }
     }
 
