@@ -59,7 +59,7 @@ function getAIClient() {
   return new GoogleGenAI({ apiKey: apiKey || "" });
 }
 
-const DEFAULT_MODEL = "gemini-3.5-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 
 export async function analyseerdeTekst(
   listingData: any,

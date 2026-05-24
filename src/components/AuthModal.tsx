@@ -95,6 +95,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const DISPOSABLE_EMAIL_DOMAINS = [
+    'tempmail', 'temp-mail', 'guerrillamail', 'yopmail', 'mailinator', 
+    'throwaway', '10minutemail', 'dispostable', 'getairmail', 'sharklasers', 
+    'trashmail', 'maildrop', 'generator.email', 'tempmaildom', 'guerrillamailblock',
+    '10minutis', 'jetable', 'cool.fr.nf', 'disposable', 'anoniem', 'tijdelijk'
+  ];
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -102,6 +109,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     try {
       if (mode === 'register') {
+        const emailLower = email.toLowerCase().trim();
+        const domain = emailLower.split('@')[1] || '';
+        const isDisposable = DISPOSABLE_EMAIL_DOMAINS.some(disposable => domain.includes(disposable));
+        
+        if (isDisposable) {
+          setError('Tijdelijke of wegwerp e-mailadressen zijn niet toegestaan. Gebruik een geldig e-mailadres.');
+          setLoading(false);
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await sendEmailVerification(userCredential.user);
         await handleSaveUser(userCredential.user);

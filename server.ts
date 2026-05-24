@@ -751,10 +751,14 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
     if (url.includes('autoscout24')) {
       listing = await scrapeAutoScout24(url);
-      if (listing) vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+      if (listing && reportTier !== 'free') {
+        vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+      }
     } else {
       listing = await scrapeMarktplaats(url);
-      if (listing) vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+      if (listing && reportTier !== 'free') {
+        vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+      }
     }
 
     if (!listing) {
@@ -818,7 +822,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     
     let analyse;
     try {
-      console.log("[GEMINI] Calling with model: gemini-3.5-flash");
+      console.log("[GEMINI] Calling with model: gemini-2.5-flash");
       analyse = await analyseerdeTekst(listing, vergelijkbareAutos || [], rdw);
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
