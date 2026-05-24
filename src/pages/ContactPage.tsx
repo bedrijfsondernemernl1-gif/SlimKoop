@@ -152,16 +152,7 @@ export const ContactPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 shrink-0">
-                      <Send className="w-5 h-5 text-accent-green" />
-                    </div>
-                    <div>
-                      <h3 className="text-white font-semibold mb-1">Telefoon</h3>
-                      <p className="text-gray-400 text-sm">06 84 99 40 78</p>
-                      <p className="text-gray-500 text-xs mt-1">Bereikbaar via WhatsApp en telefonisch.</p>
-                    </div>
-                  </div>
+
                 </div>
               </div>
 
