@@ -56,7 +56,14 @@ function getAIClient() {
     console.log(`[AI] Gemini API key geladen: ${apiKey.substring(0, 8)}...`);
   }
   
-  return new GoogleGenAI({ apiKey: apiKey || "" });
+  return new GoogleGenAI({
+    apiKey: apiKey || "",
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
 }
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -185,6 +192,24 @@ Richtlijnen voor de lengte en structuur van de JSON velden:
 - advertentieAnalyse: elk veld (taalgebruik, volledigheid, onlineSinds, prijsWijzigingen) mag maximaal 1-2 korte zinnen bevatten.
 - samenvatting: max 3-4 bullets, elk 1-2 korte zinnen.
 
+KWALITEITS- EN INHOUDSLOGICA RICHTLIJNEN:
+1. SPECIFIEKERE AANDACHTSPUNTEN (AANDACHTSPUNTEN LOGICA): Let bij de aandachtspunten absoluut NIET alleen op generieke aspecten zoals een onvolledige of korte beschrijving in de advertentie (dit is te generiek en oninteressant voor de koper) of een kilometerstand op zichzelf. De kilometerstand mag ALLEEN als nadeel/aandachtspunt worden vermeld als deze daadwerkelijk te hoog is voor de leeftijd van de auto (belangrijk als die te hoog is, moet dat wel worden vermeld). Richt je juist op specifiekere en relevantere aandachtspunten: analyseer de specifieke opties en uitrusting, eventuele schade-indicaties of vage beschrijvingen in de advertentietekst, de leeftijd van het voertuig, specifieke bekende technische kwetsbaarheden van het desbetreffende merk/model/brandstoftype, of de RDW-registratiehistorie (zoals een ongewoon hoog aantal eigenaren of kortere bezitsperiodes).
+2. BELANGRIJK VOOR AUTOSCOUT24 EN APK: Indien het platform AutoScout24 is en er is via de RDW-kentekencheck een geldige APK-vervaldatum opgehaald (de APK vervaldatum is bekend en niet 'onbekend'), dan mag je onder "aandachtspunten" absoluut NIET vermelden dat de APK-geldigheidsdatum of APK-vervaldatum ontbreekt in de advertentie. Omdat deze succesvol via het kenteken is opgehaald, is deze informatie immers voor de koper beschikbaar gedocumenteerd.
+3. LOGICA VOOR DEALSCORE BEREKENING: Bereken de DealScore (dealScore) van 0-100 uiterst zorgvuldig en exact op basis van de volgende rationale en logica:
+- Startpunt is een neutrale basis van 70 punten.
+- Optellen (maximaal +30 punten):
+  * Prijsvoordeel (vraagprijs ligt onder het marktgemiddelde voor vergelijkbare auto's): +10 tot +15 punten.
+  * Uitzonderlijk lage kilometerstand voor autoleeftijd: +5 tot +10 punten.
+  * Gunstige RDW-gegevens (bijvoorbeeld een lange APK van >6 maanden, of slechts 1-2 eerdere eigenaren): +5 tot +10 punten.
+  * Recent online geplaatst (beperkte kans om gekaapt te worden): +5 punten.
+- Aftrekken (maximaal -70 punten):
+  * Prijsnadeel (vraagprijs ligt boven de marktwaarde/vergelijkbare autos): -10 tot -20 punten.
+  * Uitzonderlijk hoge kilometerstand (kilometers veel hoger dan gemiddeld voor leeftijd): -10 tot -15 punten (vermeld dit indien van toepassing ook in aandachtspunten).
+  * APK vervalt zeer binnenkort (<2 maanden) of is al verlopen: -10 tot -15 punten.
+  * Hoog aantal eigenaren (>4 eigenaren): -5 tot -10 punten.
+  * Aanwezigheid van rode vlaggen (rodeVlaggen): -5 tot -10 punten per medium rode vlag, en -20 tot -30 punten per hoge rode vlag. (Indien een hoge rode vlag van ernst "hoog" aanwezig is, zoals indicator gestolen of zware structurele of juridische risico's, mag de uiteindelijke DealScore nooit hoger zijn dan 50!).
+4. REGELS VOOR HET OPENINGSBOD: Zorg ervoor dat het aanbevolen openingsbod (openingsBod) niet te ver onder de vraagprijs ligt, om een onrealistisch of beledigend bod te voorkomen. Het openingsbod moet een serieus, scherp maar reëel startpunt zijn voor onderhandeling, typisch tussen 85% en 95% van de vraagprijs (minimaal 85%), afhankelijk van de DealScore en de risico's/aandachtspunten. Stel het openingsbod NOOIT lager vast dan 85% van de vraagprijs.
+
 CRITICAL TIJD- EN DATUMCONTEXT RICHTLIJNEN:
 1. Gebruik de huidige datum van 'Vandaag' (meegegeven in de gebruikersprompt) voor alle berekeningen over APK geldigheid, leeftijd van de auto, dagen online, en alle andere tijdgerelateerde of kalender-gerelateerde analyses. We zitten definitief in het jaar 2026.
 2. Indien er een APK vervaldatum bekend is in de RDW gegevens uit de prompt, vergelijk deze dan exact met de 'Vandaag' datum. Als de APK binnenkort of zeer binnenkort verloopt (zoals over enkele dagen of weken na Vandaag), noem dat dan ALTIJD als een nadeel, risico of rode vlag en zeg NOOIT dat de auto een 'lange APK' of 'ruime geldigheid' heeft. Doe dit ook als de verkoper dat in de beschrijving claimt (bijv. "APK tot 2026" is bijvoorbeeld heel kort als we al in de zomer of het najaar van 2026 zitten!).
@@ -195,6 +220,7 @@ CRITICAL TIJD- EN DATUMCONTEXT RICHTLIJNEN:
 Vandaag: ${longDateStr} (${formattedDate}). Huidig jaar: 2026.
 
 GEGEVENS:
+Platform: ${listingData.isAutoScout ? 'AutoScout24' : 'Marktplaats'}
 Auto: ${listingData.titel}
 Prijs: €${listingData.prijs}
 KM: ${listingData.kilometerstand} km
@@ -219,7 +245,32 @@ Vergelijking: ${JSON.stringify(vergelijkbareAutos.slice(0, 5).map(v => ({ prijs:
     if (textData) {
       const cleanJson = textData.replace(/```json/g, '').replace(/```/g, '').trim();
       try {
-        return JSON.parse(cleanJson);
+        const result = JSON.parse(cleanJson);
+        const vraagprijs = Number(listingData.prijs) || 0;
+
+        // Programmatische bewaker: Het openingsbod niet te ver onder de vraagprijs (minimaal 85%, maximaal 95%)
+        if (vraagprijs > 0 && typeof result.openingsBod === 'number' && result.openingsBod > 0) {
+          const minBod = Math.round(vraagprijs * 0.85);
+          const maxBod = Math.round(vraagprijs * 0.95);
+          if (result.openingsBod < minBod) {
+            result.openingsBod = minBod;
+          } else if (result.openingsBod > maxBod) {
+            result.openingsBod = maxBod;
+          }
+        } else if (vraagprijs > 0) {
+          result.openingsBod = Math.round(vraagprijs * 0.90);
+        }
+
+        // Programmatische bewaker: DealScore binnen 0-100 en begrensd bij zware rode vlaggen
+        if (typeof result.dealScore === 'number') {
+          result.dealScore = Math.max(0, Math.min(100, Math.round(result.dealScore)));
+          const heeftHogeRodeVlag = Array.isArray(result.rodeVlaggen) && result.rodeVlaggen.some((v: any) => v.ernst === 'hoog');
+          if (heeftHogeRodeVlag && result.dealScore > 50) {
+            result.dealScore = 50;
+          }
+        }
+
+        return result;
       } catch (parseError) {
         console.error("JSON parse failed. Raw text:", textData);
         throw parseError; // bubbles to outer catch

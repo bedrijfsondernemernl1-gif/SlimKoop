@@ -772,6 +772,9 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
     // Redact Seller Info for AutoScout24 per request (unreliable data)
     const isAutoScout = url.includes('autoscout24');
+    listing.isAutoScout = isAutoScout;
+    listing.url = url;
+
     const verkoperInfo = isAutoScout ? {
       naam: 'Verborgen voor AutoScout24',
       sinds: 'Onbekend',
@@ -823,7 +826,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     
     let analyse;
     try {
-      console.log("[GEMINI] Calling with model: gemini-2.5-flash");
+      console.log("[GEMINI] Calling with model: gemini-3.5-flash");
       analyse = await analyseerdeTekst(listing, vergelijkbareAutos || [], rdw);
       console.log("[GEMINI] Result:", analyse ? `Score: ${analyse.dealScore}` : "NULL - GEEN RESULTAAT");
     } catch (e: any) {
