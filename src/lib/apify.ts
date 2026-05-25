@@ -361,7 +361,10 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     const modelLower = model.trim().toLowerCase();
 
     // Create a slug for the path: replace spaces and non-alphanumeric chars with hyphens
-    const merkSlug = merkLower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    let merkSlug = merkLower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (merkSlug === 'mercedes' || merkSlug === 'mercedesbenz' || merkSlug === 'mercedes-benz') {
+      merkSlug = 'mercedes-benz';
+    }
 
     // For query, replace spaces and non-alphanumeric with '+'
     let brandQuery = merkLower.replace(/[^a-z0-9]+/g, '+');
