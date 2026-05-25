@@ -726,6 +726,20 @@ export const ReportPage: React.FC = () => {
                     const kmStatusText = isKmNormal ? "✓ Normaal" : (avgKmPerYear > normalMax ? "Hoog" : "Laag");
                     const kmPercent = Math.min((avgKmPerYear / normalMax) * 100, 100);
 
+                    const currentCarItem = {
+                      naam: data.autoNaam,
+                      titel: data.autoNaam,
+                      jaar: data.bouwjaar,
+                      bouwjaar: data.bouwjaar,
+                      km: data.kilometerstand,
+                      kilometerstand: data.kilometerstand,
+                      prijs: data.vraagprijs,
+                      url: reportData?.url || "",
+                      link: reportData?.url || "",
+                      isCurrent: true
+                    };
+                    const allAutos = [currentCarItem, ...data.vergelijkbareAutos];
+
                     return (
                       <div className="space-y-6">
                         <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
@@ -799,7 +813,7 @@ export const ReportPage: React.FC = () => {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-white/5">
-                                {data.vergelijkbareAutos.map((auto: any, i: number) => (
+                                {allAutos.map((auto: any, i: number) => (
                                   <tr key={i} className={auto.isCurrent ? "bg-accent-green/5 border-l-4 border-l-accent-green" : ""}>
                                     <td className={`py-4 px-6 font-bold ${auto.isCurrent ? "text-accent-green" : "text-gray-200"}`}>
                                       {auto.naam || auto.titel} {auto.isCurrent && <span className="text-xs ml-2 bg-accent-green/20 px-2 py-0.5 rounded text-accent-green">Vraagprijs</span>}
@@ -807,9 +821,11 @@ export const ReportPage: React.FC = () => {
                                     <td className="py-4 px-6 text-gray-400">{auto.jaar || auto.bouwjaar}</td>
                                     <td className="py-4 px-6 text-gray-400">{(auto.km || auto.kilometerstand)?.toLocaleString()}</td>
                                     <td className="py-4 px-6 font-bold text-right text-white">€ {auto.prijs?.toLocaleString()}</td>
-                                    <td className="py-4 px-6 text-gray-400">{((auto.url || auto.link || "").includes("autoscout")) ? "AutoScout24" : "Marktplaats"}</td>
+                                    <td className="py-4 px-6 text-gray-400">{auto.isCurrent ? "Scandata" : (((auto.url || auto.link || "").includes("autoscout")) ? "AutoScout24" : "Marktplaats")}</td>
                                     <td className="py-4 px-6 text-right">
-                                      <a href={auto.url || auto.link} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
+                                      {(auto.url || auto.link) && (
+                                        <a href={auto.url || auto.link} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white p-2 inline-block transition-colors"><ExternalLink className="w-4 h-4" /></a>
+                                      )}
                                     </td>
                                   </tr>
                                 ))}

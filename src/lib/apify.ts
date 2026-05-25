@@ -356,13 +356,25 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     const client = getApifyClient();
     const actorId = getActorId();
     
-    // Bouw Marktplaats zoek-URL
-    const merkSlug = merk.toLowerCase().replace(/\s+/g, '-');
-    const modelSearch = encodeURIComponent(model.toLowerCase());
+    // Bouw Marktplaats zoek-URL met /q/ zoekpad en merk+model als zoekterm
+    const merkLower = merk.trim().toLowerCase();
+    const modelLower = model.trim().toLowerCase();
+
+    // Create a slug for the path: replace spaces and non-alphanumeric chars with hyphens
+    const merkSlug = merkLower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    // For query, replace spaces and non-alphanumeric with '+'
+    let brandQuery = merkLower.replace(/[^a-z0-9]+/g, '+');
+    if (brandQuery === "mercedes+benz") {
+      brandQuery = "mercedes";
+    }
+    const modelQuery = modelLower.replace(/[^a-z0-9]+/g, '+');
+    const queryTerm = `${brandQuery}+${modelQuery}`.replace(/\++/g, '+').replace(/^\+|\+$/g, '');
+
     const yearFrom = jaar > 1900 ? jaar - 1 : '';
     const yearTo = jaar > 1900 ? jaar + 1 : '';
     
-    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/#f:10882|offeredSince:Altijd|constructionYearFrom:${yearFrom}|constructionYearTo:${yearTo}|searchInTitleAndDescription:true|searchQuery:${modelSearch}`;
+    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/q/${queryTerm}/#constructionYearFrom:${yearFrom}|constructionYearTo:${yearTo}`;
     
     console.log(`[SCRAPER] Vergelijkbaar zoeken via URL: ${searchUrl}`);
 
@@ -374,7 +386,11 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
 
-    const modelWords = model.toLowerCase().split(' ').filter(w => w.length > 1);
+    const modelWords = model.toLowerCase()
+      .replace(/-/g, ' ')
+      .split(/\s+/)
+      .map(w => w.trim())
+      .filter(w => w.length > 1);
 
     const vergelijkbaar: VergelijkbaarResult[] = items
       .filter((item: any) => {
@@ -437,44 +453,92 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
     }
 
     const client = getApifyClient();
-    // Specialized listing scraper: fayoussef/autoscout24
-    const actorId = 'kxvqbfZknFYLcVyfx';
+    // Specialized listing scraper: getmediumdata AutoScout24 Scraper
+    const actorId = 'H051NEDwSHfMtlc00';
 
-    console.log(`[SCRAPER] Starten AutoScout24 listing scrape voor: ${url}`);
+    console.log(`[SCRAPER] Starten AutoScout24 listing scrape (H051NEDwSHfMtlc00) voor: ${url}`);
 
     const run = await client.actor(actorId).call({
-      start_urls: [{ url }],
-      max_concurrency: 1,
-      proxy_url: ""
+      urls: [{ url }],
+      maxRecords: 1
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
     const item: any = items[0] || {};
 
-    if (!item || (!item.make && !item.title)) {
+    if (!item || (!item.make && !item.title && !item.brand)) {
       console.log("[SCRAPER] Geen data ontvangen van AutoScout24 listing scraper");
       return null;
     }
 
     console.log("[SCRAPER] AutoScout24 Listing Raw data keys:", Object.keys(item));
 
-    const price = item.price || 0;
-    const mileage = extractNumber(item.mileage_formatted || item.mileage_km) || 0;
+    // Handle price robustly
+    let price = 0;
+    if (typeof item.price === 'number') {
+      price = item.price;
+    } else if (item.price) {
+      price = extractNumber(item.price);
+    } else if (item.price_formatted) {
+      price = extractNumber(item.price_formatted);
+    } else if (item.priceCents) {
+      price = Math.round(item.priceCents / 100);
+    }
+    // Handle mileage robustly
+    let rawMilage: any = "";
+    if (item.milage !== undefined && item.milage !== null && item.milage !== "") {
+      rawMilage = item.milage;
+    } else if (item.mileage !== undefined && item.mileage !== null && item.mileage !== "") {
+      rawMilage = item.mileage;
+    } else if (item.mileageKm !== undefined && item.mileageKm !== null && item.mileageKm !== "") {
+      rawMilage = item.mileageKm;
+    } else if (item.mileage_km !== undefined && item.mileage_km !== null && item.mileage_km !== "") {
+      rawMilage = item.mileage_km;
+    } else if (item.mileage_formatted !== undefined && item.mileage_formatted !== null && item.mileage_formatted !== "") {
+      rawMilage = item.mileage_formatted;
+    }
+
+    let mileage = 0;
+    if (typeof rawMilage === 'number') {
+      mileage = rawMilage;
+    } else if (rawMilage) {
+      mileage = extractNumber(rawMilage);
+    }
     
-    // Parse first registration (format usually "MM/YYYY")
+    // Parse first registration/construction year
     let firstRegYear = 0;
-    if (item.first_registration) {
-      const parts = item.first_registration.split('/');
-      firstRegYear = parseInt(parts[parts.length - 1]) || 0;
+    const regVal = item.firstRegistration || item.first_registration || item.registration || item.year || item.constructionYear || item.bouwjaar;
+    if (typeof regVal === 'number' && regVal > 1900) {
+      firstRegYear = regVal;
+    } else if (typeof regVal === 'string') {
+      if (regVal.includes('/')) {
+        const parts = regVal.split('/');
+        firstRegYear = parseInt(parts[parts.length - 1]) || 0;
+      } else if (regVal.includes('-')) {
+        const parts = regVal.split('-');
+        const p0 = parseInt(parts[0]) || 0;
+        const pN = parseInt(parts[parts.length - 1]) || 0;
+        if (p0 > 1900) firstRegYear = p0;
+        else if (pN > 1900) firstRegYear = pN;
+      } else {
+        firstRegYear = parseInt(regVal) || 0;
+      }
     }
 
     let daysOnline = 0;
-    if (item.created_at) {
-       daysOnline = Math.floor((new Date().getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    const createdVal = item.created_at || item.createdAt || item.date_online || item.onlineSince;
+    if (createdVal) {
+      try {
+        daysOnline = Math.floor((new Date().getTime() - new Date(createdVal).getTime()) / (1000 * 60 * 60 * 24));
+      } catch (e) {
+        console.warn("[SCRAPER] Kon daysOnline niet berekenen:", e);
+      }
     }
+    if (daysOnline < 0) daysOnline = 0;
 
-    const fallback = parseFallbackFromDescription(item.description || "");
+    const description = item.description || item.notes || item.seller_notes || item.beschrijving || "";
+    const fallback = parseFallbackFromDescription(description);
 
     let finalMileage = mileage;
     if (finalMileage === 0 && fallback.kilometerstand > 0) {
@@ -486,36 +550,94 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
       finalYear = fallback.bouwjaar;
     }
 
-    let finalBrandstof = item.fuel_type_formatted || item.fuel_type || "Onbekend";
+    let rawFuel = item.fuel || item.fuelType || item.fuel_type || item.fuel_type_formatted || item.brandstof || "Onbekend";
+    let finalBrandstof = "Onbekend";
+    if (rawFuel && rawFuel !== "Onbekend") {
+      const fLower = String(rawFuel).toLowerCase();
+      if (fLower.includes("benzin") || fLower.includes("gasoline") || fLower.includes("petrol")) finalBrandstof = "Benzine";
+      else if (fLower.includes("diesel")) finalBrandstof = "Diesel";
+      else if (fLower.includes("hybrid") || fLower.includes("hybride") || fLower.includes("phev")) finalBrandstof = "Hybride";
+      else if (fLower.includes("electric") || fLower.includes("elektrisch")) finalBrandstof = "Elektrisch";
+      else if (fLower.includes("lpg")) finalBrandstof = "LPG";
+      else finalBrandstof = String(rawFuel);
+    }
     if ((finalBrandstof === "Onbekend" || !finalBrandstof) && fallback.brandstof) {
       finalBrandstof = fallback.brandstof;
     }
 
-    let finalTransmissie = item.transmission === "Manual" ? "Handgeschakeld" : (item.transmission === "Automatic" ? "Automaat" : item.transmission || "Onbekend");
+    let rawTransmission = item.transmission || item.gearbox || "Onbekend";
+    let finalTransmissie = "Onbekend";
+    if (rawTransmission && rawTransmission !== "Onbekend") {
+      const gLower = String(rawTransmission).toLowerCase();
+      if (gLower.includes("man") || gLower.includes("hand") || gLower.includes("versnelling") || gLower.includes("shifter")) finalTransmissie = "Handgeschakeld";
+      else if (gLower.includes("auto") || gLower.includes("dsg") || gLower.includes("cvt") || gLower.includes("semi")) finalTransmissie = "Automaat";
+      else finalTransmissie = String(rawTransmission);
+    }
     if ((finalTransmissie === "Onbekend" || !finalTransmissie) && fallback.transmissie) {
       finalTransmissie = fallback.transmissie;
     }
 
+    let rawBodyType = item.bodyType || item.body_type || item.carrosserie || "";
+    let finalCarrosserie = "";
+    if (rawBodyType) {
+      const bLower = String(rawBodyType).toLowerCase();
+      if (bLower.includes("estate") || bLower.includes("station") || bLower.includes("combi")) finalCarrosserie = "Stationwagen";
+      else if (bLower.includes("suv") || bLower.includes("offroad")) finalCarrosserie = "SUV";
+      else if (bLower.includes("hatchback")) finalCarrosserie = "Hatchback";
+      else if (bLower.includes("sedan") || bLower.includes("saloon") || bLower.includes("limousine")) finalCarrosserie = "Sedan";
+      else if (bLower.includes("cabrio") || bLower.includes("convertible")) finalCarrosserie = "Cabriolet";
+      else if (bLower.includes("coupe") || bLower.includes("coupé")) finalCarrosserie = "Coupé";
+      else if (bLower.includes("mpv") || bLower.includes("multi")) finalCarrosserie = "MPV";
+      else finalCarrosserie = String(rawBodyType);
+    }
+
+    // Handle images
+    let fotos: string[] = [];
+    const imagesVal = item.images || item.all_images || item.photos || item.gallery || item.gallery_images || [];
+    if (Array.isArray(imagesVal)) {
+      fotos = imagesVal.map(img => typeof img === 'string' ? img : (img.url || img.src || "")).filter(Boolean);
+    } else if (item.main_image) {
+      fotos = [item.main_image];
+    } else if (item.image) {
+      fotos = [item.image];
+    }
+
+    const brand = item.mark || item.manufacturer || item.make || item.brand || item.merk || "Onbekend";
+    const model = item.model || "Onbekend";
+
+    let sellerName = item.sellerName || item.seller_company || item.seller_contact_name || item.seller || "Onbekend";
+    if (typeof sellerName === 'object' && sellerName !== null) {
+      sellerName = sellerName.name || sellerName.companyName || sellerName.company || "Onbekend";
+    }
+
+    let sellerType = "Particulier";
+    const sType = String(item.sellerType || item.seller_type || item.is_dealer || "").toLowerCase();
+    if (sType === "dealer" || sType === "trader" || sType === "true" || item.is_dealer === true || sType.includes("dealer") || sType.includes("company") || sType.includes("commercial")) {
+      sellerType = "Dealer";
+    }
+
+    const listingId = String(item.id || item.listingId || item.listing_id || item.id_raw || "Niet beschikbaar");
+
     // Map new scraper fields to our MarktplaatsData interface
     const data: MarktplaatsData = {
-      titel: `${item.make} ${item.model} ${item.model_version || ""}`.trim(),
+      titel: item.title || item.name || item.titel || `${brand} ${model} ${item.version || item.model_version || ""}`.trim(),
       prijs: price,
-      beschrijving: item.description || "",
-      fotos: item.all_images || (item.main_image ? [item.main_image] : []),
-      kenteken: "", // AutoScout has no license plate
+      beschrijving: description,
+      fotos: fotos,
+      kenteken: String(item.offerNumber || item.offer_number || "").trim(),
       kilometerstand: finalMileage,
       bouwjaar: finalYear,
       brandstof: finalBrandstof,
       transmissie: finalTransmissie,
-      carrosserie: item.body_type || "",
-      merk: item.make || "Onbekend",
-      model: item.model || "Onbekend",
-      verkoper: item.seller_company || item.seller_contact_name || "Onbekend",
-      verkoperType: item.seller_type === "Dealer" || item.is_dealer ? "Dealer" : "Particulier",
+      carrosserie: finalCarrosserie,
+      merk: brand,
+      model: model,
+      verkoper: sellerName,
+      verkoperType: sellerType,
       verkoperSinds: "Onbekend",
       aantalAdvertenties: 0,
       dagenOnline: daysOnline,
-      advertentieId: String(item.listing_id || "Niet beschikbaar")
+      advertentieId: listingId
     };
 
     console.log(`[SCRAPER] Geëxtraheerd AutoScout24: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.brandstof}`);
@@ -535,37 +657,99 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
 
   try {
     const client = getApifyClient();
-    const actorId = 'Dckez3uXbF6dh6dMe';
+    const actorId = 'jB2a4gY2hmOvmvbSk';
 
-    const makeSlug = merk.toLowerCase().replace(/\s+/g, '-');
-    const modelSlug = model.toLowerCase().replace(/\s+/g, '-');
+    let makeSlug = merk.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const modelSlug = model.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    if (modelSlug && makeSlug !== modelSlug) {
+      const updatedMakeSlug = makeSlug
+        .replace(new RegExp(`(^|-)${modelSlug}(-|$)`, 'g'), '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      if (updatedMakeSlug) {
+        makeSlug = updatedMakeSlug;
+      }
+    }
+
+    console.log(`[SCRAPER] AutoScout24 vergelijkbaar zoeken (jB2a4gY2hmOvmvbSk) voor make: ${makeSlug}, model: ${modelSlug}`);
 
     const run = await client.actor(actorId).call({
       make: makeSlug,
       model: modelSlug,
-      countries: ["NL"],
+      country: "NL,D",
       yearFrom: jaar > 1900 ? jaar - 1 : undefined,
       yearTo: jaar > 1900 ? jaar + 1 : undefined,
       maxResults: 10,
-      compact: true
+      sort: "standard"
     });
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
 
-    const vergelijkbaar: VergelijkbaarResult[] = items.map((item: any) => ({
-      titel: item.title || "",
-      prijs: parseInt(item.price) || 0,
-      km: parseInt(item.mileageKm) || 0,
-      jaar: item.firstRegistration ? parseInt(item.firstRegistration.split('-')[0]) || parseInt(item.firstRegistration.split('/')[1]) || 0 : 0,
-      url: item.url || ""
-    }));
+    const vergelijkbaar: VergelijkbaarResult[] = items.map((item: any) => {
+      // Parse km/milage/mileage robustly
+      let rawKm: any = "";
+      if (item.milage !== undefined && item.milage !== null && item.milage !== "") {
+        rawKm = item.milage;
+      } else if (item.mileage !== undefined && item.mileage !== null && item.mileage !== "") {
+        rawKm = item.mileage;
+      } else if (item.mileageKm !== undefined && item.mileageKm !== null && item.mileageKm !== "") {
+        rawKm = item.mileageKm;
+      }
+
+      let km = 0;
+      if (typeof rawKm === 'number') {
+        km = rawKm;
+      } else if (rawKm) {
+        km = parseInt(String(rawKm).replace(/[^0-9]/g, '')) || 0;
+      }
+
+      // Parse price/prijs
+      const rawPrijs = item.price !== undefined ? item.price : 0;
+      let prijs = 0;
+      if (typeof rawPrijs === 'number') {
+        prijs = rawPrijs;
+      } else if (rawPrijs) {
+        prijs = parseInt(String(rawPrijs).replace(/[^0-9]/g, '')) || 0;
+      }
+
+      // Parse year/jaar
+      let jaarVal = 0;
+      const rawYear = item.year !== undefined ? item.year : (item.bouwjaar !== undefined ? item.bouwjaar : (item.firstRegistration ? item.firstRegistration : 0));
+      if (typeof rawYear === 'number') {
+        jaarVal = rawYear;
+      } else if (rawYear) {
+        const yearStr = String(rawYear);
+        if (yearStr.includes('/')) {
+          const parts = yearStr.split('/');
+          jaarVal = parseInt(parts[parts.length - 1]) || 0;
+        } else if (yearStr.includes('-')) {
+          const parts = yearStr.split('-');
+          const p0 = parseInt(parts[0]) || 0;
+          const pN = parseInt(parts[parts.length - 1]) || 0;
+          if (p0 > 1900) jaarVal = p0;
+          else if (pN > 1900) jaarVal = pN;
+        } else {
+          jaarVal = parseInt(yearStr.replace(/[^0-9]/g, '')) || 0;
+        }
+      }
+
+      return {
+        titel: item.title || item.name || item.titel || `${merk} ${model}`,
+        prijs: prijs,
+        km: km,
+        jaar: jaarVal > 0 ? jaarVal : (item.firstRegistration ? parseInt(item.firstRegistration.split('-')[0]) || parseInt(item.firstRegistration.split('/')[1]) || 0 : 0),
+        url: item.url || ""
+      };
+    });
 
     const sliced = vergelijkbaar.slice(0, 10);
-    console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden via AutoScout24`);
+    console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden via AutoScout24 (jB2a4gY2hmOvmvbSk)`);
     return sliced;
   } catch (error) {
     console.error("Fout tijdens scrapeAutoScout24Vergelijkbaar:", error);
     return [];
   }
 }
+

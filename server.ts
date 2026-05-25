@@ -314,15 +314,16 @@ async function startServer() {
       
       console.log(`[SERVER] Start scraping for URL: ${url}`);
       
+      const tier = req.body.tier || 'free';
       let listing;
       let vergelijkbaarPromise;
 
       if (url.includes('autoscout24')) {
         listing = await scrapeAutoScout24(url);
-        if (listing) vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
       } else {
         listing = await scrapeMarktplaats(url);
-        if (listing) vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
       }
 
       if (!listing) {
@@ -333,7 +334,7 @@ async function startServer() {
       
       const [vergelijkbaar, rdw] = await Promise.all([
         vergelijkbaarPromise || Promise.resolve([]),
-        url.includes('autoscout24') ? Promise.resolve(null) : checkRDW(listing.kenteken).catch(() => null)
+        listing.kenteken ? checkRDW(listing.kenteken).catch(() => null) : Promise.resolve(null)
       ]);
 
       res.json({
@@ -806,7 +807,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
 
     const [vergelijkbaar, rdwData, fotoAnalyse] = await Promise.allSettled([
       vergelijkbaarPromise || Promise.resolve([]),
-      url.includes('autoscout24') ? Promise.resolve(null) : checkRDW(listing.kenteken),
+      listing.kenteken ? checkRDW(listing.kenteken) : Promise.resolve(null),
       // Skip AI photo analysis for free and losse_scan tier to save costs/limit features
       (reportTier === 'free' || reportTier === 'losse_scan') ? Promise.resolve(null) : analyseerFotos((listing.fotos || []).slice(0, 3))
     ]);
