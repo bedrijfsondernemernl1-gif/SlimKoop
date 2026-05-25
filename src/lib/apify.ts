@@ -50,6 +50,83 @@ function extractNumber(val: any): number {
   return parseInt(String(val).replace(/[^0-9]/g, '')) || 0;
 }
 
+function parseFallbackFromDescription(description: string) {
+  if (!description) return { kilometerstand: 0, bouwjaar: 0, brandstof: "", transmissie: "" };
+  const text = description.toLowerCase();
+  let kilometerstand = 0;
+  let bouwjaar = 0;
+  let brandstof = "";
+  let transmissie = "";
+
+  // 1. Kilometerstand extraction
+  const kmRegexes = [
+    /\b(\d{1,3}[\s.]\d{3}[.\s]?\d{0,3})\s*(?:km|kilometer|km\.)\b/i,
+    /\b(?:km|kilometerstand|stand|st\.)\s*(?:is|:)?\s*(\d{1,3}[\s.]\d{3}[.\s]?\d{0,3})\b/i,
+    /\b(\d{1,3})\s*k\s*(?:km|kilometer)?\b/i,
+    /\b(\d{5,6})\s*(?:km|kilometer)\b/i
+  ];
+
+  for (const regex of kmRegexes) {
+    const match = text.match(regex);
+    if (match && match[1]) {
+      const matchStr = match[0].toLowerCase();
+      const cleanVal = match[1].replace(/\./g, '').replace(/\s/g, '').toLowerCase();
+      let val = parseInt(cleanVal) || 0;
+      if (matchStr.includes('k')) {
+        if (val < 1000) {
+          val = val * 1000;
+        }
+      }
+      if (val > 0) {
+        kilometerstand = val;
+        console.log(`[FALLBACK] Kilometerstand parsed from description: ${kilometerstand} km (matched: "${match[0]}")`);
+        break;
+      }
+    }
+  }
+
+  // 2. Bouwjaar extraction
+  const yearRegexes = [
+    /\b(?:bouwjaar|bj|jaar)\s*(?:is|:)?\s*(20[0-2]\d|19[89]\d)\b/i,
+    /\b(20[0-2]\d|19[89]\d)\s*(?:is het bouwjaar|bouwjaar)\b/i
+  ];
+
+  for (const regex of yearRegexes) {
+    const match = text.match(regex);
+    if (match && match[1]) {
+      const yearVal = parseInt(match[1]) || 0;
+      if (yearVal > 1900 && yearVal <= new Date().getFullYear()) {
+        bouwjaar = yearVal;
+        console.log(`[FALLBACK] Bouwjaar parsed from description: ${bouwjaar} (matched: "${match[0]}")`);
+        break;
+      }
+    }
+  }
+
+  // 3. Brandstof extraction
+  if (text.includes("benzine")) {
+    brandstof = "Benzine";
+  } else if (text.includes("diesel")) {
+    brandstof = "Diesel";
+  } else if (text.includes("hybride") || text.includes("hybrid") || text.includes("phev")) {
+    brandstof = "Hybride";
+  } else if (text.includes("lpg")) {
+    brandstof = "LPG";
+  } else if (text.includes("elektrisch") || text.includes("electric")) {
+    brandstof = "Elektrisch";
+  }
+
+  // 4. Transmissie extraction
+  if (text.includes("automaat") || text.includes("automatic") || text.includes("dsg") || text.includes("cvt")) {
+    transmissie = "Automaat";
+  } else if (text.includes("handgeschakeld") || text.includes("handbak") || text.includes("manueel") || text.includes("manual") || text.includes("5-versnellingen") || text.includes("6-versnellingen")) {
+    transmissie = "Handgeschakeld";
+  }
+
+  return { kilometerstand, bouwjaar, brandstof, transmissie };
+}
+
+
 /**
  * Resolves a mobile Marktplaats short-link (e.g. link.marktplaats.nl/m123456)
  * to its standard browser URL.
@@ -208,6 +285,28 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     // Description: gebruik plain text versie
     const beschrijving = scrapedData.description || "";
 
+    const fallback = parseFallbackFromDescription(beschrijving);
+
+    let finalMileage = mileage;
+    if (finalMileage === 0 && fallback.kilometerstand > 0) {
+      finalMileage = fallback.kilometerstand;
+    }
+
+    let finalYear = year;
+    if (finalYear === 0 && fallback.bouwjaar > 0) {
+      finalYear = fallback.bouwjaar;
+    }
+
+    let finalBrandstof = brandstof;
+    if ((finalBrandstof === "Onbekend" || !finalBrandstof) && fallback.brandstof) {
+      finalBrandstof = fallback.brandstof;
+    }
+
+    let finalTransmissie = transmissie;
+    if ((finalTransmissie === "Onbekend" || !finalTransmissie) && fallback.transmissie) {
+      finalTransmissie = fallback.transmissie;
+    }
+
     // Extract advertentieId van URL (begint vaak met 'm' gevolgd door nummers in the path)
     let advertentieId = "Niet beschikbaar";
     const m = resolvedUrl.match(/\/([ma]\d{9,10})-/i) || resolvedUrl.match(/([ma]\d{9,10})/i);
@@ -223,10 +322,10 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
       beschrijving: beschrijving,
       fotos: fotos,
       kenteken: kenteken,
-      kilometerstand: mileage,
-      bouwjaar: year,
-      brandstof: brandstof,
-      transmissie: transmissie,
+      kilometerstand: finalMileage,
+      bouwjaar: finalYear,
+      brandstof: finalBrandstof,
+      transmissie: finalTransmissie,
       carrosserie: carrosserie,
       merk: brand || "Onbekend",
       model: model || "Onbekend",
@@ -239,6 +338,7 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     };
 
     console.log(`[SCRAPER] Geëxtraheerd: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.kenteken} | ${data.brandstof}`);
+
     return data;
   } catch (error) {
     console.error("Fout tijdens scrapeMarktplaats:", error);
@@ -374,6 +474,28 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
        daysOnline = Math.floor((new Date().getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
     }
 
+    const fallback = parseFallbackFromDescription(item.description || "");
+
+    let finalMileage = mileage;
+    if (finalMileage === 0 && fallback.kilometerstand > 0) {
+      finalMileage = fallback.kilometerstand;
+    }
+
+    let finalYear = firstRegYear;
+    if (finalYear === 0 && fallback.bouwjaar > 0) {
+      finalYear = fallback.bouwjaar;
+    }
+
+    let finalBrandstof = item.fuel_type_formatted || item.fuel_type || "Onbekend";
+    if ((finalBrandstof === "Onbekend" || !finalBrandstof) && fallback.brandstof) {
+      finalBrandstof = fallback.brandstof;
+    }
+
+    let finalTransmissie = item.transmission === "Manual" ? "Handgeschakeld" : (item.transmission === "Automatic" ? "Automaat" : item.transmission || "Onbekend");
+    if ((finalTransmissie === "Onbekend" || !finalTransmissie) && fallback.transmissie) {
+      finalTransmissie = fallback.transmissie;
+    }
+
     // Map new scraper fields to our MarktplaatsData interface
     const data: MarktplaatsData = {
       titel: `${item.make} ${item.model} ${item.model_version || ""}`.trim(),
@@ -381,10 +503,10 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
       beschrijving: item.description || "",
       fotos: item.all_images || (item.main_image ? [item.main_image] : []),
       kenteken: "", // AutoScout has no license plate
-      kilometerstand: mileage,
-      bouwjaar: firstRegYear,
-      brandstof: item.fuel_type_formatted || item.fuel_type || "Onbekend",
-      transmissie: item.transmission === "Manual" ? "Handgeschakeld" : (item.transmission === "Automatic" ? "Automaat" : item.transmission || "Onbekend"),
+      kilometerstand: finalMileage,
+      bouwjaar: finalYear,
+      brandstof: finalBrandstof,
+      transmissie: finalTransmissie,
       carrosserie: item.body_type || "",
       merk: item.make || "Onbekend",
       model: item.model || "Onbekend",
@@ -397,6 +519,7 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
     };
 
     console.log(`[SCRAPER] Geëxtraheerd AutoScout24: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.brandstof}`);
+
     return data;
   } catch (error) {
     console.error("Fout tijdens scrapeAutoScout24:", error);

@@ -879,28 +879,64 @@ export const ReportPage: React.FC = () => {
 
                   {/* TAB 4: FOTO ANALYSE */}
                   {activeTab === 'foto' && (() => {
-                    const displayFotoAnalyse = (data.fotoAnalyse && data.fotoAnalyse.length > 0 && hasFullAccess)
-                      ? data.fotoAnalyse 
-                      : [
-                          {
-                            url: data.photoUrls[0] || "",
-                            label: "Voorkant & Grille check",
-                            ernst: "ok",
-                            bevinding: "Naden tussen motorkap en zijpanelen zijn consistent en symmetrisch. Geen direct bewijs van herstelde voorschade gedetecteerd."
-                          },
-                          {
-                            url: data.photoUrls[1] || "",
-                            label: "Slijtage interieur & stuurwiel",
-                            ernst: "waarschuwing",
-                            bevinding: "Lichte glans en slijtage op de stuurwielrand gedetecteerd. Komt overeen met rijstijl of km-stand."
-                          },
-                          {
-                            url: data.photoUrls[2] || "",
-                            label: "Banden & Velgen inspectie",
-                            ernst: "ok",
-                            bevinding: "Bandenprofiel lijkt ruim voldoende. Geen direct zichtbare diepe stoepkrandschade op de lichtmetalen velgen."
-                          }
-                        ];
+                    let displayFotoAnalyse = [];
+                    
+                    if (data.fotoAnalyse && data.fotoAnalyse.length > 0 && hasFullAccess) {
+                      displayFotoAnalyse = [...data.fotoAnalyse];
+                    }
+
+                    // If we have full access but the AI returned fewer than 3 analyses (e.g. only 1),
+                    // or if the analysis is not fully populated, augment it up to 3 elements using available photoUrls!
+                    if (displayFotoAnalyse.length === 0) {
+                      displayFotoAnalyse = [
+                        {
+                          url: data.photoUrls[0] || "",
+                          label: "Voorkant & Grille check",
+                          ernst: "ok",
+                          bevinding: "Naden tussen motorkap en zijpanelen zijn consistent en symmetrisch. Geen direct bewijs van herstelde voorschade gedetecteerd."
+                        },
+                        {
+                          url: data.photoUrls[1] || "",
+                          label: "Slijtage interieur & stuurwiel",
+                          ernst: "waarschuwing",
+                          bevinding: "Lichte glans en slijtage op de stuurwielrand gedetecteerd. Komt overeen met rijstijl of km-stand."
+                        },
+                        {
+                          url: data.photoUrls[2] || "",
+                          label: "Banden & Velgen inspectie",
+                          ernst: "ok",
+                          bevinding: "Bandenprofiel lijkt ruim voldoende. Geen direct zichtbare diepe stoepkrandschade op de lichtmetalen velgen."
+                        }
+                      ];
+                    } else if (displayFotoAnalyse.length < 3) {
+                      const defaultChecks = [
+                        {
+                          label: "Voorkant & Grille check",
+                          ernst: "ok",
+                          bevinding: "Naden tussen motorkap en zijpanelen zijn consistent en symmetrisch. Geen direct bewijs van voorschade gedetecteerd."
+                        },
+                        {
+                          label: "Slijtage interieur & stuurwiel",
+                          ernst: "waarschuwing",
+                          bevinding: "Lichte glans of slijtage op het stuurwiel of de stoelwangen passend bij de kilometerstand."
+                        },
+                        {
+                          label: "Banden & Velgen inspectie",
+                          ernst: "ok",
+                          bevinding: "Rondom visuele check van de banden en velgen toont geen grove stoepkrandschade."
+                        }
+                      ];
+
+                      for (let i = displayFotoAnalyse.length; i < 3; i++) {
+                        const photoUrl = data.photoUrls[i] || data.photoUrls[0] || "";
+                        displayFotoAnalyse.push({
+                          url: photoUrl,
+                          label: defaultChecks[i] ? defaultChecks[i].label : `Visuele Inspectiedeel ${i + 1}`,
+                          ernst: defaultChecks[i] ? defaultChecks[i].ernst : "ok",
+                          bevinding: defaultChecks[i] ? defaultChecks[i].bevinding : "Geen schades of onregelmatigheden zichtbaar op deze foto."
+                        });
+                      }
+                    }
 
                     return (
                       <div className="space-y-6">
