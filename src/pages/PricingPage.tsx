@@ -177,7 +177,7 @@ export const PricingPage: React.FC = () => {
                { text: "Volledig persoonlijk onderhandelingsscript", included: true },
                { text: "Rapportgeschiedenis & opslag (30 dagen)", included: true },
              ]}
-             btnText={purchasing === "Slimme Koper" ? "Laden..." : "Start Slim Vergelijken"}
+             btnText={purchasing === "Slimme Koper" ? "Laden..." : "Word een Slimme Koper"}
              featured={false}
              buttonStyle="primary"
              onClick={() => handlePurchase("Slimme Koper")}
