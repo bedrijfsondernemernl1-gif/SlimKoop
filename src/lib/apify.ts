@@ -82,18 +82,46 @@ function parseFallbackFromDescription(description: string) {
 
   // 1. Kilometerstand extraction
   const kmRegexes = [
-    /\b(\d{1,3}[\s.]\d{3}[.\s]?\d{0,3})\s*(?:km|kilometer|km\.)\b/i,
-    /\b(?:km|kilometerstand|stand|st\.)\s*(?:is|:)?\s*(\d{1,3}[\s.]\d{3}[.\s]?\d{0,3})\b/i,
-    /\b(?:km|kilometerstand|stand|st\.)\s*(?:is|:)?\s*(\d{1,3}[\s.]*[xX]{2,3})\b/i,
+    // Matches "153.000 km", "153 000 kilometers", "153.000 nap km", "153.000 originele km", "153.000 km."
+    /\b(\d{1,3}[\s.]\d{3})\s*(?:[a-zA-Z]{1,12}\s+){0,2}(?:km|kilometer|km\.|kilometers)\b/i,
+    // Matches "stand: 153.000", "teller: 153.000", "km: 153.000", "stand op: 153.000"
+    /\b(?:km|kilometerstand|stand\s+op|stand|st\.|tellerstand|teller|gelopen)\s*(?:is|:)?e?s?\s*(\d{1,3}[\s.]\d{3})\b/i,
+    // Matches "slechts 153.000", "origineel 153.000"
+    /\b(?:slechts|origineel|originele)\s+(\d{1,3}[\s.]\d{3})\b/i,
+    // Matches "153.xxx" or "153 xxx" or "153.xxx km"
+    /\b(?:km|kilometerstand|stand|st\.|tellerstand|teller)\s*(?:is|:)?\s*(\d{1,3}[\s.]*[xX]{2,3})\b/i,
     /\b(\d{1,3}[\s.]*[xX]{2,3})\b/i,
-    /\b(\d{1,3})\s*k\s*(?:km|kilometer)?\b/i,
-    /\b(\d{5,6})\s*(?:km|kilometer)\b/i
+    // Matches "153k", "153k km"
+    /\b(\d{1,3})\s*k\s*(?:km|kilometer|kilometers)?\b/i,
+    // Matches "153000 km" or "153000 kilometers" (no dots)
+    /\b(\d{5,6})\s*(?:[a-zA-Z]{1,12}\s+){0,2}(?:km|kilometer|kilometers)\b/i,
+    // Matches "153.000 op de teller", "153 000 op de teller"
+    /\b(\d{1,3}[\s.]\d{3})\s*(?:op de teller|op de klok|gelopen)\b/i,
+    // Fallback: Default 3-digit dot 3-digit number
+    /\b(\d{1,3}[.]\d{3})\b/i
   ];
 
   for (const regex of kmRegexes) {
     const match = text.match(regex);
     if (match && match[1]) {
       const matchStr = match[0].toLowerCase();
+      
+      // Ensure this is not a price (e.g. € 153.000 or 153.000 euro)
+      const startIndex = text.indexOf(matchStr);
+      const precedingText = text.substring(Math.max(0, startIndex - 10), startIndex);
+      const succeedingText = text.substring(startIndex + matchStr.length, Math.min(text.length, startIndex + matchStr.length + 10));
+      
+      if (
+        precedingText.includes('€') || 
+        precedingText.includes('eur') || 
+        precedingText.includes('prijs') ||
+        succeedingText.includes('€') ||
+        succeedingText.includes('eur') ||
+        succeedingText.includes('prijs')
+      ) {
+        continue; // Skip this match as it is likely a price
+      }
+
       let cleanVal = match[1].replace(/\./g, '').replace(/\s/g, '').toLowerCase();
       
       // Vervang xs door 0s
@@ -468,7 +496,7 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     }
 
     let finalMileage = mileage;
-    if (finalMileage === 0 && fallback.kilometerstand > 0) {
+    if ((finalMileage <= 1000 || finalMileage === 0) && fallback.kilometerstand > finalMileage) {
       finalMileage = fallback.kilometerstand;
     }
 
@@ -767,32 +795,8 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
     const vergelijkbaarAll: VergelijkbaarResult[] = items
       .filter((item: any) => {
-        // Filter niet-relevante items
         const title = (item.title || "").toLowerCase();
-        
-        // Moet modelnaam bevatten (om brede Marktplaats zoekresultaten af te vangen)
-        const cleanTitle = title.replace(/-/g, ' ');
-        if (isGenericModelReplacement && kern) {
-            // Require that the title actually has the specific kern variant (e.g. "330e", "c200")
-            const hasKern = kern.split('+').every(part => cleanTitle.includes(part.toLowerCase()));
-            if (!hasKern) return false;
-        } else {
-            // Standard check: must contain the model words
-            if (modelWords.length > 0 && !modelWords.every(w => cleanTitle.includes(w))) {
-                return false;
-            }
-        }
-        
-        // Exact variant filtering: must contain at least one of the specific extra variant words if provided
-        if (extraWords && extraWords.length > 0) {
-            const hasVariantWord = extraWords.some(w => cleanTitle.includes(w.toLowerCase()));
-            if (!hasVariantWord) return false;
-        }
-
-        // Strict post-fetch filtering on motor variants with combined texts
-        if (!isMotorAndTrimMatch(combinedTexts, title)) {
-            return false;
-        }
+        if (!title) return false;
 
         const blacklist = ['gezocht', 'inkoop', 'onderdelen', 'demontage', 'export', 'defect', 'schade'];
         if (blacklist.some(w => title.includes(w))) return false;
@@ -809,9 +813,9 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
         
         let km = parseInt((attrs.mileage || "0").replace(/\./g, '')) || 0;
         const beschrijving = item.description || "";
-        if (km === 0 && beschrijving) {
+        if ((km <= 1000 || km === 0) && beschrijving) {
            const fallback = parseFallbackFromDescription(beschrijving);
-           if (fallback.kilometerstand > 0) km = fallback.kilometerstand;
+           if (fallback.kilometerstand > km) km = fallback.kilometerstand;
         }
 
         const jaarMatch = item.title?.match(/\b(19\d{2}|20\d{2})\b/);
@@ -954,7 +958,7 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
     const fallback = parseFallbackFromDescription(description);
 
     let finalMileage = mileage;
-    if (finalMileage === 0 && fallback.kilometerstand > 0) {
+    if ((finalMileage <= 1000 || finalMileage === 0) && fallback.kilometerstand > finalMileage) {
       finalMileage = fallback.kilometerstand;
     }
 
@@ -1126,9 +1130,9 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       }
       
       const beschrijving = item.description || "";
-      if (km === 0 && beschrijving) {
+      if ((km <= 1000 || km === 0) && beschrijving) {
           const fallback = parseFallbackFromDescription(beschrijving);
-          if (fallback.kilometerstand > 0) km = fallback.kilometerstand;
+          if (fallback.kilometerstand > km) km = fallback.kilometerstand;
       }
 
       // Parse price/prijs
