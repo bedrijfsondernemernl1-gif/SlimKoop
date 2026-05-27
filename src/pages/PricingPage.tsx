@@ -34,7 +34,7 @@ export const PricingPage: React.FC = () => {
     setIsConfirmModalOpen(true);
   };
 
-  const handleConfirmPurchase = async () => {
+  const handleConfirmPurchase = async (couponCode: string | null = null) => {
     if (!selectedPackage || !user) return;
     setPurchasing(selectedPackage);
     try {
@@ -52,6 +52,7 @@ export const PricingPage: React.FC = () => {
           priceId,
           userId: user.uid,
           userEmail: user.email,
+          code: couponCode,
           mode: selectedPackage === "Autohandelaar" ? "subscription" : "payment"
         })
       });

@@ -7,7 +7,7 @@ interface PaymentConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   packageName: string | null;
-  onConfirm: () => void;
+  onConfirm: (code: string | null) => void;
   isProcessing: boolean;
 }
 
@@ -63,11 +63,49 @@ export const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
   onConfirm,
   isProcessing
 }) => {
+  const [couponCode, setCouponCode] = React.useState('');
+  const [isChecking, setIsChecking] = React.useState(false);
+  const [validationResult, setValidationResult] = React.useState<any>(null);
+  const [errorMsg, setErrorMsg] = React.useState('');
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setCouponCode('');
+      setValidationResult(null);
+      setErrorMsg('');
+      setIsChecking(false);
+    }
+  }, [isOpen]);
+
   if (typeof document === 'undefined') return null;
   if (!packageName) return null;
 
   const pkg = PACKAGE_DETAILS[packageName];
   if (!pkg) return null;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setIsChecking(true);
+    setErrorMsg('');
+    setValidationResult(null);
+    try {
+      const res = await fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, packageName })
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setValidationResult(data);
+      } else {
+        setErrorMsg(data.error || 'Ongeldige kortingscode.');
+      }
+    } catch (err) {
+      setErrorMsg('Kon kortingscode niet verifiëren.');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -119,27 +157,102 @@ export const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
               </div>
 
               {/* Package Details Box */}
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h4 className="text-lg font-bold text-white">{packageName}</h4>
-                  <p className="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{pkg.description}</p>
+                  <p className="text-xs text-gray-400 mt-1 max-w-xs leading-relaxed">{pkg.description}</p>
                 </div>
                 <div className="text-right flex flex-col justify-center shrink-0 min-w-[120px] bg-accent-green/5 border border-accent-green/10 rounded-xl p-3">
-                  <div className="text-2xl sm:text-3xl font-heading font-extrabold text-white text-center">
-                    {pkg.price}
-                  </div>
+                  {validationResult ? (
+                    <>
+                      <div className="text-xs text-gray-500 line-through text-center">
+                        {pkg.price}
+                      </div>
+                      <div className="text-xl sm:text-2xl font-heading font-extrabold text-accent-green text-center">
+                        €{parseFloat(validationResult.finalPrice).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-2xl sm:text-3xl font-heading font-extrabold text-white text-center">
+                      {pkg.price}
+                    </div>
+                  )}
                   <div className="text-[10px] uppercase font-bold text-accent-green mt-0.5 tracking-wider text-center">
                     {pkg.type}
                   </div>
                 </div>
               </div>
 
+              {/* Coupon input section */}
+              <div className="bg-white/[0.01] border border-white/5 rounded-2xl p-4 mb-5">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Heb je een kortingscode?
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Bijv. INFLUENCER10"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      if (errorMsg) setErrorMsg('');
+                    }}
+                    disabled={isProcessing || isChecking || !!validationResult}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50 disabled:opacity-50 uppercase font-mono tracking-wider"
+                  />
+                  {validationResult ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCouponCode('');
+                        setValidationResult(null);
+                      }}
+                      disabled={isProcessing}
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-55 border border-red-500/20 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Wissen
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={isProcessing || isChecking || !couponCode.trim()}
+                      className="bg-white/10 hover:bg-white/20 text-white disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed border border-white/10 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5 min-w-[75px] justify-center"
+                    >
+                      {isChecking ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        "Koppelen"
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {errorMsg && (
+                  <p className="text-xs text-red-400 mt-1.5 font-medium flex items-center gap-1">
+                    <span>⚠</span> {errorMsg}
+                  </p>
+                )}
+
+                {validationResult && (
+                  <div className="text-xs text-accent-green mt-2 font-medium flex flex-col gap-0.5 bg-accent-green/5 border border-accent-green/10 rounded-lg p-2.5">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-accent-green shrink-0" />
+                      Code <strong>{validationResult.code}</strong> toegepast! (<strong>{validationResult.discountPercent}%</strong> korting)
+                    </span>
+                    <span className="text-gray-400 mt-0.5 text-[11px]">
+                      Origineel: €{validationResult.originalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 2 })} | <strong>Nieuwe prijs: €{parseFloat(validationResult.finalPrice).toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* Features checklist */}
-              <div className="mb-6">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">
+              <div className="mb-5">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2.5">
                   Inbegrepen in dit pakket:
                 </span>
-                <ul className="space-y-2.5">
+                <ul className="space-y-2">
                   {pkg.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
                       <div className="rounded-full p-0.5 shrink-0 flex items-center justify-center h-5 w-5 mt-0.5 bg-accent-green/10 text-accent-green">
@@ -152,7 +265,7 @@ export const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
               </div>
 
               {/* Secure payment banner */}
-              <div className="mb-6 bg-white/[0.01] border border-white/5 p-3.5 rounded-xl flex items-center gap-3">
+              <div className="mb-5 bg-white/[0.01] border border-white/5 p-3 rounded-xl flex items-center gap-3">
                 <ShieldCheck className="w-6 h-6 text-accent-green" />
                 <div className="text-left">
                   <span className="text-xs font-bold text-white block">Beveiligde Transactie</span>
@@ -164,7 +277,7 @@ export const PaymentConfirmModal: React.FC<PaymentConfirmModalProps> = ({
               <div className="flex flex-col gap-3 mt-auto">
                 <button
                   id="confirm-payment-button"
-                  onClick={onConfirm}
+                  onClick={() => onConfirm(validationResult ? validationResult.code : null)}
                   disabled={isProcessing}
                   className="w-full py-4 px-6 rounded-xl bg-accent-green hover:bg-accent-green/90 disabled:bg-accent-green/50 text-black font-extrabold text-base transition-all active:scale-[0.98] shadow-[0_4px_25px_rgba(0,200,83,0.2)] flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >

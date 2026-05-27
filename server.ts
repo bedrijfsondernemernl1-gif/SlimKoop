@@ -240,8 +240,62 @@ async function startServer() {
     }
   });
 
+  const BUILT_IN_CODES = ["TEST10", "INFLUENCER10", "PROMO10", "COUPON10", "START10", "MICRO20"];
+
+  app.post("/api/validate-coupon", async (req, res) => {
+    const { code, packageName } = req.body;
+    if (!code || !packageName) {
+      return res.status(400).json({ valid: false, error: "Code en pakket zijn verplicht" });
+    }
+
+    const cleanCode = code.toUpperCase().trim();
+
+    try {
+      let isValid = false;
+      if (BUILT_IN_CODES.includes(cleanCode)) {
+        isValid = true;
+      } else {
+        const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docData = querySnapshot.docs[0].data();
+          if (docData.actief === true || docData.actief === undefined) {
+            isValid = true;
+          }
+        }
+      }
+
+      if (!isValid) {
+        return res.json({ valid: false, error: "Ongeldige of verlopen kortingscode" });
+      }
+
+      const isLosseScan = packageName === "Losse Scan";
+      const discountPercent = isLosseScan ? 5 : 10;
+      
+      let originalPrice = 9.99;
+      if (packageName === "Slimme Koper") originalPrice = 19.99;
+      else if (packageName === "Autohandelaar") originalPrice = 29.00;
+
+      const discountAmount = Math.round(originalPrice * discountPercent) / 100;
+      const finalPrice = Math.max(0, originalPrice - discountAmount);
+
+      return res.json({
+        valid: true,
+        code: cleanCode,
+        packageName,
+        originalPrice,
+        discountPercent,
+        finalPrice: finalPrice.toFixed(2),
+        discountAmount: discountAmount.toFixed(2)
+      });
+    } catch (err: any) {
+      console.error("[SERVER] Fout bij valideren kortingscode:", err);
+      return res.status(500).json({ valid: false, error: "Interne serverfout bij valideren" });
+    }
+  });
+
   app.post("/api/create-checkout-session", async (req, res) => {
-    const { priceId, userId, userEmail } = req.body;
+    const { priceId, userId, userEmail, code } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -265,6 +319,38 @@ async function startServer() {
         description = "OccasionScan.nl - Autohandelaar (Maandabonnement)";
         permissies = "autohandelaar";
         pakket = "Autohandelaar";
+      }
+
+      // Check of er een geldige kortingscode is meegegeven
+      let appliedCode = "";
+      let appliedDiscount = 0;
+      if (code) {
+        const cleanCode = code.toUpperCase().trim();
+        let isValidCode = false;
+        if (BUILT_IN_CODES.includes(cleanCode)) {
+          isValidCode = true;
+        } else {
+          const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const docData = querySnapshot.docs[0].data();
+            if (docData.actief === true || docData.actief === undefined) {
+              isValidCode = true;
+            }
+          }
+        }
+
+        if (isValidCode) {
+          const isLosseScan = pakket === "Losse Scan";
+          const discountPercent = isLosseScan ? 5 : 10;
+          const origVal = parseFloat(amountValue);
+          const discountAmount = Math.round(origVal * discountPercent) / 100;
+          const finalVal = Math.max(0, origVal - discountAmount);
+          amountValue = finalVal.toFixed(2);
+          description += ` (Via code: ${cleanCode} - ${discountPercent}% korting)`;
+          appliedCode = cleanCode;
+          appliedDiscount = discountPercent;
+        }
       }
 
       // Check of de gebruiker al een Mollie Customer ID heeft
@@ -332,7 +418,9 @@ async function startServer() {
           priceId,
           permissies,
           pakket,
-          email: userEmail
+          email: userEmail,
+          kortingscode: appliedCode || undefined,
+          kortingspercentage: appliedDiscount || undefined
         }
       };
 
@@ -351,7 +439,8 @@ async function startServer() {
         pendingMolliePaymentId: payment.id,
         pendingMolliePaymentStatus: "open",
         pendingMolliePakket: pakket,
-        pendingMolliePermissies: permissies
+        pendingMolliePermissies: permissies,
+        pendingMollieKortingscode: appliedCode || null
       }, { merge: true });
 
       res.json({ url: payment.getCheckoutUrl() || payment._links?.checkout?.href });
