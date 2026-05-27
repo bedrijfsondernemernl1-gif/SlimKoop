@@ -130,7 +130,7 @@ export const useStore = create<StoreState>((set) => {
         console.error("Failed to sync user doc:", err);
       }
 
-      // Proactively sync subscription with Stripe
+      // Proactively sync subscription status with Mollie/backend
       try {
         await fetch('/api/sync-subscription', {
           method: 'POST',
@@ -138,7 +138,7 @@ export const useStore = create<StoreState>((set) => {
           body: JSON.stringify({ userId: user.uid })
         });
       } catch(e) {
-        console.error("Failed to sync Stripe subscription:", e);
+        console.error("Failed to sync Mollie subscription:", e);
       }
     }
 

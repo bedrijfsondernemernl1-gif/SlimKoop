@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings, AlertCircle, Loader2 } from 'lucide-react';
+import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings, AlertCircle, Loader2, Home, LogOut } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useStore } from '@/src/store/useStore';
 import { doc, setDoc } from 'firebase/firestore';
@@ -19,11 +19,12 @@ export const Dashboard: React.FC = () => {
   const subscriptionPlan = useStore(state => state.subscriptionPlan);
   const permissies = useStore(state => state.permissies);
   const scansOver = useStore(state => state.scansOver);
+  const logout = useStore(state => state.logout);
   
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
+    const sessionId = searchParams.get('session_id') || searchParams.get('payment_id');
     const isSuccess = searchParams.get('success');
 
     if (isSuccess === 'true') {
@@ -92,7 +93,7 @@ export const Dashboard: React.FC = () => {
     isActive ? "text-accent-green drop-shadow-[0_0_8px_rgba(0,200,83,0.5)]" : "text-gray-400";
 
   return (
-    <div className="flex h-[100dvh] pt-[88px] relative z-10 w-full bg-black">
+    <div className="flex h-[100dvh] pt-[100px] md:pt-[110px] relative z-10 w-full bg-black">
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-black border border-accent-green/50 p-8 rounded-2xl max-w-sm text-center shadow-2xl">
@@ -103,8 +104,9 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
       {/* Desktop Sidebar */}
-      <aside className="w-64 hidden md:flex flex-col border-r border-white/10 p-6 bg-black relative">
+      <aside className="w-64 hidden md:flex flex-col border-r border-white/10 p-6 bg-black relative shrink-0">
         <div className="absolute top-0 left-0 w-32 h-32 bg-primary-dark/50 blur-3xl rounded-full pointer-events-none"></div>
+
         <div className="space-y-2 flex-1 relative z-10">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/dashboard/');
@@ -122,7 +124,7 @@ export const Dashboard: React.FC = () => {
           })}
         </div>
         
-        <div className="p-5 bg-gradient-to-br from-primary-dark/60 to-black/60 rounded-2xl border border-white/5 text-sm relative overflow-hidden group">
+        <div className="p-5 bg-gradient-to-br from-primary-dark/60 to-black/60 rounded-2xl border border-white/5 text-sm relative overflow-hidden group mb-4 shrink-0">
           <div className="absolute inset-0 bg-accent-green/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
           <div className="relative z-10">
             <p className="font-semibold text-white mb-1 flex items-center gap-2">
@@ -141,12 +143,13 @@ export const Dashboard: React.FC = () => {
             </Button>
           </div>
         </div>
+
       </aside>
 
       {/* Main content */}
       <main className="flex-1 flex flex-col bg-black/40 backdrop-blur-3xl overflow-hidden relative">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary-dark/20 blur-[100px] rounded-full pointer-events-none"></div>
-        
+
         {/* Mobile Navigation Tabs */}
         <div className="md:hidden flex overflow-x-auto gap-2 px-6 py-4 border-b border-white/5 scrollbar-hide shrink-0 items-center bg-black/50 backdrop-blur-md relative z-20">
           {menuItems.map((item) => {

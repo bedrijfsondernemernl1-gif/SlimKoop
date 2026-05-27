@@ -60,11 +60,12 @@ export const Navbar: React.FC = () => {
   ];
 
   const isBlogPostPage = location.pathname.startsWith('/blog/');
+  const isDashboard = location.pathname.startsWith('/dashboard');
   
   return (
     <>
       <motion.nav 
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out px-4 py-4 pointer-events-none"
+        className={`fixed ${isDashboard ? 'top-0' : 'top-11'} left-0 right-0 z-50 transition-all duration-500 ease-in-out px-4 py-4 pointer-events-none`}
       >
         <div className={`mx-auto max-w-7xl transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-auto rounded-[2rem] ${
           (isScrolled || isBlogPostPage) 

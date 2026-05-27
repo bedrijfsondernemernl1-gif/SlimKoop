@@ -74,7 +74,7 @@ export const TermsPage: React.FC = () => {
               <section>
                 <h2 className="text-2xl font-bold text-white mb-4">4. Betalingen en Abonnementen</h2>
                 <p>
-                  Premium diensten worden gefactureerd via Stripe. Abonnementen worden automatisch verlengd, tenzij je deze opzegt via jouw dashboardinstellingen. Restitutie voor verbruikte diensten is in de regel niet mogelijk.
+                  Premium diensten worden gefactureerd via Mollie. Abonnementen worden automatisch verlengd, tenzij je deze opzegt via jouw dashboardinstellingen. Restitutie voor verbruikte diensten is in de regel niet mogelijk.
                 </p>
               </section>
 

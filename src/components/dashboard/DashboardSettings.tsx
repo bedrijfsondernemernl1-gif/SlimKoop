@@ -68,7 +68,7 @@ export const DashboardSettings: React.FC = () => {
     const isAdmin = adminEmails.includes((user.email || '').toLowerCase());
     
     if (isPremium && subscriptionPlan !== 'Losse Scan' && !isAdmin) {
-      alert("Zeg eerst je abonnement op via Abonnement Beheren voordat je je account kunt verwijderen.");
+      alert("Neem contact op met support@occasionscan.nl om je abonnement op te zeggen voordat je je account kunt verwijderen.");
       setShowDeleteConfirm(false);
       return;
     }
@@ -188,7 +188,7 @@ export const DashboardSettings: React.FC = () => {
                       {isPremium ? (subscriptionPlan || 'Abonnement') : 'Gratis Account'}
                     </h4>
                     <p className="text-gray-400">
-                      {isPremium ? 'Actief abonnement via Stripe.' : 'Beperkte toegang. Upgrade voor volledige inzichten.'}
+                      {isPremium ? 'Actief abonnement.' : 'Beperkte toegang. Upgrade voor volledige inzichten.'}
                     </p>
                   </div>
                   <div className="text-right">
@@ -201,13 +201,23 @@ export const DashboardSettings: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex gap-3 relative z-10">
-                  <Button 
-                    className="bg-white text-black hover:bg-gray-200 font-semibold rounded-xl flex-1"
-                    onClick={() => isPremium ? window.open('https://billing.stripe.com/p/login/bJe4gBfEA966adC2Ha1ck00', '_blank') : navigate('/prijzen')}
-                  >
-                    {isPremium ? 'Lidmaatschap Beheren' : 'Upgrade nu'}
-                  </Button>
+                <div className="mt-4 border-t border-white/10 pt-4 relative z-10">
+                  {isPremium ? (
+                    <p className="text-sm text-gray-400">
+                      Voor het wijzigen of annuleren van je actieve abonnement kun je mailen naar{" "}
+                      <a href="mailto:support@occasionscan.nl" className="text-accent-green hover:underline font-medium">
+                        support@occasionscan.nl
+                      </a>
+                      .
+                    </p>
+                  ) : (
+                    <Button 
+                      className="bg-accent-green hover:bg-accent-green/90 text-black font-semibold rounded-xl w-full h-11"
+                      onClick={() => navigate('/prijzen')}
+                    >
+                      Upgrade nu
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -220,8 +230,8 @@ export const DashboardSettings: React.FC = () => {
                          <CreditCard className="w-5 h-5 text-gray-400" />
                       </div>
                       <div>
-                        <p className="text-white font-medium">Betaling via Stripe</p>
-                        <p className="text-xs text-gray-500">Beheer via het portaal</p>
+                        <p className="text-white font-medium">Betaling via iDEAL / Bancontact</p>
+                        <p className="text-xs text-gray-500">Veilig verwerkt door Mollie</p>
                       </div>
                     </div>
                   </div>

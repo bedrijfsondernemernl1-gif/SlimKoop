@@ -19,6 +19,7 @@ export interface MarktplaatsData {
   aantalAdvertenties: number;
   dagenOnline: number;
   advertentieId?: string;
+  variant?: string;
 }
 
 export interface VergelijkbaarResult {
@@ -57,11 +58,34 @@ function parseFallbackFromDescription(description: string) {
   let bouwjaar = 0;
   let brandstof = "";
   let transmissie = "";
+  let kenteken = "";
+
+  // 0. Kenteken extraction
+  const kentekenRegexes = [
+    /\bkenteken\s*(?:is|:)?\s*([a-zA-Z0-9-]{6,10})\b/i,
+    /\b([A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2})\b/i,
+    /\b([A-Z0-9]{1,3}-[A-Z0-9]{1,3}-[A-Z0-9]{1,3})\b/i
+  ];
+
+  for (const regex of kentekenRegexes) {
+    const match = text.match(regex);
+    if (match && match[1]) {
+      const k = match[1].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      // Basic check: must be exactly 6 chars for Dutch license plates (usually)
+      if (k.length === 6) {
+        kenteken = k;
+        console.log(`[FALLBACK] Kenteken parsed from description: ${kenteken} (matched: "${match[0]}")`);
+        break;
+      }
+    }
+  }
 
   // 1. Kilometerstand extraction
   const kmRegexes = [
     /\b(\d{1,3}[\s.]\d{3}[.\s]?\d{0,3})\s*(?:km|kilometer|km\.)\b/i,
     /\b(?:km|kilometerstand|stand|st\.)\s*(?:is|:)?\s*(\d{1,3}[\s.]\d{3}[.\s]?\d{0,3})\b/i,
+    /\b(?:km|kilometerstand|stand|st\.)\s*(?:is|:)?\s*(\d{1,3}[\s.]*[xX]{2,3})\b/i,
+    /\b(\d{1,3}[\s.]*[xX]{2,3})\b/i,
     /\b(\d{1,3})\s*k\s*(?:km|kilometer)?\b/i,
     /\b(\d{5,6})\s*(?:km|kilometer)\b/i
   ];
@@ -70,13 +94,27 @@ function parseFallbackFromDescription(description: string) {
     const match = text.match(regex);
     if (match && match[1]) {
       const matchStr = match[0].toLowerCase();
-      const cleanVal = match[1].replace(/\./g, '').replace(/\s/g, '').toLowerCase();
+      let cleanVal = match[1].replace(/\./g, '').replace(/\s/g, '').toLowerCase();
+      
+      // Vervang xs door 0s
+      if (cleanVal.includes('x')) {
+        cleanVal = cleanVal.replace(/x/g, '0');
+      }
+
       let val = parseInt(cleanVal) || 0;
-      if (matchStr.includes('k')) {
+      
+      // Fix cases where 137xx could mean 137000 but was typed with two x's.
+      if (matchStr.includes('x') && val >= 1000 && val < 50000) {
+        val = val * 10;
+      }
+
+      const matchK = matchStr.match(/\d\s*k/);
+      if (matchK || (matchStr.includes('k') && !matchStr.includes('km') && matchStr.includes('kilometer') === false)) {
         if (val < 1000) {
           val = val * 1000;
         }
       }
+      
       if (val > 0) {
         kilometerstand = val;
         console.log(`[FALLBACK] Kilometerstand parsed from description: ${kilometerstand} km (matched: "${match[0]}")`);
@@ -123,7 +161,7 @@ function parseFallbackFromDescription(description: string) {
     transmissie = "Handgeschakeld";
   }
 
-  return { kilometerstand, bouwjaar, brandstof, transmissie };
+  return { kilometerstand, bouwjaar, brandstof, transmissie, kenteken };
 }
 
 
@@ -211,6 +249,143 @@ function getAttribute(scrapedData: any, keys: string[]): string {
   return '';
 }
 
+function getVariantFromScrapedData(scrapedData: any): string {
+  if (!scrapedData) return "";
+  const attrs = scrapedData.attributes || {};
+  
+  // Try common keys for variant/trim/execution in attributes
+  const candidateKeys = ['version', 'variant', 'trim', 'uitvoering', 'versionName', 'modelVersion', 'model_version', 'submodel'];
+  
+  // Check in attributes if it's an object
+  if (typeof attrs === 'object' && !Array.isArray(attrs)) {
+    for (const key of candidateKeys) {
+      if (attrs[key]) {
+        return String(attrs[key]).trim();
+      }
+    }
+  }
+  
+  // Check if it's an array of attributes
+  const rawAttrs = scrapedData.attributes || scrapedData.specifications || scrapedData.properties || scrapedData.characteristics || [];
+  if (Array.isArray(rawAttrs)) {
+    const found = rawAttrs.find((a: any) => {
+      const label = (a.key || a.name || a.label || "").toLowerCase().trim();
+      return candidateKeys.some(k => label === k || label.includes(k));
+    });
+    if (found) {
+      return String(found.value || found.text || "").trim();
+    }
+  }
+
+  // Also check top-level properties of scrapedData
+  for (const key of candidateKeys) {
+    if (scrapedData[key]) {
+      return String(scrapedData[key]).trim();
+    }
+  }
+
+  // If we can't find anything, let's try to extract from title by removing brand and model
+  const title = (scrapedData.title || "").trim();
+  const brand = (scrapedData.brand || attrs.brand?.split(' ')[0] || "").trim();
+  const model = (scrapedData.model || attrs.brand?.split(' ').slice(1).join(' ') || "").trim();
+
+  if (title && brand && model) {
+    let relativeTitle = title;
+    // Replace brand case-insensitively
+    relativeTitle = relativeTitle.replace(new RegExp(brand.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), '');
+    // Replace model case-insensitively
+    relativeTitle = relativeTitle.replace(new RegExp(model.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'), '');
+    
+    // Clean up multiple spaces and trim
+    relativeTitle = relativeTitle.replace(/\s+/g, ' ').trim();
+    
+    // Let's filter out extra stuff like years
+    relativeTitle = relativeTitle.replace(/\b(19\d{2}|20\d{2})\b/g, '');
+    
+    // Clean up spaces again
+    relativeTitle = relativeTitle.replace(/\s+/g, ' ').trim();
+    
+    // Check if what is left is reasonable and check for submodels / motorisation
+    if (relativeTitle.length > 2 && relativeTitle.length < 35) {
+      return relativeTitle;
+    }
+  }
+  
+  return "";
+}
+
+function extractSpecificKeywords(variant: string, title: string, model: string): string[] {
+  const words: string[] = [];
+  const text = `${variant} ${title}`.toLowerCase();
+  
+  // Clean model lowercase
+  const cleanModel = model.toLowerCase();
+
+  // Pattern A: Displacement + Fuel/Engine (e.g., "1.8 tsi", "2.0 tdi", "1.4 tfsi", "1.6 hdi", "1.5 dci")
+  const engineRegex = /\b\d\.\d\s*(?:tsi|tfsi|tdi|hdi|dci|cdti|fsi|mpi|tgdi|t-gdi|tce|g-tec|gtec|puretech|ecoboost|vti|thp)\b/g;
+  const engineMatches = text.match(engineRegex);
+  if (engineMatches) {
+    engineMatches.forEach(m => {
+      m.split(/\s+/).forEach(w => {
+        const cleaned = w.trim();
+        if (cleaned && !words.includes(cleaned)) {
+          words.push(cleaned);
+        }
+      });
+    });
+  } else {
+    // If no full motor regex matched, look for basic engine types
+    const basicEngines = ['tsi', 'tfsi', 'tdi', 'hdi', 'dci', 'cdti', 'puretech', 'ecoboost', 'tce', 'tgdi', 'vti', 'thp', 'hybrid', 'phev', 'ev', 'electro', 'elektrisch', 'd4d', 'd-4d', 'g-tec', 'cng', 'lpg'];
+    basicEngines.forEach(eng => {
+      const regex = new RegExp(`\\b${eng}\\b`, 'i');
+      if (regex.test(text)) {
+        if (!words.includes(eng)) {
+          words.push(eng);
+        }
+      }
+    });
+    
+    // Look for basic displacements
+    const dispRegex = /\b\d\.\d\b/g;
+    const dispMatches = text.match(dispRegex);
+    if (dispMatches) {
+      dispMatches.forEach(d => {
+        if (!words.includes(d)) {
+          words.push(d);
+        }
+      });
+    }
+  }
+
+  // Pattern B: Common performance, submodel, trim, or variant badges
+  const terms = [
+    'gti', 'gtd', 'gte', 'amg', 'm sport', 'msport', 'r-line', 'rline', 's-line', 'sline', 
+    'st-line', 'stline', 'fr', 'cupra', 'rs', 'st', 'opc', 'quattro', '4motion', 'xdrive', 
+    'ultra', 'allroad', 'titanium', 'tekna', 'allure', 'executive', 'business', 'sport', 
+    'gt', 'avant', 'touring', 'e-tron', 'etron', 'lounge', 'pop', 'n-connecta', 'nconnecta',
+    'urban', 'line', 'v6', 'v8', 'kompressor'
+  ];
+
+  terms.forEach(t => {
+    const escaped = t.replace('-', '\\-');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (regex.test(text)) {
+      if (cleanModel.includes(t)) {
+        return;
+      }
+      
+      t.split(/[\s-]+/).forEach(w => {
+        const cleaned = w.trim();
+        if (cleaned && !words.includes(cleaned)) {
+          words.push(cleaned);
+        }
+      });
+    }
+  });
+
+  return words;
+}
+
 export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | null> {
   try {
     const resolvedUrl = await resolveMarktplaatsUrl(url);
@@ -245,7 +420,7 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
     const mileage = parseInt(mileageStr.replace(/\./g, '').replace(/\s/g, '')) || 0;
     
     // Kenteken direct beschikbaar
-    const kenteken = (scrapedData.licensePlate || "").replace(/[-\s]/g, '').toUpperCase();
+    let kenteken = (scrapedData.licensePlate || attrs.licensePlate || attrs.kenteken || "").replace(/[-\s]/g, '').toUpperCase();
     
     // Brandstof, transmissie, carrosserie direct uit attributes
     const brandstof = attrs.fuel || "Onbekend";
@@ -287,6 +462,11 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
 
     const fallback = parseFallbackFromDescription(beschrijving);
 
+    let finalKenteken = kenteken;
+    if (!finalKenteken && fallback.kenteken) {
+      finalKenteken = fallback.kenteken;
+    }
+
     let finalMileage = mileage;
     if (finalMileage === 0 && fallback.kilometerstand > 0) {
       finalMileage = fallback.kilometerstand;
@@ -321,7 +501,7 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
       prijs: prijs,
       beschrijving: beschrijving,
       fotos: fotos,
-      kenteken: kenteken,
+      kenteken: finalKenteken,
       kilometerstand: finalMileage,
       bouwjaar: finalYear,
       brandstof: finalBrandstof,
@@ -334,7 +514,8 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
       verkoperSinds: lidSinds,
       aantalAdvertenties: aantalAds,
       dagenOnline: dagenOnline,
-      advertentieId: advertentieId
+      advertentieId: advertentieId,
+      variant: getVariantFromScrapedData(scrapedData)
     };
 
     console.log(`[SCRAPER] Geëxtraheerd: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.kenteken} | ${data.brandstof}`);
@@ -346,7 +527,160 @@ export async function scrapeMarktplaats(url: string): Promise<MarktplaatsData | 
   }
 }
 
-export async function scrapeVergelijkbaar(merk: string, model: string, jaar: number): Promise<VergelijkbaarResult[]> {
+function extractGenerationFromTitle(titel: string, model: string): string {
+  const t = (titel || "").toLowerCase();
+  const m = (model || "").toLowerCase();
+
+  // 1. Audi models: look for A3 8V, A1 8X, A3 8P, A3 8Y, A4 B8, A4 B9, A6 C7, A6 C8 etc.
+  if (m.includes('a1') || m.includes('a3') || m.includes('a4') || m.includes('a5') || m.includes('a6')) {
+    const audiMatch = t.match(/\b(8v|8p|8y|8x|b8|b9|c7|c8)\b/i);
+    if (audiMatch) return audiMatch[0].toLowerCase();
+  }
+
+  // 2. Golf models: look for Golf 5, Golf 6, Golf 7, Golf 8, Golf V, Golf VI, Golf VII, Golf VIII
+  if (m.includes('golf')) {
+    const golfMatch = t.match(/\bgolf\s+(3|4|5|6|7|8|iii|iv|v|vi|vii|viii)\b/i);
+    if (golfMatch) return golfMatch[1].toLowerCase();
+    
+    const spaceMatch = t.match(/\bgolf\s+(\d+)\b/i);
+    if (spaceMatch) return spaceMatch[1].toLowerCase();
+  }
+
+  // 3. Polo models: Polo 6R, Polo 6C, Polo AW, Polo 9N
+  if (m.includes('polo')) {
+    const poloMatch = t.match(/\b(6r|6c|aw|9n)\b/i);
+    if (poloMatch) return poloMatch[0].toLowerCase();
+  }
+
+  // 4. BMW models: 1-serie/3-serie/etc: F20, F21, F30, F31, F34, F36, G20, G30, E46, E90, E91, E92, E39, E60
+  const bmwMatch = t.match(/\b(f20|f21|f30|f31|f32|f33|f34|f36|f40|g20|g21|g30|g31|e46|e90|e91|e92|e39|e60)\b/i);
+  if (bmwMatch) return bmwMatch[0].toLowerCase();
+
+  // 5. Generic checks: model name + number (e.g. "clio 4", "clio iv", "leon 3")
+  const escapedModel = m.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const genericModelRegex = new RegExp(`\\b${escapedModel}\\s+(1|2|3|4|5|vi|v|iv|iii|ii|i)\\b`, 'i');
+  const genericModelMatch = t.match(genericModelRegex);
+  if (genericModelMatch) return genericModelMatch[1].toLowerCase();
+
+  return "";
+}
+
+function isMotorAndTrimMatch(originalText: string, candidateText: string): boolean {
+  const orig = originalText.toLowerCase();
+  const cand = candidateText.toLowerCase();
+
+  const engineCodes = [
+    "t2", "t3", "t4", "t5", "t6", "t8", 
+    "d2", "d3", "d4", "d5", 
+    "b2", "b3", "b4", "b5", "b6", 
+    "p6", "p8", 
+    "330e", "520d", "320i", "330i", "530e", 
+    "c200", "a180", "e220", "cla200",
+    "35", "40", "45", "50",
+    "tdi", "tfsi", "tsi", "fsi"
+  ];
+  
+  const hasWord = (text: string, code: string) => {
+    const escaped = code.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    return regex.test(text);
+  };
+
+  // 1. Engine code checking: if original has any engine codes, candidate must have the exact same one.
+  const origEngineCode = engineCodes.find(code => hasWord(orig, code));
+  if (origEngineCode) {
+    if (!hasWord(cand, origEngineCode)) {
+      return false;
+    }
+  }
+
+  // 2. Mutual exclusivity of electric vehicles to avoid mixing Recharge (EV) with regular/hybrid models
+  const electricTerms = ["recharge", "electric", "elektrisch", "ev", "p6", "p8"];
+  const isOrigElectric = electricTerms.some(term => hasWord(orig, term));
+  const isCandElectric = electricTerms.some(term => hasWord(cand, term));
+  if (isOrigElectric !== isCandElectric) {
+    return false;
+  }
+
+  // 3. Performance trims: GTI, GTD, GTE, RS, ST, Cupra, FR, AMG
+  const performanceBadges = ["gti", "gtd", "gte", "rs", "st", "cupra", "fr", "amg"];
+  const origBadge = performanceBadges.find(badge => hasWord(orig, badge));
+  if (origBadge) {
+    if (!hasWord(cand, origBadge)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function parseKernvariant(variant: string, titel: string, model: string, merk: string): { kern: string; isGenericModelReplacement: boolean } {
+  const v = (variant || "").trim().toLowerCase();
+  const t = (titel || "").trim().toLowerCase();
+  const m = (model || "").trim().toLowerCase();
+  const brand = (merk || "").trim().toLowerCase();
+
+  // Combine variant and title
+  const combined = `${v} ${t}`.toLowerCase();
+
+  // 1. Check for specific BMW / Mercedes / Audi code patterns
+  // Pattern 1: BMW style 3 digits + letter (e.g. 330e, 520d, 320i, 118d, 530e, m340i)
+  const bmwRegex = /\b(m?\d{3}[a-z]?)\b/i;
+  // Pattern 2: Mercedes style letter + 3 digits (e.g. c200, a180, e220, cla180, gla200, glc250, c300e, e300de)
+  const mbRegex = /\b([a-z]{1,3}\d{3}[a-z]?)\b/i;
+
+  let bmwMatch = combined.match(bmwRegex);
+  let mbMatch = combined.match(mbRegex);
+
+  // General check for model replacement in search query
+  const isGenericModel = m.includes("serie") || m.includes("series") || m.includes("klasse") || m.includes("class") || m.includes("range");
+
+  if (brand.includes("bmw") && bmwMatch) {
+    return { kern: bmwMatch[1].toLowerCase(), isGenericModelReplacement: isGenericModel };
+  }
+  if ((brand.includes("mercedes") || brand.includes("mb")) && mbMatch) {
+    return { kern: mbMatch[1].toLowerCase(), isGenericModelReplacement: isGenericModel };
+  }
+
+  // 2. Specific known Audi engine designations (e.g., "35 tfsi", "40 tdi", "30 tfsi")
+  const audiEngineRegex = /\b(\d{2}\s*(?:tfsi|tdi|fsi))\b/i;
+  const audiEngineMatch = combined.match(audiEngineRegex);
+  if (brand.includes("audi") && audiEngineMatch) {
+    return { kern: audiEngineMatch[1].replace(/\s+/g, '+').toLowerCase(), isGenericModelReplacement: false };
+  }
+
+  // 3. Volvo core engine codes (T5, T4, T8, D4, etc.)
+  const volvoEngineRegex = /\b([tbdp]\d)\b/i;
+  const volvoEngineMatch = combined.match(volvoEngineRegex);
+  if (brand.includes("volvo") && volvoEngineMatch) {
+    return { kern: volvoEngineMatch[1].toLowerCase(), isGenericModelReplacement: false };
+  }
+
+  // 4. Sporty / Specific Badges (GTI, R, RS, Cupra, AMG, ST, GT, FR)
+  const specificBadges = ["gti", "gtd", "gte", "r", "rs", "cupra", "st", "gt", "fr", "amg", "r-line", "rline", "s-line", "sline", "m-sport", "msport"];
+  for (const badge of specificBadges) {
+    const regex = new RegExp(`\\b${badge}\\b`, 'i');
+    if (regex.test(combined)) {
+      return { kern: badge, isGenericModelReplacement: false };
+    }
+  }
+
+  // Fallback: If no specific kernvariant is found, look in the variant for the first 1-2 words that are not empty/common
+  if (v) {
+    const words = v.split(/[\s,|-]+/).map(w => w.trim().toLowerCase()).filter(w => {
+      if (w.length <= 1) return false;
+      const common = ["pks", "pk", "aut", "automaat", "transmissie", "nap", "bouwjaar", "kleur", "marge", "btw", "garantie", "dealer", "nieuw", "mooie", "zeer", "apk", "leder", "pano", "line", "luxe"];
+      return !common.includes(w);
+    });
+    if (words.length > 0) {
+      return { kern: words.slice(0, 2).join("+"), isGenericModelReplacement: false };
+    }
+  }
+
+  return { kern: "", isGenericModelReplacement: false };
+}
+
+export async function scrapeVergelijkbaar(merk: string, model: string, jaar: number, variant: string = "", titel: string = ""): Promise<VergelijkbaarResult[]> {
   if (!merk || !model) {
     console.log("[SCRAPER] Geen merk of model voor vergelijkbaar zoeken");
     return [];
@@ -360,19 +694,55 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     const merkLower = merk.trim().toLowerCase();
     const modelLower = model.trim().toLowerCase();
 
-    // Create a slug for the path: replace spaces and non-alphanumeric chars with hyphens
-    let merkSlug = merkLower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    if (merkSlug === 'mercedes' || merkSlug === 'mercedesbenz' || merkSlug === 'mercedes-benz') {
-      merkSlug = 'mercedes-benz';
+    // Replace non-alphanumeric with hyphens for slug
+    // Force strictly the brand word (e.g. "seat" instead of "seat-leon")
+    let merkWord = merkLower.split(/\s+|-/)[0];
+    let merkSlug = merkWord.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    
+    // Brand overrides
+    if (merkSlug === 'mercedes' || merkSlug === 'mercedesbenz') merkSlug = 'mercedes-benz';
+    if (merkSlug === 'alfa') merkSlug = 'alfa-romeo';
+    if (merkSlug === 'aston') merkSlug = 'aston-martin';
+    if (merkSlug === 'land') merkSlug = 'land-rover';
+    if (merkSlug === 'vw') merkSlug = 'volkswagen';
+
+    const trimText = (variant || "").trim();
+    const titleText = (titel || "").trim();
+    const combinedTexts = `${trimText} ${titleText}`.toLowerCase();
+
+    // Parse the kernvariant and model replacement strategy (e.g., replace '3-Serie' with '330e')
+    const { kern, isGenericModelReplacement } = parseKernvariant(variant, titel, model, merk);
+
+    // Build priority-based specific query term
+    let queryElements: string[] = [merkSlug];
+    
+    if (isGenericModelReplacement && kern) {
+      // Replace the generic model entirely. We just search: brand + kernvariant
+      queryElements.push(kern);
+    } else {
+      // Include the model
+      const modelWordsArr = modelLower.split(/[\s-]+/).filter(Boolean);
+      modelWordsArr.forEach(w => {
+        if (!queryElements.includes(w)) {
+          queryElements.push(w);
+        }
+      });
+      
+      // Also include the kern if it's not already in there
+      if (kern) {
+        kern.split('+').forEach(part => {
+          if (!queryElements.includes(part)) {
+            queryElements.push(part);
+          }
+        });
+      }
     }
 
-    // For query, replace spaces and non-alphanumeric with '+'
-    let brandQuery = merkLower.replace(/[^a-z0-9]+/g, '+');
-    if (brandQuery === "mercedes+benz") {
-      brandQuery = "mercedes";
-    }
-    const modelQuery = modelLower.replace(/[^a-z0-9]+/g, '+');
-    const queryTerm = `${brandQuery}+${modelQuery}`.replace(/\++/g, '+').replace(/^\+|\+$/g, '');
+    // Construct final clean term
+    let queryTerm = queryElements.join('+').replace(/\++/g, '+').replace(/^\+|\+$/g, '');
+    
+    // Maintain extraWords array for subsequent result filtering
+    const extraWords = kern ? kern.split('+') : [];
 
     const yearFrom = jaar > 1900 ? jaar - 1 : '';
     const yearTo = jaar > 1900 ? jaar + 1 : '';
@@ -395,14 +765,32 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
       .map(w => w.trim())
       .filter(w => w.length > 1);
 
-    const vergelijkbaar: VergelijkbaarResult[] = items
+    const vergelijkbaarAll: VergelijkbaarResult[] = items
       .filter((item: any) => {
         // Filter niet-relevante items
         const title = (item.title || "").toLowerCase();
         
         // Moet modelnaam bevatten (om brede Marktplaats zoekresultaten af te vangen)
         const cleanTitle = title.replace(/-/g, ' ');
-        if (modelWords.length > 0 && !modelWords.every(w => cleanTitle.includes(w))) {
+        if (isGenericModelReplacement && kern) {
+            // Require that the title actually has the specific kern variant (e.g. "330e", "c200")
+            const hasKern = kern.split('+').every(part => cleanTitle.includes(part.toLowerCase()));
+            if (!hasKern) return false;
+        } else {
+            // Standard check: must contain the model words
+            if (modelWords.length > 0 && !modelWords.every(w => cleanTitle.includes(w))) {
+                return false;
+            }
+        }
+        
+        // Exact variant filtering: must contain at least one of the specific extra variant words if provided
+        if (extraWords && extraWords.length > 0) {
+            const hasVariantWord = extraWords.some(w => cleanTitle.includes(w.toLowerCase()));
+            if (!hasVariantWord) return false;
+        }
+
+        // Strict post-fetch filtering on motor variants with combined texts
+        if (!isMotorAndTrimMatch(combinedTexts, title)) {
             return false;
         }
 
@@ -418,9 +806,21 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
       .map((item: any) => {
         const attrs = item.attributes || {};
         const prijs = item.price?.priceCents ? Math.round(item.price.priceCents / 100) : 0;
-        const km = parseInt((attrs.mileage || "0").replace(/\./g, '')) || 0;
+        
+        let km = parseInt((attrs.mileage || "0").replace(/\./g, '')) || 0;
+        const beschrijving = item.description || "";
+        if (km === 0 && beschrijving) {
+           const fallback = parseFallbackFromDescription(beschrijving);
+           if (fallback.kilometerstand > 0) km = fallback.kilometerstand;
+        }
+
         const jaarMatch = item.title?.match(/\b(19\d{2}|20\d{2})\b/);
-        const parseJaar = parseInt(item.constructionYear || attrs.constructionYear || (jaarMatch ? jaarMatch[1] : "0")) || 0;
+        let parseJaar = parseInt(item.constructionYear || attrs.constructionYear || (jaarMatch ? jaarMatch[1] : "0")) || 0;
+        if (parseJaar === 0 && beschrijving) {
+           const fallback = parseFallbackFromDescription(beschrijving);
+           if (fallback.bouwjaar > 0) parseJaar = fallback.bouwjaar;
+        }
+
         let fullUrl = item.url || "";
         if (fullUrl && !fullUrl.startsWith("http")) {
           fullUrl = "https://www.marktplaats.nl" + fullUrl;
@@ -433,6 +833,12 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
           url: fullUrl
         };
       });
+
+    let vergelijkbaar = vergelijkbaarAll.filter(v => v.jaar === jaar);
+    if (vergelijkbaar.length < 10) {
+      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1);
+      vergelijkbaar = [...vergelijkbaar, ...additional];
+    }
 
     const sliced = vergelijkbaar.slice(0, 10);
     console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden`);
@@ -622,12 +1028,18 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
     const listingId = String(item.id || item.listingId || item.listing_id || item.id_raw || "Niet beschikbaar");
 
     // Map new scraper fields to our MarktplaatsData interface
+    let parsedKenteken = String(item.licensePlate || item.license_plate || item.offerNumber || item.offer_number || "").trim();
+    if (parsedKenteken) parsedKenteken = parsedKenteken.replace(/[-\s]/g, '').toUpperCase();
+    if (!parsedKenteken && fallback.kenteken) {
+      parsedKenteken = fallback.kenteken;
+    }
+
     const data: MarktplaatsData = {
       titel: item.title || item.name || item.titel || `${brand} ${model} ${item.version || item.model_version || ""}`.trim(),
       prijs: price,
       beschrijving: description,
       fotos: fotos,
-      kenteken: String(item.offerNumber || item.offer_number || "").trim(),
+      kenteken: parsedKenteken,
       kilometerstand: finalMileage,
       bouwjaar: finalYear,
       brandstof: finalBrandstof,
@@ -640,7 +1052,8 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
       verkoperSinds: "Onbekend",
       aantalAdvertenties: 0,
       dagenOnline: daysOnline,
-      advertentieId: listingId
+      advertentieId: listingId,
+      variant: getVariantFromScrapedData(item)
     };
 
     console.log(`[SCRAPER] Geëxtraheerd AutoScout24: ${data.titel} | ${data.merk} ${data.model} | ${data.bouwjaar} | ${data.kilometerstand}km | ${data.brandstof}`);
@@ -690,7 +1103,7 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
 
-    const vergelijkbaar: VergelijkbaarResult[] = items.map((item: any) => {
+    const vergelijkbaarAll: VergelijkbaarResult[] = items.map((item: any) => {
       // Parse km/milage/mileage robustly
       let rawKm: any = "";
       if (item.milage !== undefined && item.milage !== null && item.milage !== "") {
@@ -706,6 +1119,12 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
         km = rawKm;
       } else if (rawKm) {
         km = parseInt(String(rawKm).replace(/[^0-9]/g, '')) || 0;
+      }
+      
+      const beschrijving = item.description || "";
+      if (km === 0 && beschrijving) {
+          const fallback = parseFallbackFromDescription(beschrijving);
+          if (fallback.kilometerstand > 0) km = fallback.kilometerstand;
       }
 
       // Parse price/prijs
@@ -746,6 +1165,12 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
         url: item.url || ""
       };
     });
+
+    let vergelijkbaar = vergelijkbaarAll.filter(v => v.jaar === jaar);
+    if (vergelijkbaar.length < 10) {
+      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1);
+      vergelijkbaar = [...vergelijkbaar, ...additional];
+    }
 
     const sliced = vergelijkbaar.slice(0, 10);
     console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden via AutoScout24 (jB2a4gY2hmOvmvbSk)`);

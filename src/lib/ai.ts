@@ -20,7 +20,21 @@ export interface TextAnalysisResult {
     onlineSinds: string;
     prijsWijzigingen: string;
   };
-  onderhandelingsScript: string;
+  onderhandelingsScript?: string | {
+    openingsbod: string;
+    tegenbod: string;
+    weglopen: string;
+  };
+  onderhandelingsScriptVriendelijk?: {
+    openingsbod: string;
+    tegenbod: string;
+    weglopen: string;
+  };
+  onderhandelingsScriptAggressief?: {
+    openingsbod: string;
+    tegenbod: string;
+    weglopen: string;
+  };
   openingsBod: number;
   onderhandelingsTips: string[];
   samenvatting: string[];
@@ -140,7 +154,7 @@ export async function analyseerdeTekst(
 
     // Clean and limit description to save tokens and costs
     const cleanedBeschrijving = cleanScrapedText(listingData.beschrijving || "");
-    const shortBeschrijving = cleanedBeschrijving.substring(0, 800);
+    const shortBeschrijving = cleanedBeschrijving.substring(0, 1500);
 
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString('nl-NL', {
@@ -158,12 +172,29 @@ export async function analyseerdeTekst(
 RDW Gegevens:
 - Kenteken: ${rdwData.kenteken || 'onbekend'}
 - APK Vervaldatum: ${rdwData.apkVervaldatum || 'onbekend'}
-- Aantal Eigenaren: ${rdwData.aantalEigenaren || 'onbekend'}
-- Gestolen: ${rdwData.isGestolen ? 'Ja' : 'Nee'}
+- Tellerstandoordeel: ${rdwData.tellerstandoordeel || 'onbekend'}
+- Catalogusprijs: ${rdwData.catalogusprijs || 'onbekend'}
+- Laatste tenaamstelling: ${rdwData.datumTenaamstelling || 'onbekend'}
+- WAM Verzekerd: ${rdwData.wamVerzekerd || 'onbekend'}
 ` : '';
 
-    const systemInstruction = `Je bent een auto-expert die autorapporten analyseert en een gedetailleerde DealScore en onderhandelingsadvies geeft.
-Je antwoordt ALTIJD in het Nederlands en genereert uitsluitend een correct geformatteerde JSON.
+    const systemInstruction = `Je bent een doorgewinterde auto-expert en commercieel/technisch inspecteur. Geef diepe, concrete en waardevolle inzichten die niet direct voor de hand liggen.
+Antwoord ALTIJD in het Nederlands en uitsluitend in JSON-formaat.
+
+EIS VOOR ANALYSE DIVERSITEIT & BALANS:
+Leg ABSOLUUT NIET de focus alleen op mechanische of technische risico's (zoals DSG-remmen, distributieketting, motor)! Verdeel je analyses, aandachtspunten en positieve punten evenredig over de volgende 5 gebieden:
+1. Technisch/Mechanische staat: Motor, transmissie, ophanging, remmen, verwachte beurten, banden.
+2. Cosmetisch/Optisch/Comfort: Krassen, deuken, interieurslijtage, lakconditie, steenslag, rookvrij, bekleding.
+3. Commercieel/Markt/Prijs: Marktpopulariteit, afschrijving, courantheid van kleur/model, vergelijking met soortgelijke concurrenten.
+4. Verkoper/Advertentie indicatoren: Betrouwbaarheid of volledigheid van de advertentietekst, verkoper history, aantal/kwaliteit foto's, openheid van communicatie.
+5. Historisch/RDW aspect: Aantal eigenaren, resterende APK, importstatus (met risico's), kilometerstand oordeel, mogelijke schadehistorie.
+
+TAALEISEN (Uiterst simpel Nederlands voor de gemiddelde koper):
+- Schrijf in begrijpelijk, eenvoudig en vlot Nederlands. ABSOLUUT GEEN technisch jargon of ingewikkelde autotermen zonder direct een hele simpele uitleg te geven! De koper moet je rapport volledig begrijpen zonder Google te gebruiken.
+- Zeg NOOIT alleen "DSG-7 mechatronic" of "DSG-versnellingsbak". Schrijf in plaats daarvan bijvoorbeeld: "de automatische versnellingsbak (DSG) die bekend staat om dure reparaties" of "het elektronische brein van de automatische versnellingsbak".
+- Zeg NOOIT "EA111 distributieketting" of "EA211 distributieriem" zonder simpele uitleg. Schrijf bijvoorbeeld: "de distributieketting (die de motor draaiende houdt) van dit oudere motortype (EA111) die kan uitrekken, wat leidt tot een zeer dure motorreparatie".
+- Zeg NOOIT "VIN check" of "optiecodelijst check via VIN". Schrijf bijvoorbeeld: "het unieke chassisnummer (VIN) om te controleren welke fabrieksopties er echt op zitten".
+- Vertaal ingewikkelde technische termen of leg ze direct kort en simpel uit (bijvoorbeeld: koppelingsplaten, vliegwiel, mechatronic, EGR-klep, roetfilter, turbo, enz.).
 
 JSON response template:
 {
@@ -171,49 +202,48 @@ JSON response template:
   "verdict": "vermijden" | "voorzichtig" | "redelijk" | "koopje", 
   "eerlijkePrijs": number, 
   "directeWinst": number, 
-  "positievePunten": [".."], 
-  "aandachtspunten": [".."], 
+  "positievePunten": string[], 
+  "aandachtspunten": string[], 
   "rodeVlaggen": [{"ernst": "hoog"|"middel"|"laag", "titel": "..", "uitleg": ".."}], 
   "advertentieAnalyse": {"taalgebruik": "..", "volledigheid": "..", "onlineSinds": "..", "prijsWijzigingen": ".."}, 
-  "onderhandelingsScript": "..", 
+  "onderhandelingsScript": {
+    "openingsbod": "Persuasief en goed doordacht openingsbod bericht",
+    "tegenbod": "Sterk, meegaand doch standvastig reactiebericht op een tegenvoorstel",
+    "weglopen": "Uiterst overtuigend weglopend bericht dat subtiele druk en angst om te missen (FOMO) activeert"
+  }, 
   "openingsBod": number, 
-  "onderhandelingsTips": [".."], 
-  "samenvatting": [".."]
+  "onderhandelingsTips": string[], 
+  "samenvatting": string[]
 }
 
-Wees beknopt voor lijsten. Max 1-2 zinnen per punt. Geen lange paragrafen.
+STRICTE LENGTE- EN INHOUDSEISEN:
+1. positievePunten: exact/max 4 korte bullets. Elke bullet MOET ABSOLUUT uiterst kort zijn en uit MAXIMAAL 1-2 korte, simpele zinnen bestaan (totaal maximaal 25-30 woorden per bullet). Verdeel ze over bovengenoemde 5 gebieden voor maximale diversiteit!
+2. aandachtspunten: exact/max 4 korte bullets. Elke bullet MOET ABSOLUUT uiterst kort zijn en uit MAXIMAAL 1-2 korte, simpele zinnen bestaan (totaal maximaal 25-30 woorden per bullet). Verdeel ze over bovengenoemde 5 gebieden voor maximale diversiteit!
+3. rodeVlaggen: max 3 stuks. Korte titel + MAX 1-2 KORTE ZINNEN feitelijke en simpele uitleg inclusief een concrete actie voor de koper.
+4. onderhandelingsScript: een object met exact drie scenarios (openingsbod, tegenbod, weglopen).
+   - Het openingsbod mag rond de 80-85% van de vraagprijs liggen bij uitzonderingen zoals zichtbare schade of duur naderend onderhoud. Zonder zware gebreken rond de 90%.
+   - DE BERICHTEN MOETEN UITGEBREID, POLITE, MAAR PERSUASIVE EN REALISTISCH ZIJN. Exact 4 tot 5 zinnen per scenario! Dit is lang genoeg om overtuigend en inhoudelijk sterk te zijn (bijvoorbeeld door specifieke marktargumenten of cosmetische/onderhoudskosten te noemen), maar kort en overzichtelijk genoeg dat de verkoper het graag doorleest. Nooit te overweldigend lang.
+   - Zorg dat het openingsBod-getal exact consistent hierin terugkomt.
+5. onderhandelingsTips: max 4 bullets. Elke bullet MOET uiterst kort, bondig en to-the-point zijn (maximaal 1-2 zinnen / 10-15 words per bullet) als pure, simpele bullet-point tips voor tijdens de bezichtiging of online onderhandeling. Geen lange paragrafen!
+6. samenvatting: exact/max 3 bullets (staat auto, marktwaarde analyse, eindadvies).
 
-Richtlijnen voor de lengte en structuur van de JSON velden:
-- positievePunten: max 4-5 bullets, elk 1 concreet geformuleerde zin (NIET TE LANG).
-- aandachtspunten: max 4-5 bullets, elk 1 concreet geformuleerde zin (NIET TE LANG).
-- rodeVlaggen: GENEREER ALTIJD MINIMAAL 1 OF MEER RODE VLAGGEN/RISICO'S. max 3-4 items met korte titel + uitleg van max 2 zinnen.
-- onderhandelingsScript: Schrijf een krachtig, persoonlijk maar beknopt onderhandelingsbericht van EXACT 3-4 sterke zinnen dat de koper direct kan kopiëren en sturen (NIET te kort met 1-2 zinnen, en NIET te lang met 10+ zinnen of losse bullets). Het moet klinken als een zelfverzekerd maar beleefd gesprek waarin de vraagprijs, het marktgemiddelde en één concreet argument of gebrek uit de advertentie worden benoemd, eindigend met een openingsbod.
-- onderhandelingsTips: max 3 bullets, elk 1 zin.
-- advertentieAnalyse: elk veld (taalgebruik, volledigheid, onlineSinds, prijsWijzigingen) mag maximaal 1-2 korte zinnen bevatten.
-- samenvatting: max 3-4 bullets, elk 1-2 korte zinnen.
+DEALSCORE LOGICA:
+De DealScore (0-100) is een weging over het hele spectrum gebaseerd op een startpunt van 70.
+1. Prijs vs Markt (grootste factor - gunstige prijs t.o.v. de markt verhoogt score; hogere prijs verlaagt score)
+2. Rode Vlaggen (middelmatige vlaggen verlagen score met 5-10, hoge/ernstige vlaggen verlagen score met 15-20)
+3. Advertentie Kwaliteit (duidelijke beschrijving, goed taalgebruik geeft bonus van +5 tot +10)
+4. Kilometerstand & Leeftijd (extreem hoge km-stand of onlogische stand verlaagt score met 10-15; zeer gunstige kilometerstand geeft bonus tot +10)
 
-KWALITEITS- EN INHOUDSLOGICA RICHTLIJNEN:
-1. SPECIFIEKERE AANDACHTSPUNTEN (AANDACHTSPUNTEN LOGICA): Let bij de aandachtspunten absoluut NIET alleen op generieke aspecten zoals een onvolledige of korte beschrijving in de advertentie (dit is te generiek en oninteressant voor de koper) of een kilometerstand op zichzelf. De kilometerstand mag ALLEEN als nadeel/aandachtspunt worden vermeld als deze daadwerkelijk te hoog is voor de leeftijd van de auto (belangrijk als die te hoog is, moet dat wel worden vermeld). Richt je juist op specifiekere en relevantere aandachtspunten: analyseer de specifieke opties en uitrusting, eventuele schade-indicaties of vage beschrijvingen in de advertentietekst, de leeftijd van het voertuig, specifieke bekende technische kwetsbaarheden van het desbetreffende merk/model/brandstoftype, of de RDW-registratiehistorie (zoals een ongewoon hoog aantal eigenaren of kortere bezitsperiodes).
-2. BELANGRIJK VOOR AUTOSCOUT24 EN APK: Indien het platform AutoScout24 is en er is via de RDW-kentekencheck een geldige APK-vervaldatum opgehaald (de APK vervaldatum is bekend en niet 'onbekend'), dan mag je onder "aandachtspunten" absoluut NIET vermelden dat de APK-geldigheidsdatum of APK-vervaldatum ontbreekt in de advertentie. Omdat deze succesvol via het kenteken is opgehaald, is deze informatie immers voor de koper beschikbaar gedocumenteerd.
-3. LOGICA VOOR DEALSCORE BEREKENING: Bereken de DealScore (dealScore) van 0-100 uiterst zorgvuldig en exact op basis van de volgende rationale en logica:
-- Startpunt is een neutrale basis van 70 punten.
-- Optellen (maximaal +30 punten):
-  * Prijsvoordeel (vraagprijs ligt onder het marktgemiddelde voor vergelijkbare auto's): +10 tot +15 punten.
-  * Uitzonderlijk lage kilometerstand voor autoleeftijd: +5 tot +10 punten.
-  * Gunstige RDW-gegevens (bijvoorbeeld een lange APK van >6 maanden, of slechts 1-2 eerdere eigenaren): +5 tot +10 punten.
-  * Recent online geplaatst (beperkte kans om gekaapt te worden): +5 punten.
-- Aftrekken (maximaal -70 punten):
-  * Prijsnadeel (vraagprijs ligt boven de marktwaarde/vergelijkbare autos): -10 tot -20 punten.
-  * Uitzonderlijk hoge kilometerstand (kilometers veel hoger dan gemiddeld voor leeftijd): -10 tot -15 punten (vermeld dit indien van toepassing ook in aandachtspunten).
-  * APK vervalt zeer binnenkort (<2 maanden) of is al verlopen: -10 tot -15 punten.
-  * Hoog aantal eigenaren (>4 eigenaren): -5 tot -10 punten.
-  * Aanwezigheid van rode vlaggen (rodeVlaggen): -5 tot -10 punten per medium rode vlag, en -20 tot -30 punten per hoge rode vlag. (Indien een hoge rode vlag van ernst "hoog" aanwezig is, zoals indicator gestolen of zware structurele of juridische risico's, mag de uiteindelijke DealScore nooit hoger zijn dan 50!).
-4. REGELS VOOR HET OPENINGSBOD: Zorg ervoor dat het aanbevolen openingsbod (openingsBod) niet te ver onder de vraagprijs ligt, om een onrealistisch of beledigend bod te voorkomen. Het openingsbod moet een serieus, scherp maar reëel startpunt zijn voor onderhandeling, typisch tussen 85% en 95% van de vraagprijs (minimaal 85%), afhankelijk van de DealScore en de risico's/aandachtspunten. Stel het openingsbod NOOIT lager vast dan 85% van de vraagprijs.
+- Basis: startpunt van 70.
+- Plus (max +30): prijsvoordeel t.o.v. de markt (+10 tot +20), zeer gunstige kilometerstand (+5 tot +10), uitstekende advertentietekst (+5).
+- Min (max -70): prijsnadeel (-10 tot -20), hoge km t.o.v. bouwjaar (-5 tot -10), korte APK < 2m (-5 tot -10), rode vlaggen (-5 tot -15 per vlag).
+- Noot: Zorg voor een realistische verdeling over het 0-100 spectrum. Een perfecte auto zonder minpunten hoort een score tussen 80 en 95 te krijgen. Slechts bij extreem zware problemen mag de score onder de 40 of 50 dalen. Begrens de score niet kunstmatig laag als de rest van de auto in goede orde is.`;
 
-CRITICAL TIJD- EN DATUMCONTEXT RICHTLIJNEN:
-1. Gebruik de huidige datum van 'Vandaag' (meegegeven in de gebruikersprompt) voor alle berekeningen over APK geldigheid, leeftijd van de auto, dagen online, en alle andere tijdgerelateerde of kalender-gerelateerde analyses. We zitten definitief in het jaar 2026.
-2. Indien er een APK vervaldatum bekend is in de RDW gegevens uit de prompt, vergelijk deze dan exact met de 'Vandaag' datum. Als de APK binnenkort of zeer binnenkort verloopt (zoals over enkele dagen of weken na Vandaag), noem dat dan ALTIJD als een nadeel, risico of rode vlag en zeg NOOIT dat de auto een 'lange APK' of 'ruime geldigheid' heeft. Doe dit ook als de verkoper dat in de beschrijving claimt (bijv. "APK tot 2026" is bijvoorbeeld heel kort als we al in de zomer of het najaar van 2026 zitten!).
-3. Bereken de leeftijd van de auto nauwkeurig op basis van het huidige jaar 2026 en het opgegeven bouwjaar van de auto. Zoek ook in de verstrekte advertentiebeschrijving naar data om mee te wegen.`;
+    const vergelijkingCSV = vergelijkbareAutos.slice(0, 5).map(v => `${v.prijs}|${v.km}|${v.jaar}`).join(',');
+
+    const kmStr = (listingData.kilometerstand && Number(listingData.kilometerstand) > 0)
+      ? `${listingData.kilometerstand} km`
+      : 'Niet vermeld';
 
     const userPrompt = `Analyseer de onderstaande autogegevens volgens je systeeminstructies en retourneer de JSON.
 
@@ -223,13 +253,16 @@ GEGEVENS:
 Platform: ${listingData.isAutoScout ? 'AutoScout24' : 'Marktplaats'}
 Auto: ${listingData.titel}
 Prijs: €${listingData.prijs}
-KM: ${listingData.kilometerstand} km
+KM: ${kmStr}
 Jaar: ${listingData.bouwjaar}
+Brandstof: ${listingData.brandstof || 'Onbekend'}
+Transmissie: ${listingData.transmissie || 'Onbekend'}
+Carrosserie: ${listingData.carrosserie || 'Onbekend'}
 Online: ${listingData.dagenOnline} dgn
 Verkoper: ${listingData.verkoper} (${listingData.verkoperType || 'Particulier'})
 ${rdwInfo}
 Beschrijving: ${shortBeschrijving}
-Vergelijking: ${JSON.stringify(vergelijkbareAutos.slice(0, 5).map(v => ({ prijs: v.prijs, km: v.km, jaar: v.jaar })))}`;
+Vergelijking (prijs|km|jaar): ${vergelijkingCSV}`;
 
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
@@ -248,9 +281,11 @@ Vergelijking: ${JSON.stringify(vergelijkbareAutos.slice(0, 5).map(v => ({ prijs:
         const result = JSON.parse(cleanJson);
         const vraagprijs = Number(listingData.prijs) || 0;
 
-        // Programmatische bewaker: Het openingsbod niet te ver onder de vraagprijs (minimaal 85%, maximaal 95%)
+        const origineelBod = result.openingsBod;
+
+        // Programmatische bewaker: Het openingsbod niet te ver onder de vraagprijs (minimaal 80%, maximaal 95%)
         if (vraagprijs > 0 && typeof result.openingsBod === 'number' && result.openingsBod > 0) {
-          const minBod = Math.round(vraagprijs * 0.85);
+          const minBod = Math.round(vraagprijs * 0.80);
           const maxBod = Math.round(vraagprijs * 0.95);
           if (result.openingsBod < minBod) {
             result.openingsBod = minBod;
@@ -261,12 +296,71 @@ Vergelijking: ${JSON.stringify(vergelijkbareAutos.slice(0, 5).map(v => ({ prijs:
           result.openingsBod = Math.round(vraagprijs * 0.90);
         }
 
+        if (origineelBod && origineelBod !== result.openingsBod && result.onderhandelingsScript) {
+          const origPlain = origineelBod.toString();
+          const origDot = origineelBod.toLocaleString('nl-NL');
+          
+          if (typeof result.onderhandelingsScript === 'string') {
+            result.onderhandelingsScript = result.onderhandelingsScript
+              .replace(new RegExp(origPlain, 'g'), result.openingsBod.toString())
+              .replace(new RegExp(origDot.replace(/\./g, '\\.'), 'g'), result.openingsBod.toLocaleString('nl-NL'));
+          } else if (typeof result.onderhandelingsScript === 'object') {
+            const keys = ['openingsbod', 'tegenbod', 'weglopen'] as const;
+            keys.forEach(key => {
+              if (result.onderhandelingsScript[key] && typeof result.onderhandelingsScript[key] === 'string') {
+                result.onderhandelingsScript[key] = result.onderhandelingsScript[key]
+                  .replace(new RegExp(origPlain, 'g'), result.openingsBod.toString())
+                  .replace(new RegExp(origDot.replace(/\./g, '\\.'), 'g'), result.openingsBod.toLocaleString('nl-NL'));
+              }
+            });
+          }
+        }
+
+        // Programmatische bewaker: Korte bullets van max 1-2 zinnen per punt, en simpele taal
+        const translateAndShorten = (punt: string, isAandachtspunt: boolean): string => {
+          let clean = String(punt || "").trim();
+          if (!clean) return "";
+
+          // Safe translations for key terms
+          clean = clean.replace(/\bDSG-?[67]\s+mechatronic\b/gi, 'de automatische versnellingsbak (DSG) die bekend staat om dure reparaties');
+          clean = clean.replace(/\bDSG-?[67]\b/gi, 'de automatische versnellingsbak (DSG)');
+          clean = clean.replace(/\bmechatronic\b/gi, 'het elektronische brein van de versnellingsbak (de mechatronic)');
+          clean = clean.replace(/\bmechatronica\b/gi, 'het elektronische brein van de versnellingsbak (de mechatronic)');
+          clean = clean.replace(/\bEA111\b/gi, 'het oudere motortype met bekende kettingproblemen (EA111)');
+          clean = clean.replace(/\bEA211\b/gi, 'het nieuwere en betrouwbaardere motortype (EA211)');
+          clean = clean.replace(/\bVIN\b/gi, 'het chassisnummer (VIN)');
+          clean = clean.replace(/\boptiecodelijst\b/gi, 'lijst met fabrieksopties');
+
+          if (isAandachtspunt) {
+            clean = clean.replace(/\bdistributieketting\b/gi, 'de distributieketting (die de motor draaiende houdt maar kan uitrekken)');
+            clean = clean.replace(/\bdistributieriem\b/gi, 'de distributieriem (die regelmatig vervangen moet worden om motorschade te voorkomen)');
+          }
+
+          // Force 1-2 sentences maximum
+          const rawSentences = clean.split('.');
+          const nonEmptySentences = rawSentences.map(s => s.trim()).filter(Boolean);
+          if (nonEmptySentences.length > 2) {
+            return nonEmptySentences.slice(0, 2).join('. ') + '.';
+          }
+          if (nonEmptySentences.length > 0) {
+            return nonEmptySentences.join('. ') + '.';
+          }
+          return clean;
+        };
+
+        if (Array.isArray(result.positievePunten)) {
+          result.positievePunten = result.positievePunten.map((p: any) => translateAndShorten(p, false)).filter(Boolean);
+        }
+        if (Array.isArray(result.aandachtspunten)) {
+          result.aandachtspunten = result.aandachtspunten.map((p: any) => translateAndShorten(p, true)).filter(Boolean);
+        }
+
         // Programmatische bewaker: DealScore binnen 0-100 en begrensd bij zware rode vlaggen
         if (typeof result.dealScore === 'number') {
           result.dealScore = Math.max(0, Math.min(100, Math.round(result.dealScore)));
           const heeftHogeRodeVlag = Array.isArray(result.rodeVlaggen) && result.rodeVlaggen.some((v: any) => v.ernst === 'hoog');
-          if (heeftHogeRodeVlag && result.dealScore > 50) {
-            result.dealScore = 50;
+          if (heeftHogeRodeVlag && result.dealScore > 65) {
+            result.dealScore = 65;
           }
         }
 
@@ -356,7 +450,7 @@ Geef de resultaten ALTIJD in het Nederlands.`;
         }
       ],
       config: {
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
       }
     });
 

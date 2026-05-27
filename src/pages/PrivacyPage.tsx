@@ -35,7 +35,7 @@ export const PrivacyPage: React.FC = () => {
                 <ul className="list-disc ml-6 mt-3 space-y-2">
                   <li><strong>Accountgegevens:</strong> E-mailadres en wachtwoord wanneer je een account aanmaakt.</li>
                   <li><strong>Gebruiksgegevens:</strong> Informatie over hoe je onze website gebruikt, zoals de auto's die je analyseert.</li>
-                  <li><strong>Betalingsgegevens:</strong> Wanneer je een premium abonnement afsluit, worden betalingen veilig afgehandeld door onze betalingspartner Stripe. Wij slaan zelf geen creditcardgegevens op.</li>
+                  <li><strong>Betalingsgegevens:</strong> Wanneer je een premium abonnement afsluit, worden betalingen veilig afgehandeld door onze betalingspartner Mollie. Wij slaan zelf geen creditcardgegevens op.</li>
                 </ul>
               </section>
 
@@ -51,6 +51,7 @@ export const PrivacyPage: React.FC = () => {
                   <li>Het verlenen van toegang tot jouw dashboard en opgeslagen rapporten.</li>
                   <li>Het verbeteren van onze AI-modellen en analyseresultaten.</li>
                   <li>Het versturen van belangrijke updates over jouw account of onze diensten.</li>
+                  <li>Het versturen van commerciële e-mailcampagnes en promoties omtrent updates, aanbiedingen en nieuwsbrieven over OccasionScan (waarbij je je op elk moment kunt afmelden).</li>
                 </ul>
               </section>
 

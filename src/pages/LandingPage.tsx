@@ -11,6 +11,7 @@ import { useStore } from '@/src/store/useStore';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
 import { SEO } from '@/src/components/SEO';
+import { PaymentConfirmModal } from '@/src/components/PaymentConfirmModal';
 
 const PRICE_IDS: Record<string, string> = {
   "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
@@ -31,51 +32,53 @@ export const LandingPage: React.FC = () => {
   const openScanLimitModal = useStore(state => state.openScanLimitModal);
   
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
 
-  const handlePurchase = async (title: string) => {
+  const handlePurchase = (title: string) => {
     console.log("handlePurchase clicked for:", title);
     if (!isLoggedIn || !user) {
-      console.log("User not logged in, showing auth modal");
-      setShowLoginNotification(true);
-      setTimeout(() => setShowLoginNotification(false), 4000);
       openAuthModal();
       return;
     }
+    setSelectedPackage(title);
+    setIsConfirmModalOpen(true);
+  };
 
-    const priceId = PRICE_IDS[title];
-    if (!priceId) {
-      console.error("No priceId found for title:", title);
-      return;
-    }
-
-    setPurchasing(title);
+  const handleConfirmPurchase = async () => {
+    if (!selectedPackage || !user) return;
+    setPurchasing(selectedPackage);
     try {
-      console.log("Creating checkout session via API for priceId:", priceId);
+      const priceId = PRICE_IDS[selectedPackage];
+      if (!priceId) {
+        console.error("Geen priceId gevonden voor:", selectedPackage);
+        return;
+      }
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          priceId, 
-          userId: user.uid, 
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          priceId,
+          userId: user.uid,
           userEmail: user.email,
-          mode: priceId === 'price_1TWzLoRsJS7Vz7uqcB7DF5qQ' ? 'subscription' : 'payment'
-        }),
+          mode: selectedPackage === "Autohandelaar" ? "subscription" : "payment"
+        })
       });
-
       const data = await response.json();
-      
-      if (data?.error) { 
-          console.error("Stripe API error:", data.error);
-          alert(data.error); 
-          setPurchasing(null);
-      } else if (data?.url) { 
-          console.log("Redirecting to Stripe:", data.url);
-          window.location.assign(data.url); 
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Mollie session URL niet ontvangen:", data);
+        alert("Er is een fout opgetreden bij het opstarten van de betaling. Probeer het later opnieuw.");
       }
-    } catch (e: any) {
-      console.error("Fout bij checkout:", e);
-      alert("Er is iets misgegaan. Probeer het later opnieuw.");
+    } catch (error) {
+      console.error("Fout tijdens handlePurchase:", error);
+      alert("Er is een fout opgetreden bij het verbinden met de betaalservice. Probeer het later opnieuw.");
+    } finally {
       setPurchasing(null);
+      setIsConfirmModalOpen(false);
     }
   };
   
@@ -497,28 +500,28 @@ export const LandingPage: React.FC = () => {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Kies de zekerheid die <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">bij je past</span></h2>
         </motion.div>
-        
-        <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16 items-center">
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16 items-center">
           {/* Plan 1: Losse Scan */}
           <PricingCard 
              title="Losse Scan" 
              price="€9,99" 
              period=""
-             description="Ideaal als je precies weet welke auto je gaat kopen."
+             description="Ideaal als je direct zekerheid wilt voor één specifieke auto."
              features={[
-               { text: "1 volledig rapport", included: true },
-               { text: "DealScore & waardebepaling", included: true },
-               { text: "Rode vlaggen analyse", included: true },
-               { text: "RDW & kilometercheck", included: true },
+               { text: "1 volledig premium rapport", included: true },
+               { text: "Unieke DealScore & waardebepaling", included: true },
+               { text: "Directe rode vlaggen & risico analyse", included: true },
+               { text: "RDW open-data & kilometerstand check", included: true },
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
                { text: "Rapportgeschiedenis & PDF-export", included: false },
              ]}
-             btnText={purchasing === "Losse Scan" ? "Laden..." : "Koop scan — €9,99"}
+             btnText={purchasing === "Losse Scan" ? "Laden..." : "Activeer direct 1 scan"}
              buttonStyle="outline"
              onClick={() => handlePurchase("Losse Scan")}
           />
@@ -528,19 +531,19 @@ export const LandingPage: React.FC = () => {
              title="Slimme Koper" 
              price="€19,99" 
              period=""
-             description="De favoriete keuze voor wie meerdere auto's vergelijkt."
-             badgeText="Meest Gekozen"
+             description="De slimme keuze voor wie serieus occasions vergelijkt."
+             badgeText="Slimme Keuze"
              features={[
                { text: "3 volledige rapporten", included: true },
-               { text: "DealScore & waardebepaling", included: true },
-               { text: "Rode vlaggen analyse", included: true },
-               { text: "RDW & kilometercheck", included: true },
+               { text: "Unieke DealScore & waardebepaling", included: true },
+               { text: "Directe rode vlaggen & risico analyse", included: true },
+               { text: "RDW open-data & kilometerstand check", included: true },
                { text: "Geavanceerde AI Foto-scan", included: true },
-               { text: "Persoonlijk onderhandelingsscript", included: true },
-               { text: "Rapportgeschiedenis & PDF-export", included: false },
+               { text: "Volledig persoonlijk onderregelingsscript", included: true },
+               { text: "Rapportgeschiedenis & opslag (30 dagen)", included: true },
              ]}
-             btnText={purchasing === "Slimme Koper" ? "Laden..." : "Start nu — €19,99"}
-             featured={true}
+             btnText={purchasing === "Slimme Koper" ? "Laden..." : "Start Slim Vergelijken"}
+             featured={false}
              buttonStyle="primary"
              onClick={() => handlePurchase("Slimme Koper")}
           />
@@ -550,17 +553,26 @@ export const LandingPage: React.FC = () => {
              title="Autohandelaar" 
              price="€29" 
              period="/ maand"
-             description="Voor wie wekelijks auto's beoordeelt en koopt."
-             badgeText="Voor professionals"
+             description="Tijdelijk niet beschikbaar. De ultieme tool voor dealers die maximale winst en snelheid eisen."
+             badgeText="TIJDELIJK NIET BESCHIKBAAR"
              features={[
-               { text: "Onbeperkt rapporten", included: true },
-               { text: "Alles van Slimme Koper", included: true },
-               { text: "Prioriteitsverwerking", included: true },
-               { text: "Rapportgeschiedenis & PDF-export", included: true },
+               { text: "Onbeperkt aantal scans per maand", included: true },
+               { text: "Volledige toegang tot alle Slimme Koper functionaliteiten", included: true },
+               { text: "Ideaal voor intensief wekelijks gebruik (geen limieten)", included: true },
+               { text: "Eindeloze rapporthistorie & PDF-export archivering", included: true },
+               { text: "Diepgaande RDW-check voorraad-integratie & APK-historie", included: true },
+               { text: "Exclusieve AI Foto-scan op verborgen schades", included: true },
+               { text: "Persoonlijke onderhandelingsscripts (openingsbod, tegenbod, weglopen)", included: true },
+               { text: "Snelle premium e-mailondersteuning bij vragen", included: true },
+               { text: "Eenvoudig rapporten exporteren naar PDF of printen", included: true },
+               { text: "Altijd als eerste toegang tot nieuwe AI-updates", included: true },
              ]}
-             btnText={purchasing === "Autohandelaar" ? "Laden..." : "Start abonnement"}
-             buttonStyle="outline-green"
-             onClick={() => handlePurchase("Autohandelaar")}
+             btnText="Tijdelijk niet beschikbaar"
+             isDealer={true}
+             featured={false}
+             disabled={true}
+             buttonStyle="dealer-premium"
+             onClick={() => {}}
           />
         </div>
 
@@ -568,7 +580,7 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-4xl mx-auto border border-white/5 bg-white/5 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 text-sm text-gray-400 mb-10">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-accent-green" />
-            Veilig betalen via Stripe
+            Veilig betalen via Mollie
           </div>
           <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
           <div className="flex items-center gap-2">
@@ -662,6 +674,14 @@ export const LandingPage: React.FC = () => {
       </div>
 
       <Footer />
+
+      <PaymentConfirmModal 
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        packageName={selectedPackage}
+        onConfirm={handleConfirmPurchase}
+        isProcessing={purchasing !== null}
+      />
     </div>
   );
 };

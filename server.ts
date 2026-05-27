@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import Stripe from "stripe";
+import { createMollieClient } from "@mollie/api-client";
 import { scrapeMarktplaats, scrapeVergelijkbaar, scrapeAutoScout24, scrapeAutoScout24Vergelijkbaar, resolveMarktplaatsUrl } from './src/lib/apify';
 import { checkRDW } from './src/lib/rdw';
 import { analyseerdeTekst, analyseerFotos } from './src/lib/ai';
@@ -28,7 +28,17 @@ signInWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSupe
       .catch(createErr => console.error("[SERVER] Could not create Server Bot:", createErr.message));
   });
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+function getMollieClient() {
+  const rawKey = (process.env.MOLLIE_API_KEY || "").trim();
+  if (!rawKey) {
+    throw new Error("Mollie API Key is niet ingesteld. Voeg 'MOLLIE_API_KEY' toe via de Secrets tab of het .env bestand.");
+  }
+  if (!rawKey.startsWith("test_") && !rawKey.startsWith("live_")) {
+    throw new Error("De geleverde MOLLIE_API_KEY is ongeldig. Een correcte Mollie API Sleutel begint met 'test_' of 'live_'.");
+  }
+  return createMollieClient({ apiKey: rawKey });
+}
+
 const PRICE_IDS = {
   losse_scan: "price_1TWzIHRsJS7Vz7uquwItCZSP",
   slimme_koper: "price_1TWzJoRsJS7Vz7uq0sMvxaLG",
@@ -48,6 +58,8 @@ async function startServer() {
     }
   }));
 
+  app.use(express.urlencoded({ extended: true }));
+
   // Standard health check endpoints for cloud/Railway deployments
   app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
@@ -66,193 +78,367 @@ async function startServer() {
   });
 
   app.get("/api/verify-checkout-session", async (req, res) => {
-    const { session_id } = req.query;
+    const { session_id, userId } = req.query;
     if (!session_id || typeof session_id !== "string") {
       return res.status(400).json({ error: "Missing session_id" });
     }
+    
     try {
-      const session = await stripe.checkout.sessions.retrieve(session_id);
-      if (session.payment_status === "paid") {
-        const userId = session.metadata?.userId;
-        const priceId = session.metadata?.priceId;
-        const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
+      // 🚨 Mollie check if it starts with "tr_" or if we are using the fallback 'LATEST'
+      let targetPaymentId = session_id;
+      const uid = userId as string;
 
-        if (userId) {
-          let pakket = "free";
-          let permissies = "free";
-
-          if (priceId === "price_1TWzIHRsJS7Vz7uquwItCZSP") {
-            pakket = "Losse Scan";
-            permissies = "losse_scan";
-          } else if (priceId === "price_1TWzJoRsJS7Vz7uq0sMvxaLG") {
-            pakket = "Slimme Koper";
-            permissies = "slimme_koper";
-          } else if (priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ") {
-            pakket = "Autohandelaar";
-            permissies = "autohandelaar";
+      if (session_id === "LATEST" && uid) {
+        const userRef = doc(adminDb, "gebruikers", uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const uData = userSnap.data() as any;
+          if (uData.pendingMolliePaymentId) {
+            targetPaymentId = uData.pendingMolliePaymentId;
+            console.log(`[SERVER] LATEST payment_id opgevraagd voor user ${uid}: ${targetPaymentId}`);
           }
-
-          const userRef = doc(adminDb, "gebruikers", userId);
-          await setDoc(userRef, {
-            subscriptionStatus: "active",
-            pakket: pakket,
-            permissies: permissies,
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId || null,
-            betaalstatus: session.payment_status,
-            laatsteBetaling: serverTimestamp(),
-            scansGebruikt: 0,
-            scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
-            scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
-          }, { merge: true });
-          
-          return res.json({ success: true, updated: true, pakket, permissies });
         }
       }
-      res.json({ success: true, updated: false });
+
+      if (targetPaymentId.startsWith("tr_")) {
+        console.log(`[SERVER] Verifiëren van Mollie betaling: ${targetPaymentId}`);
+        const mollie = getMollieClient();
+        const payment = (await mollie.payments.get(targetPaymentId)) as any;
+        console.log(`[SERVER] Mollie betaling status: ${payment.status}`);
+        
+        if (payment.status === "paid") {
+          const pUserId = payment.metadata?.userId || uid;
+          const priceId = payment.metadata?.priceId;
+          
+          if (pUserId) {
+            let pakket = "free";
+            let permissies = "free";
+
+            if (priceId === "price_1TWzIHRsJS7Vz7uquwItCZSP" || payment.metadata?.permissies === "losse_scan") {
+              pakket = "Losse Scan";
+              permissies = "losse_scan";
+            } else if (priceId === "price_1TWzJoRsJS7Vz7uq0sMvxaLG" || payment.metadata?.permissies === "slimme_koper") {
+              pakket = "Slimme Koper";
+              permissies = "slimme_koper";
+            } else if (priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ" || payment.metadata?.permissies === "autohandelaar") {
+              pakket = "Autohandelaar";
+              permissies = "autohandelaar";
+            }
+
+            const userRef = doc(adminDb, "gebruikers", pUserId);
+            await setDoc(userRef, {
+              subscriptionStatus: "active",
+              pakket: pakket,
+              permissies: permissies,
+              molliePaymentId: targetPaymentId,
+              betaalstatus: "paid",
+              laatsteBetaling: serverTimestamp(),
+              scansGebruikt: 0,
+              scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
+              scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
+            }, { merge: true });
+            
+            console.log(`[SERVER] Mollie betaling succesvol verwerkt voor user ${pUserId}`);
+            return res.json({ success: true, updated: true, pakket, permissies });
+          }
+        }
+        return res.json({ success: true, updated: false, status: payment.status });
+      }
+
+      res.json({ success: true, updated: false, message: "Geen actieve Mollie transactie" });
     } catch (err: any) {
       console.error("[SERVER] Verify session error:", err);
       res.status(500).json({ error: err.message });
     }
   });
 
+  const getAbsoluteRedirectUrl = (req: express.Request, targetPath: string): string => {
+    const proto = req.headers["x-forwarded-proto"] || "https";
+    const host = req.headers["x-forwarded-host"] || req.get("host") || "localhost:3000";
+    return `${proto}://${host}${targetPath}`;
+  };
+
+  app.get("/api/mollie-redirect", async (req, res) => {
+    const { userId } = req.query;
+    if (!userId || typeof userId !== "string") {
+      return res.redirect(getAbsoluteRedirectUrl(req, "/#prijzen"));
+    }
+
+    try {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return res.redirect(getAbsoluteRedirectUrl(req, "/#prijzen"));
+      }
+
+      const userData = userSnap.data() as any;
+      const paymentId = userData.pendingMolliePaymentId;
+      if (!paymentId) {
+        return res.redirect(getAbsoluteRedirectUrl(req, "/dashboard"));
+      }
+
+      try {
+        const mollie = getMollieClient();
+        const payment = (await mollie.payments.get(paymentId)) as any;
+        if (payment.status === "paid") {
+          const p = payment.metadata?.permissies || 'free';
+          const pakket = payment.metadata?.pakket || 'free';
+          
+          await setDoc(userRef, {
+            subscriptionStatus: "active",
+            pakket: pakket,
+            permissies: p,
+            molliePaymentId: paymentId,
+            betaalstatus: "paid",
+            laatsteBetaling: serverTimestamp(),
+            scansGebruikt: 0,
+            scanLimiet: p === 'losse_scan' ? 1 : (p === 'slimme_koper' ? 3 : 999),
+            scansOver: p === 'losse_scan' ? 1 : (p === 'slimme_koper' ? 3 : 999)
+          }, { merge: true });
+
+          // Maak het Mollie abonnement aan voor de Autohandelaar mocht dit de eerste betaling zijn
+          if (p === "autohandelaar" && payment.sequenceType === "first" && payment.customerId) {
+            const uSnap = await getDoc(userRef);
+            const uData = uSnap.data();
+            if (!uData?.mollieSubscriptionId) {
+              try {
+                const forwardedHost = req.headers["x-forwarded-host"] as string;
+                const host = forwardedHost || req.get("host") || "";
+                const isLocalhost = (!forwardedHost && (host.includes("localhost") || host.includes("127.0.0.1"))) || host.startsWith("localhost:") || host.startsWith("127.0.0.1:");
+                const protocol = req.headers["x-forwarded-proto"] || "https";
+                const baseUrl = `${protocol}://${host}`;
+                const webhookUrl = isLocalhost ? undefined : `${baseUrl}/api/mollie-webhook`;
+
+                const sub = await mollie.customerSubscriptions.create({
+                  customerId: payment.customerId,
+                  amount: {
+                    currency: 'EUR',
+                    value: '29.00'
+                  },
+                  interval: '1 month',
+                  description: 'OccasionScan.nl - Autohandelaar (Maandabonnement)',
+                  webhookUrl: webhookUrl,
+                });
+                console.log(`[MOLLIE REDIRECT] Abonnement ${sub.id} aangemaakt voor klant ${payment.customerId}`);
+                await setDoc(userRef, {
+                  mollieSubscriptionId: sub.id
+                }, { merge: true });
+              } catch (subErr: any) {
+                console.error("[MOLLIE REDIRECT] Fout bij aanmaken abonnement via redirect check:", subErr);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[SERVER] Mollie redirect status check failed:", err);
+      }
+
+      res.redirect(getAbsoluteRedirectUrl(req, `/dashboard?success=true&payment_id=${paymentId}`));
+    } catch (error) {
+      console.error("[SERVER] Mollie redirect handler failed:", error);
+      res.redirect(getAbsoluteRedirectUrl(req, "/dashboard"));
+    }
+  });
+
   app.post("/api/create-checkout-session", async (req, res) => {
-    const { priceId, userId, userEmail, mode } = req.body;
+    const { priceId, userId, userEmail } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     try {
-      // 1. Get or create customer in Stripe
-      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
-      let customerId = customers.data.length > 0 ? customers.data[0].id : null;
+      const mollie = getMollieClient();
 
-      if (!customerId) {
-        const newCustomer = await stripe.customers.create({
-          email: userEmail,
-          metadata: { userId },
-        });
-        customerId = newCustomer.id;
+      let amountValue = "9.99";
+      let description = "OccasionScan.nl - Losse Scan";
+      let permissies = "losse_scan";
+      let pakket = "Losse Scan";
+
+      if (priceId === "price_1TWzJoRsJS7Vz7uq0sMvxaLG") {
+        amountValue = "19.99";
+        description = "OccasionScan.nl - Slimme Koper";
+        permissies = "slimme_koper";
+        pakket = "Slimme Koper";
+      } else if (priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ") {
+        amountValue = "29.00";
+        description = "OccasionScan.nl - Autohandelaar (Maandabonnement)";
+        permissies = "autohandelaar";
+        pakket = "Autohandelaar";
       }
 
-      // 2. Create Checkout Session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card", "ideal"],
-        mode: mode === "subscription" ? "subscription" : "payment",
-        customer: customerId,
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        success_url: `${req.headers.origin}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.origin}/#prijzen`,
-        allow_promotion_codes: true,
+      // Check of de gebruiker al een Mollie Customer ID heeft
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      let mollieCustomerId = "";
+      let userName = "Klant";
+
+      if (userSnap.exists()) {
+        const uData = userSnap.data();
+        mollieCustomerId = uData.mollieCustomerId || "";
+        userName = uData.naam || uData.displayName || "Klant";
+      }
+
+      if (!mollieCustomerId) {
+        try {
+          const customer = await mollie.customers.create({
+            name: userName,
+            email: userEmail || userSnap.data()?.email || "klant@occasionscan.nl"
+          });
+          mollieCustomerId = customer.id;
+          await setDoc(userRef, { mollieCustomerId }, { merge: true });
+          console.log(`[MOLLIE] Nieuwe klant aangemaakt in Mollie: ${mollieCustomerId}`);
+        } catch (custErr: any) {
+          console.error("[MOLLIE] Fout bij aanmaken klant in Mollie:", custErr);
+        }
+      }
+
+      const forwardedHost = req.headers["x-forwarded-host"] as string;
+      const host = forwardedHost || req.get("host") || "";
+      const isLocalhost = (!forwardedHost && (host.includes("localhost") || host.includes("127.0.0.1"))) || host.startsWith("localhost:") || host.startsWith("127.0.0.1:");
+      const protocol = req.headers["x-forwarded-proto"] || "https";
+      const baseUrl = `${protocol}://${host}`;
+      
+      const webhookUrl = isLocalhost 
+        ? undefined
+        : `${baseUrl}/api/mollie-webhook`;
+
+      console.log(`[MOLLIE] Aanmaken betaling voor user: ${userId}. Webhook: ${webhookUrl}`);
+
+      const isSubscription = priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ";
+
+      const paymentParams: any = {
+        amount: {
+          currency: 'EUR',
+          value: amountValue
+        },
+        description: description,
+        redirectUrl: `${baseUrl}/api/mollie-redirect?userId=${userId}`,
+        webhookUrl: webhookUrl,
         metadata: {
           userId,
           priceId,
-        },
-      });
+          permissies,
+          pakket,
+          email: userEmail
+        }
+      };
 
-      res.json({ url: session.url });
+      if (isSubscription && mollieCustomerId) {
+        paymentParams.customerId = mollieCustomerId;
+        paymentParams.sequenceType = "first";
+      } else if (mollieCustomerId) {
+        // Door de customerId mee te geven wordt de betaling netjes gekoppeld in de Mollie portal
+        paymentParams.customerId = mollieCustomerId;
+      }
+
+      const payment = await mollie.payments.create(paymentParams);
+
+      // Sla deze betaling alvast op bij de gebruiker
+      await setDoc(userRef, {
+        pendingMolliePaymentId: payment.id,
+        pendingMolliePaymentStatus: "open",
+        pendingMolliePakket: pakket,
+        pendingMolliePermissies: permissies
+      }, { merge: true });
+
+      res.json({ url: payment.getCheckoutUrl() || payment._links?.checkout?.href });
     } catch (error: any) {
-      console.error("[SERVER] Stripe checkout error:", error);
+      console.error("[SERVER] Mollie checkout error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
-    const signature = req.headers["stripe-signature"] as string;
-    let event;
-
-    try {
-      if (process.env.STRIPE_WEBHOOK_SECRET) {
-        event = stripe.webhooks.constructEvent(
-          (req as any).rawBody,
-          signature,
-          process.env.STRIPE_WEBHOOK_SECRET
-        );
-      } else {
-        // Fallback if no webhook secret (not recommended for production)
-        event = JSON.parse((req as any).rawBody.toString());
-      }
-    } catch (err: any) {
-      console.error("[SERVER] Webhook signature verification failed.", err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+  app.post("/api/mollie-webhook", async (req, res) => {
+    const id = req.body.id || req.query.id;
+    console.log(`[MOLLIE WEBHOOK] Ontvangen event voor id: ${id}`);
+    
+    if (!id || typeof id !== "string") {
+      return res.status(200).send("No ID received"); 
     }
 
     try {
-      if (event.type === "checkout.session.completed") {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.userId;
-        const priceId = session.metadata?.priceId;
-        const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
+      const mollie = getMollieClient();
+      const payment = (await mollie.payments.get(id)) as any;
+      console.log(`[MOLLIE WEBHOOK] Betaling ${id} status: ${payment.status}, sequenceType: ${payment.sequenceType}`);
+
+      if (payment.status === "paid") {
+        let userId = payment.metadata?.userId;
+        let priceId = payment.metadata?.priceId;
+        let permissies = payment.metadata?.permissies;
+        let pakket = payment.metadata?.pakket;
+
+        // Als dit een automatische incasso / terugkerende betaling van een abonnement is, heeft het geen metadata van ons.
+        // We zoeken de user dan op via zijn Mollie Customer ID!
+        if (!userId && payment.customerId) {
+          const q = query(collection(adminDb, "gebruikers"), where("mollieCustomerId", "==", payment.customerId));
+          const querySnap = await getDocs(q);
+          if (!querySnap.empty) {
+            const userDoc = querySnap.docs[0];
+            userId = userDoc.id;
+            const userData = userDoc.data();
+            permissies = userData.permissies || "autohandelaar";
+            pakket = userData.pakket || "Autohandelaar";
+            console.log(`[MOLLIE WEBHOOK] Gekoppeld aan bestaande klant: ${userId}`);
+          }
+        }
 
         if (userId) {
-          let pakket = "free";
-          let permissies = "free";
-
-          if (priceId === "price_1TWzIHRsJS7Vz7uquwItCZSP") {
-            pakket = "Losse Scan";
-            permissies = "losse_scan";
-          } else if (priceId === "price_1TWzJoRsJS7Vz7uq0sMvxaLG") {
-            pakket = "Slimme Koper";
-            permissies = "slimme_koper";
-          } else if (priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ") {
-            pakket = "Autohandelaar";
-            permissies = "autohandelaar";
-          }
-
           const userRef = doc(adminDb, "gebruikers", userId);
           await setDoc(userRef, {
-            subscriptionStatus: session.payment_status === "paid" ? "active" : "pending",
+            subscriptionStatus: "active",
             pakket: pakket,
             permissies: permissies,
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId || null,
-            betaalstatus: session.payment_status,
+            molliePaymentId: id,
+            betaalstatus: "paid",
             laatsteBetaling: serverTimestamp(),
             scansGebruikt: 0,
             scanLimiet: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999),
             scansOver: permissies === 'losse_scan' ? 1 : (permissies === 'slimme_koper' ? 3 : 999)
           }, { merge: true });
-          
-          console.log(`[SERVER] Successfully updated user ${userId} to ${pakket}`);
-        }
-      } else if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-        const isCanceledOrDeleted = event.type === "customer.subscription.deleted" || subscription.status === "canceled" || subscription.status === "unpaid" || subscription.cancel_at_period_end;
-        
-        if (isCanceledOrDeleted) {
-          try {
-            const q = query(collection(adminDb, 'gebruikers'), where('stripeCustomerId', '==', customerId));
-            const usersSnapshot = await getDocs(q);
-            if (!usersSnapshot.empty) {
-              const userRef = usersSnapshot.docs[0].ref;
-              await updateDoc(userRef, {
-                subscriptionStatus: 'free',
-                pakket: 'free',
-                permissies: 'free',
-                stripeSubscriptionId: null,
-                updatedAt: serverTimestamp()
-              });
-              console.log(`[SERVER] Successfully downgraded user ${usersSnapshot.docs[0].id} to free layout because subscription was canceled/deleted`);
+
+          console.log(`[MOLLIE WEBHOOK] User ${userId} succesvol geüpgraded via webhook`);
+
+          // Als het een eerste betaling van een abonnement is, maak dan nu het daadwerkelijke maandabonnement aan
+          if (permissies === "autohandelaar" && payment.sequenceType === "first" && payment.customerId) {
+            const uSnap = await getDoc(userRef);
+            const uData = uSnap.data();
+            if (!uData?.mollieSubscriptionId) {
+              try {
+                // Get absolute base URL context
+                const forwardedHost = req.headers["x-forwarded-host"] as string;
+                const host = forwardedHost || req.get("host") || "";
+                const isLocalhost = (!forwardedHost && (host.includes("localhost") || host.includes("127.0.0.1"))) || host.startsWith("localhost:") || host.startsWith("127.0.0.1:");
+                const protocol = req.headers["x-forwarded-proto"] || "https";
+                const baseUrl = `${protocol}://${host}`;
+                const webhookUrl = isLocalhost ? undefined : `${baseUrl}/api/mollie-webhook`;
+
+                const sub = await mollie.customerSubscriptions.create({
+                  customerId: payment.customerId,
+                  amount: {
+                    currency: 'EUR',
+                    value: '29.00'
+                  },
+                  interval: '1 month',
+                  description: 'OccasionScan.nl - Autohandelaar (Maandabonnement)',
+                  webhookUrl: webhookUrl,
+                });
+                console.log(`[MOLLIE WEBHOOK] Abonnement ${sub.id} aangemaakt voor klant ${payment.customerId}`);
+                await setDoc(userRef, {
+                  mollieSubscriptionId: sub.id
+                }, { merge: true });
+              } catch (subErr: any) {
+                console.error("[MOLLIE WEBHOOK] Fout bij aanmaken abonnement via webhook:", subErr);
+              }
             }
-          } catch (error) {
-             console.error("[SERVER] Error downgrading user after subscription cancel:", error);
           }
         }
       }
 
-      res.json({ received: true });
-    } catch (error) {
-      console.error("[SERVER] Webhook error:", error);
-      res.status(500).json({ error: "Webhook handler failed" });
+      res.status(200).send("OK");
+    } catch (error: any) {
+      console.error("[MOLLIE WEBHOOK] Fout bij verwerken webhook:", error.message);
+      res.status(200).send(`OK`); 
     }
   });
 
@@ -266,24 +452,13 @@ async function startServer() {
       if (!userSnap.exists()) return res.status(404).json({ error: "User not found" });
 
       const userData = userSnap.data() as any;
-      const subId = userData.stripeSubscriptionId;
-      if (!subId) return res.json({ status: 'no_subscription', user: userData });
-
-      const subscription = await stripe.subscriptions.retrieve(subId);
-      const isCanceledOrDeleted = subscription.status === "canceled" || subscription.status === "unpaid" || subscription.cancel_at_period_end;
       
-      if (isCanceledOrDeleted && userData.pakket !== 'free') {
-        await updateDoc(userRef, {
-          subscriptionStatus: 'free',
-          pakket: 'free',
-          permissies: 'free',
-          stripeSubscriptionId: null,
-          updatedAt: serverTimestamp()
-        });
-        return res.json({ status: 'downgraded' });
-      }
-
-      res.json({ status: 'active', subscription: subscription.status });
+      // If payment is open but status was paid, or managed via Mollie redirect checks/webhooks
+      res.json({ 
+        status: userData.subscriptionStatus || 'free', 
+        pakket: userData.pakket || 'free',
+        permissies: userData.permissies || 'free'
+      });
     } catch (error: any) {
       console.error("[SERVER] Sync subscription error:", error);
       res.status(500).json({ error: error.message });
@@ -323,7 +498,7 @@ async function startServer() {
         if (listing && tier !== 'free') vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
       } else {
         listing = await scrapeMarktplaats(url);
-        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '');
       }
 
       if (!listing) {
@@ -485,9 +660,12 @@ async function startServer() {
       }
     }
 
+    // Clean URL for deduplication check
+    const cleanUrlForCache = url.split('?')[0];
+
     // URL Caching: Voorkom dubbele AI calls als recent nog gedaan
     try {
-      const qReport = query(collection(adminDb, 'rapporten'), where('url', '==', url));
+      const qReport = query(collection(adminDb, 'rapporten'), where('url', '==', cleanUrlForCache));
       const querySnapshot = await getDocs(qReport);
       
       if (!querySnapshot.empty) {
@@ -535,7 +713,7 @@ async function startServer() {
     try {
       const docRef = await addDoc(collection(adminDb, 'rapporten'), {
         userId: userId || "anonymous",
-        url: url,
+        url: cleanUrlForCache,
         status: "verwerking",
         tier: reportTier,
         limitReached: limitReached,
@@ -543,7 +721,7 @@ async function startServer() {
       });
 
       // Start background process
-      voerAnalyseUit(docRef.id, url, userId || "anonymous", reportTier).catch(console.error);
+      voerAnalyseUit(docRef.id, cleanUrlForCache, userId || "anonymous", reportTier).catch(console.error);
 
       return res.json({
         success: true,
@@ -675,6 +853,28 @@ async function startServer() {
     }
   });
 
+  app.get("/api/rapport/:id/pdf", async (req, res) => {
+    try {
+      const rapportId = req.params.id;
+      const docRef = doc(adminDb, 'rapporten', rapportId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        return res.status(404).send("Rapport niet gevonden");
+      }
+      const rawData = docSnap.data();
+      
+      const safeCarName = (rawData?.autoNaam || 'Rapport').replace(/[^a-zA-Z0-9]/g, '_');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=OccasionScan_${safeCarName}.pdf`);
+      
+      const { generateReportPDF } = await import('./src/lib/pdfGenerator');
+      generateReportPDF(rawData, res);
+    } catch (e: any) {
+      console.error("[PDF_ROUTE] Error generating PDF:", e);
+      res.status(500).send("Fout bij genereren van PDF: " + e.message);
+    }
+  });
+
 
 
 
@@ -758,7 +958,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     } else {
       listing = await scrapeMarktplaats(url);
       if (listing && reportTier !== 'free') {
-        vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+        vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '');
       }
     }
 
@@ -787,7 +987,10 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       type: listing.verkoperType || 'Particulier'
     };
 
-    await updateDoc(rapportRef, { 
+    // Strip undefined items
+    const safeData = (obj: any) => JSON.parse(JSON.stringify(obj, (k, v) => v === undefined ? null : v));
+
+    await updateDoc(rapportRef, safeData({ 
       autoNaam: listing.titel,
       vraagprijs: listing.prijs,
       kilometerstand: listing.kilometerstand,
@@ -802,7 +1005,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       verkoper: verkoperInfo,
       dagenOnline: listing.dagenOnline,
       kenteken: listing.kenteken
-    });
+    }));
 
     // ── FASE 2: PARALLEL OPHALEN ──
     await updateDoc(rapportRef, { status: 'vergelijken' });
@@ -872,7 +1075,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
       }
     }
 
-    await updateDoc(rapportRef, {
+    const payload = safeData({
         dealScore: analyse.dealScore || 0,
         verdict: analyse.verdict || 'onbekend',
         eerlijkePrijs: analyse.eerlijkePrijs || 0,
@@ -890,9 +1093,10 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
         fotoAnalyse: fotos.fotos || [],
         ontbrekendeFotos: fotos.ontbrekendeFotos || [],
         scanDeducted: scanDeducted,
-        status: 'compleet',
-        updatedAt: serverTimestamp()
+        status: 'compleet'
     });
+    payload.updatedAt = serverTimestamp();
+    await updateDoc(rapportRef, payload);
     
     // Sync to analyses collection for dashboard if user is not anonymous
     if (userId && userId !== "anonymous") {

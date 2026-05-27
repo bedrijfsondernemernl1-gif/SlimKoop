@@ -36,7 +36,11 @@ export const ReportPage: React.FC = () => {
   const [shareCopied, setShareCopied] = useState(false);
   const [showIframeWarning, setShowIframeWarning] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [activeScenario, setActiveScenario] = useState<'openingsbod' | 'tegenbod' | 'weglopen'>('openingsbod');
   const controls = useAnimation();
+
+  const [clientRdw, setClientRdw] = useState<any>(null);
+  const [isFetchingRdw, setIsFetchingRdw] = useState(false);
 
   // Access check for local UI masking (server also redacts)
   const isUnlimited = permissies === 'autohandelaar';
@@ -104,6 +108,57 @@ export const ReportPage: React.FC = () => {
     }
   }, [reportData, controls]);
 
+  useEffect(() => {
+    const fetchRdwClient = async (kenteken: string) => {
+      setIsFetchingRdw(true);
+      try {
+        const schoonKenteken = kenteken.replace(/-/g, '').replace(/\s/g, '').toUpperCase();
+        const response = await fetch(`https://opendata.rdw.nl/resource/m9d7-ebf2.json?kenteken=${schoonKenteken}`);
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const voertuig = data[0];
+          
+          const parseRDWDate = (dateStr: any): string => {
+            if (!dateStr) return "onbekend";
+            const s = dateStr.toString().trim();
+            if (s.length >= 8 && /^\d+$/.test(s.substring(0, 8))) {
+              return `${s.substring(6, 8)}-${s.substring(4, 6)}-${s.substring(0, 4)}`;
+            }
+            if (s.includes('-')) {
+              const parts = s.split('T')[0].split('-');
+              if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return s;
+          };
+          
+          setClientRdw({
+            kenteken: schoonKenteken,
+            apkVervaldatum: parseRDWDate(voertuig.vervaldatum_apk),
+            eersteToelating: parseRDWDate(voertuig.datum_eerste_toelating),
+            tellerstandoordeel: voertuig.tellerstandoordeel || 'onbekend',
+            wamVerzekerd: voertuig.wam_verzekerd || 'onbekend',
+            succes: true
+          });
+        } else {
+          setClientRdw({ succes: false });
+        }
+      } catch (err) {
+        console.error("RDW Client fetch error", err);
+        setClientRdw({ succes: false });
+      } finally {
+        setIsFetchingRdw(false);
+      }
+    };
+
+    if (reportData && !clientRdw && !isFetchingRdw) {
+      const hasSavedRdw = reportData.rdw && reportData.rdw.succes !== false && Object.keys(reportData.rdw).length > 0;
+      if (!hasSavedRdw && reportData.kenteken) {
+        fetchRdwClient(reportData.kenteken);
+      }
+    }
+  }, [reportData, clientRdw, isFetchingRdw]);
+
   const mapErnstToStatus = (ernst: string) => {
     if (ernst === 'hoog' || ernst === 'probleem') return 'gevaar';
     if (ernst === 'middel' || ernst === 'waarschuwing') return 'let-op';
@@ -149,6 +204,7 @@ export const ReportPage: React.FC = () => {
     brandstof: reportData?.brandstof || "Onbekend",
     transmissie: reportData?.transmissie || "Onbekend",
     carrosserie: reportData?.carrosserie || "Onbekend",
+    kenteken: reportData?.kenteken,
     verdict: mapVerdictToLabel(reportData?.verdict),
     dealScore: reportData?.dealScore || 0,
     fotos: reportData?.fotos || [],
@@ -270,7 +326,22 @@ export const ReportPage: React.FC = () => {
   }
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(data.onderhandelingsScript);
+    let scriptToCopy = "";
+    
+    if (typeof data.onderhandelingsScript === 'object' && data.onderhandelingsScript !== null) {
+      const scriptObj = data.onderhandelingsScript as { openingsbod?: string; tegenbod?: string; weglopen?: string };
+      if (activeScenario === 'openingsbod') {
+        scriptToCopy = scriptObj.openingsbod || "";
+      } else if (activeScenario === 'tegenbod') {
+        scriptToCopy = scriptObj.tegenbod || "";
+      } else if (activeScenario === 'weglopen') {
+        scriptToCopy = scriptObj.weglopen || "";
+      }
+    } else {
+      scriptToCopy = data.onderhandelingsScript || "";
+    }
+    
+    navigator.clipboard.writeText(scriptToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -289,23 +360,40 @@ export const ReportPage: React.FC = () => {
           url: window.location.href,
         });
       } else {
-        await navigator.clipboard.writeText(window.location.href);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(window.location.href);
+        } else {
+          const tempInput = document.createElement("input");
+          tempInput.value = window.location.href;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+        }
         setShareCopied(true);
         setTimeout(() => setShareCopied(false), 2000);
       }
     } catch(e) {
       console.log('Error sharing', e);
+      // Try legacy copy as absolute final resort
+      try {
+        const tempInput = document.createElement("input");
+        tempInput.value = window.location.href;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      } catch (err) {
+        console.error("Legacy copy failed:", err);
+      }
     }
   };
 
   const handleDownloadPDF = () => {
     try {
-      if (window.self !== window.top) {
-        setShowIframeWarning(true);
-        setTimeout(() => setShowIframeWarning(false), 5000);
-      } else {
-        window.print();
-      }
+      window.location.href = `/api/rapport/${id}/pdf`;
     } catch(e) {
       console.error(e);
     }
@@ -349,7 +437,7 @@ export const ReportPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#050B14] relative text-white pb-32 overflow-x-hidden pt-28">
+    <div className="min-h-[100dvh] bg-[#050B14] relative text-white pb-32 overflow-x-hidden pt-56">
       {/* Background accents */}
       <div className="absolute top-[-10%] right-[-5%] w-[800px] h-[800px] rounded-full bg-accent-green/5 blur-[150px] pointer-events-none mix-blend-screen"></div>
 
@@ -367,9 +455,7 @@ export const ReportPage: React.FC = () => {
                 <AlertTriangle className="w-4 h-4" /> Open app in nieuw tabblad om te printen (PDF)
               </div>
             )}
-            {isUnlimited && (
-              <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
-            )}
+            <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
             <Button onClick={handleShare} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl">
               {shareCopied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2"/>}
               {shareCopied ? "Gekopieerd!" : "Deel rapport"}
@@ -471,7 +557,7 @@ export const ReportPage: React.FC = () => {
                    </div>
                    <div className="flex flex-wrap gap-2">
                      <Pill>{data.bouwjaar || 'Onbekend'}</Pill>
-                     <Pill>{data.kilometerstand.toLocaleString('nl-NL')} km</Pill>
+                     <Pill>{data.kilometerstand > 0 ? `${data.kilometerstand.toLocaleString('nl-NL')} km` : 'Niet vermeld'}</Pill>
                      <Pill>{data.brandstof}</Pill>
                      <Pill>{data.transmissie}</Pill>
                      <Pill>{data.carrosserie}</Pill>
@@ -573,28 +659,64 @@ export const ReportPage: React.FC = () => {
         </div>
 
         {/* RDW BALK */}
-        {data.rdw && data.rdw.succes !== false && Object.keys(data.rdw).length > 0 && (
-          <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl mb-10 border-l-4 border-l-accent-green">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-5">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-accent-green" /> RDW Voertuigcheck
-                {data.rdw.kenteken && (
-                  <span className="ml-2 inline-block bg-[#FACC15] text-black font-extrabold px-3 py-1 rounded text-sm tracking-[0.1em] border-2 border-black/80 font-mono">
-                    {data.rdw.kenteken.replace(/(.{2})(.{2})(.{2})/, "$1-$2-$3")}
-                  </span>
-                )}
-              </h2>
-              <span className="text-xs text-gray-500 font-medium">Gegevens via RDW Open Data</span>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <RdwBlock label={`APK geldig t/m ${data.rdw.apkVervaldatum || "Niet beschikbaar"}`} ok={!!data.rdw.apkVervaldatum} />
-              <RdwBlock label={data.rdw.isGestolen ? "GEREGISTREERD ALS GESTOLEN!" : "Niet gestolen"} ok={!data.rdw.isGestolen} />
-              <RdwBlock label={`${data.rdw.aantalEigenaren || "Niet beschikbaar"} eigenaren`} ok={true} />
-              <RdwBlock label={`Eerste toelating: ${data.rdw.eersteToelating || "Niet beschikbaar"}`} ok={true} />
-            </div>
-          </Card>
-        )}
+        {(() => {
+          const activeRdw = (data?.rdw && data.rdw.succes !== false && Object.keys(data.rdw).length > 0) ? data.rdw : (clientRdw && clientRdw.succes !== false ? clientRdw : null);
+          const kenteken = activeRdw?.kenteken || data.kenteken;
+          
+          return (
+            <Card className="bg-[#0A111F] border-white/5 rounded-[1.25rem] p-6 shadow-xl mb-10 border-l-4 border-l-accent-green">
+              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-5">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-accent-green" /> RDW Voertuigcheck
+                  {kenteken && (
+                    <span className="ml-2 inline-block bg-[#FACC15] text-black font-extrabold px-3 py-1 rounded text-sm tracking-[0.1em] border-2 border-black/80 font-mono">
+                      {kenteken.replace(/(.{2})(.{2})(.{2})/, "$1-$2-$3")}
+                    </span>
+                  )}
+                </h2>
+                <span className="text-xs text-gray-500 font-medium">Gegevens via RDW Open Data</span>
+              </div>
+              
+              {activeRdw ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <RdwBlock 
+                    label={`APK geldig t/m ${activeRdw.apkVervaldatum || "Niet beschikbaar"}`} 
+                    ok={!!activeRdw.apkVervaldatum && (() => {
+                      if (activeRdw.apkVervaldatum === "onbekend") return false;
+                      const parts = activeRdw.apkVervaldatum.split('-');
+                      if (parts.length === 3) {
+                        const d = parseInt(parts[0]);
+                        const m = parseInt(parts[1]);
+                        const y = parseInt(parts[2]);
+                        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                          const apkDate = new Date(y, m - 1, d);
+                          return apkDate >= new Date();
+                        }
+                      }
+                      return true;
+                    })()} 
+                  />
+                  <RdwBlock 
+                    label={`Tellerstandoordeel: ${activeRdw.tellerstandoordeel || "onbekend"}`} 
+                    ok={activeRdw.tellerstandoordeel !== "Onlogisch"} 
+                  />
+                  <RdwBlock 
+                    label={`WAM Verzekerd: ${activeRdw.wamVerzekerd || "Nee"}`} 
+                    ok={activeRdw.wamVerzekerd === "Ja"} 
+                  />
+                  <RdwBlock 
+                    label={`Eerste toelating: ${activeRdw.eersteToelating || "Niet beschikbaar"}`} 
+                    ok={true} 
+                  />
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400 bg-white/5 p-4 rounded-xl border border-white/5">
+                   Geen RDW gegevens opgeslagen voor deze auto of kenteken ontbreekt in de advertentie.
+                </div>
+              )}
+            </Card>
+          );
+        })()}
 
         {/* TABS NAVIGATION */}
         <div className="bg-[#0A111F] border border-white/5 rounded-[1.25rem] p-1.5 mb-8 inline-flex overflow-x-auto no-scrollbar shadow-lg max-w-full">
@@ -675,17 +797,7 @@ export const ReportPage: React.FC = () => {
                   </Card>
                 </div>
 
-                {/* Hide Seller Info for AutoScout24 as data is unreliable per user request */}
-                {!reportData?.url?.includes('autoscout24') && (
-                  <Card className="bg-[#0A111F] border-white/5 rounded-2xl p-6 shadow-xl">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Verkoper Info</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">{data.verkoper.type}</div>
-                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Lid sinds {data.verkoper.lidSinds}</div>
-                      <div className="bg-[#131B2A] p-4 text-center rounded-xl border border-white/5 text-gray-200 font-medium">Verkoper: {data.verkoper.naam}</div>
-                    </div>
-                  </Card>
-                )}
+                {/* Removed Seller Info block because it is now under the Advertentie Analyse tab */}
               </motion.div>
             ) : (
               <motion.div 
@@ -702,6 +814,8 @@ export const ReportPage: React.FC = () => {
                      ? "blur-xl select-none pointer-events-none transition-all duration-300"
                      : ""
                 }>
+
+
                   {/* TAB 2: PRIJS */}
                   {activeTab === 'prijs' && (() => {
                     const vPr = data.vraagprijs;
@@ -787,16 +901,30 @@ export const ReportPage: React.FC = () => {
 
                           <h4 className="text-lg font-bold text-white mb-4">Kilometerstand Check</h4>
                           <div className="bg-[#131B2A] border border-white/5 rounded-2xl p-6 mb-10">
-                            <div className="flex justify-between items-end mb-4">
-                              <div>
-                                <p className="text-gray-300 text-sm md:text-base">{km.toLocaleString('nl-NL')} km in {years} jaar = gemiddeld <span className="text-white font-bold">{avgKmPerYear.toLocaleString('nl-NL')} km/jaar</span></p>
+                            {km > 0 ? (
+                              <>
+                                <div className="flex justify-between items-end mb-4">
+                                  <div>
+                                    <p className="text-gray-300 text-sm md:text-base">{km.toLocaleString('nl-NL')} km in {years} jaar = gemiddeld <span className="text-white font-bold">{avgKmPerYear.toLocaleString('nl-NL')} km/jaar</span></p>
+                                  </div>
+                                  <div className={`px-3 py-1 rounded-md font-bold text-sm tracking-wide ${isKmNormal ? 'bg-accent-green/20 text-accent-green' : 'bg-amber-500/20 text-amber-500'}`}>{kmStatusText}</div>
+                                </div>
+                                <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 shadow-inner">
+                                  <div className={`h-full ${isKmNormal ? 'bg-gradient-to-r from-accent-green/50 to-accent-green' : 'bg-gradient-to-r from-amber-500/50 to-amber-500'}`} style={{width: `${kmPercent}%`}}></div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-3">Normaal bereik voor dit type auto is 10.000 - 18.000 km per jaar.</p>
+                              </>
+                            ) : (
+                              <div className="flex items-start gap-3.5">
+                                <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-white font-bold text-base mb-1">Kilometerstand is niet vermeld</p>
+                                  <p className="text-gray-300 text-sm leading-relaxed">
+                                    De verkoper heeft geen kilometerstand opgegeven in de advertentie of de stand is op 0 gezet. Dit is een belangrijk risico: controleer de kilometerstand ter plekke en vraag om de onderhoudshistorie en RDW tellerrapportages.
+                                  </p>
+                                </div>
                               </div>
-                              <div className={`px-3 py-1 rounded-md font-bold text-sm tracking-wide ${isKmNormal ? 'bg-accent-green/20 text-accent-green' : 'bg-amber-500/20 text-amber-500'}`}>{kmStatusText}</div>
-                            </div>
-                            <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                              <div className={`h-full ${isKmNormal ? 'bg-gradient-to-r from-accent-green/50 to-accent-green' : 'bg-gradient-to-r from-amber-500/50 to-amber-500'}`} style={{width: `${kmPercent}%`}}></div>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-3">Normaal bereik voor dit type auto is 10.000 - 18.000 km per jaar.</p>
+                            )}
                           </div>
 
                           <h4 className="text-lg font-bold text-white mb-4">Vergelijkbare Advertenties (Markt)</h4>
@@ -872,21 +1000,25 @@ export const ReportPage: React.FC = () => {
 
                         <h4 className="text-lg font-bold text-white mb-4">Advertentie Analyse</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
-                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Online Sinds</p>
-                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.onlineSinds || "Onbekend"}</p>
-                          </div>
+                          {!reportData?.url?.includes('autoscout') && data.verkoper && (
+                            <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
+                              <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Aanbieder: {data.verkoper.type || 'Onbekend'}</p>
+                              <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.verkoper.naam || 'Naam onbekend'} {data.verkoper.lidSinds && data.verkoper.lidSinds !== 'Onbekend' ? `(Actief sinds ${data.verkoper.lidSinds})` : ''}</p>
+                            </div>
+                          )}
+                          {!reportData?.url?.includes('autoscout') && (
+                            <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
+                              <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Online Sinds</p>
+                              <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse?.onlineSinds || "Onbekend"}</p>
+                            </div>
+                          )}
                           <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Beschrijving</p>
-                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.volledigheid || "Onbekend"}</p>
-                          </div>
-                          <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
-                            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Prijswijzigingen</p>
-                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.prijsWijzigingen || "Onbekend"}</p>
+                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse?.volledigheid || "Onbekend"}</p>
                           </div>
                           <div className="bg-[#131B2A] p-5 rounded-2xl border border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Taalgebruik</p>
-                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse.taalgebruik || "Onbekend"}</p>
+                            <p className="text-sm md:text-base font-bold text-white tracking-tight">{data.advertentieAnalyse?.taalgebruik || "Onbekend"}</p>
                           </div>
                         </div>
                       </Card>
@@ -997,9 +1129,15 @@ export const ReportPage: React.FC = () => {
                   {/* TAB 5: ONDERHANDELEN */}
                   {activeTab === 'script' && (() => {
                     const displayOpeningsBod = (data.openingsBod && hasFullAccess) ? data.openingsBod : Math.round(data.vraagprijs * 0.92);
-                    const displayScript = (data.onderhandelingsScript && hasFullAccess) 
-                      ? data.onderhandelingsScript 
-                      : `Beste ${data.verkoper.naam || 'verkoper'},\n\nIk heb veel interesse in uw ${data.autoNaam}. Na een uitgebreide markt- en waardecheck te hebben uitgevoerd, zie ik dat er een aantal specifieke risico's/aandachtspunten zijn. Op basis hiervan wil ik graag een reëel openingsbod doen van € ${Math.round(data.vraagprijs * 0.92).toLocaleString('nl-NL')}.\n\nGraag hoor ik of we op deze basis met elkaar in gesprek kunnen gaan.\n\nMet vriendelijke groet,\nEen geïnteresseerde koper`;
+                    
+                    const displayScript = (data.onderhandelingsScript && hasFullAccess)
+                      ? data.onderhandelingsScript
+                      : {
+                          openingsbod: `Beste ${data.verkoper?.naam || data.verkoper || 'verkoper'},\n\nIk heb veel interesse in uw ${data.autoNaam}. Na een uitgebreide check zie ik dat er een aantal specifieke risico's/aandachtspunten zijn. Op basis hiervan wil ik graag een reëel openingsbod doen van € ${displayOpeningsBod.toLocaleString('nl-NL')}.\n\nGraag hoor ik of we op deze basis met elkaar in gesprek kunnen gaan.\n\nMet vriendelijke groet,\nEen geïnteresseerde koper`,
+                          tegenbod: `Beste ${data.verkoper?.naam || data.verkoper || 'verkoper'},\n\nBedankt voor uw reactie en uw tegenvoorstel. Hoewel ik uw standpunt begrijp, moet ik ook rekening houden met het komende onderhoud en de marktwaarde van soortgelijke modellen. Mijn uiterste bod is € ${Math.round(displayOpeningsBod * 1.05).toLocaleString('nl-NL')} inclusief de geconstateerde punten. Hopelijk kunnen we elkaar hierin vinden.\n\nMet vriendelijke groet,\nEen geïnteresseerde koper`,
+                          weglopen: `Beste ${data.verkoper?.naam || data.verkoper || 'verkoper'},\n\nBedankt voor uw tijd, maar dat bedrag ligt helaas boven mijn budget gezien het noodzakelijke onderhoud. Mocht u zich bedenken of als we elkaar in de toekomst alsnog kunnen vinden op € ${Math.round(displayOpeningsBod * 1.03).toLocaleString('nl-NL')}, hoor ik het graag.\n\nMet vriendelijke groet,\nEen geïnteresseerde koper`
+                        };
+
                     const displayTips = (data.onderhandelingsTips && data.onderhandelingsTips.length > 0 && hasFullAccess)
                       ? data.onderhandelingsTips
                       : [
@@ -1007,6 +1145,35 @@ export const ReportPage: React.FC = () => {
                           "Houd voet bij stuk wat betreft de eerlijke marktprijs.",
                           "Gebruik de APK vervaldatum of bandenstatus als direct hefboompunt tijdens de onderhandeling."
                         ];
+
+                    const isObjectScript = typeof displayScript === 'object' && displayScript !== null;
+                    const currentScriptText = isObjectScript
+                      ? ((displayScript as any)[activeScenario] || "")
+                      : (displayScript as string);
+
+                    const scenarioColors = {
+                      openingsbod: {
+                        border: "border-accent-green/35 bg-accent-green/5",
+                        topBar: "bg-accent-green",
+                        text: "text-accent-green",
+                        shadow: "shadow-[0_0_30px_rgba(16,185,129,0.05)]",
+                        title: "Scenario 1 — Openingsbod"
+                      },
+                      tegenbod: {
+                        border: "border-amber-500/35 bg-amber-500/5",
+                        topBar: "bg-amber-500",
+                        text: "text-amber-400",
+                        shadow: "shadow-[0_0_30px_rgba(245,158,11,0.05)]",
+                        title: "Scenario 2 — Tegenbod"
+                      },
+                      weglopen: {
+                        border: "border-rose-500/35 bg-rose-500/5",
+                        topBar: "bg-rose-500",
+                        text: "text-rose-400",
+                        shadow: "shadow-[0_0_30px_rgba(244,63,94,0.05)]",
+                        title: "Scenario 3 — Weglopen (FOMO)"
+                      }
+                    }[isObjectScript ? activeScenario : 'openingsbod'];
 
                     return (
                       <div className="space-y-6">
@@ -1019,14 +1186,50 @@ export const ReportPage: React.FC = () => {
                             </p>
                           </div>
 
-                          <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 relative mt-12 mb-10 overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
+                          {/* Interactive Scenario Selector Tabs */}
+                          {isObjectScript && (
+                            <div className="flex flex-col sm:flex-row gap-2 mb-8 p-1.5 bg-black/40 border border-white/5 rounded-2xl">
+                              <button
+                                onClick={() => setActiveScenario('openingsbod')}
+                                className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold transition-all ${
+                                  activeScenario === 'openingsbod'
+                                    ? 'bg-accent-green text-black shadow-lg shadow-accent-green/10'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
+                              >
+                                1. Openingsbod
+                              </button>
+                              <button
+                                onClick={() => setActiveScenario('tegenbod')}
+                                className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold transition-all ${
+                                  activeScenario === 'tegenbod'
+                                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
+                              >
+                                2. Tegenbod
+                              </button>
+                              <button
+                                onClick={() => setActiveScenario('weglopen')}
+                                className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold transition-all ${
+                                  activeScenario === 'weglopen'
+                                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/10'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
+                              >
+                                3. Weglopen (FOMO)
+                              </button>
+                            </div>
+                          )}
+
+                          <div className={`rounded-2xl border-2 ${scenarioColors.border} relative mt-2 mb-10 overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.05)] ${scenarioColors.shadow} transition-all duration-300`}>
+                            <div className={`absolute top-0 left-0 w-full h-1.5 ${scenarioColors.topBar}`}></div>
                             <div className="p-6 md:p-8">
-                              <h4 className="flex items-center gap-2 text-amber-500 font-bold mb-6 text-lg">
-                                <FileText className="w-5 h-5" /> Jouw persoonlijke script
+                              <h4 className={`flex items-center gap-2 ${scenarioColors.text} font-bold mb-6 text-lg`}>
+                                <FileText className="w-5 h-5" /> {scenarioColors.title}
                               </h4>
-                              <div className="bg-black p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
-                                "{displayScript}"
+                              <div className="bg-black/60 p-6 rounded-xl border border-white/5 text-gray-200 text-base md:text-lg leading-relaxed font-serif whitespace-pre-wrap mb-8 shadow-inner italic">
+                                "{currentScriptText}"
                               </div>
                               <div className="flex flex-col sm:flex-row gap-4">
                                 <Button onClick={handleCopy} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl h-14">

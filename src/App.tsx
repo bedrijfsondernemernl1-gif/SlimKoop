@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'r
 import { Analytics } from '@vercel/analytics/react';
 import { ShaderBackground } from './components/ShaderBackground';
 import { Navbar } from './components/Navbar';
+import { DevBanner } from './components/DevBanner';
 import { CookieConsent } from './components/CookieConsent';
 import { ScanLimitModal } from './components/ScanLimitModal';
 import { useStore } from '@/src/store/useStore';
@@ -63,6 +64,7 @@ function Layout() {
   return (
     <div className="min-h-[100dvh] text-foreground font-sans">
       <ShaderBackground />
+      <DevBanner />
       <Navbar />
       <Analytics />
       <Suspense fallback={<PageLoader />}>
