@@ -852,7 +852,8 @@ export const ReportPage: React.FC = () => {
                       link: reportData?.url || "",
                       isCurrent: true
                     };
-                    const allAutos = [currentCarItem, ...data.vergelijkbareAutos];
+                    
+                    const allAutos = [currentCarItem, ...(data.vergelijkbareAutos || [])];
 
                     return (
                       <div className="space-y-6">

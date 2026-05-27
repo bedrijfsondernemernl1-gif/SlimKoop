@@ -744,8 +744,8 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     // Maintain extraWords array for subsequent result filtering
     const extraWords = kern ? kern.split('+') : [];
 
-    const yearFrom = jaar > 1900 ? jaar - 1 : '';
-    const yearTo = jaar > 1900 ? jaar + 1 : '';
+    const yearFrom = jaar > 1900 ? jaar - 2 : '';
+    const yearTo = jaar > 1900 ? jaar + 2 : '';
     
     const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/q/${queryTerm}/#constructionYearFrom:${yearFrom}|constructionYearTo:${yearTo}`;
     
@@ -836,8 +836,12 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
     let vergelijkbaar = vergelijkbaarAll.filter(v => v.jaar === jaar);
     if (vergelijkbaar.length < 10) {
-      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1);
+      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1 && !vergelijkbaar.some(existing => existing.url === v.url));
       vergelijkbaar = [...vergelijkbaar, ...additional];
+    }
+    if (vergelijkbaar.length < 10) {
+      const additional2 = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) > 1 && !vergelijkbaar.some(existing => existing.url === v.url));
+      vergelijkbaar = [...vergelijkbaar, ...additional2];
     }
 
     const sliced = vergelijkbaar.slice(0, 10);
@@ -1094,8 +1098,8 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       make: makeSlug,
       model: modelSlug,
       country: "NL,D",
-      yearFrom: jaar > 1900 ? jaar - 1 : undefined,
-      yearTo: jaar > 1900 ? jaar + 1 : undefined,
+      yearFrom: jaar > 1900 ? jaar - 2 : undefined,
+      yearTo: jaar > 1900 ? jaar + 2 : undefined,
       maxResults: 10,
       sort: "standard"
     });
@@ -1168,8 +1172,12 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
 
     let vergelijkbaar = vergelijkbaarAll.filter(v => v.jaar === jaar);
     if (vergelijkbaar.length < 10) {
-      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1);
+      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1 && !vergelijkbaar.some(existing => existing.url === v.url));
       vergelijkbaar = [...vergelijkbaar, ...additional];
+    }
+    if (vergelijkbaar.length < 10) {
+      const additional2 = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) > 1 && !vergelijkbaar.some(existing => existing.url === v.url));
+      vergelijkbaar = [...vergelijkbaar, ...additional2];
     }
 
     const sliced = vergelijkbaar.slice(0, 10);
