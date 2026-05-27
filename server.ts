@@ -279,11 +279,23 @@ async function startServer() {
         userName = uData.naam || uData.displayName || "Klant";
       }
 
+      // Zorg dat de Mollie klant ID ook daadwerkelijk bestaat en geldig is voor de huidige API Key en modus (Test vs Live)
+      if (mollieCustomerId) {
+        try {
+          console.log(`[MOLLIE] Bestaande klant ID ${mollieCustomerId} controleren bij Mollie...`);
+          await mollie.customers.get(mollieCustomerId);
+          console.log(`[MOLLIE] Bestaande klant ID ${mollieCustomerId} is geldig.`);
+        } catch (verifyErr: any) {
+          console.warn(`[MOLLIE] Opgeslagen klant ID ${mollieCustomerId} is ongeldig voor deze API key/modus (${verifyErr.message}). Er wordt een nieuwe aangemaakt.`);
+          mollieCustomerId = "";
+        }
+      }
+
       if (!mollieCustomerId) {
         try {
           const customer = await mollie.customers.create({
             name: userName,
-            email: userEmail || userSnap.data()?.email || "klant@occasionscan.nl"
+            email: userEmail || userSnap?.data()?.email || "klant@occasionscan.nl"
           });
           mollieCustomerId = customer.id;
           await setDoc(userRef, { mollieCustomerId }, { merge: true });
