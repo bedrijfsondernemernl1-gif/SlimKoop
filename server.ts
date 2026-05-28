@@ -240,7 +240,7 @@ async function startServer() {
     }
   });
 
-  const BUILT_IN_CODES = ["TEST10", "INFLUENCER10", "PROMO10", "COUPON10", "START10", "MICRO20"];
+  const BUILT_IN_CODES = ["TEST10", "PROMO10", "COUPON10", "START10", "MICRO20"];
 
   app.post("/api/validate-coupon", async (req, res) => {
     const { code, packageName } = req.body;

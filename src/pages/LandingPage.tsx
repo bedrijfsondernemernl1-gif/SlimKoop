@@ -11,7 +11,7 @@ import { useStore } from '@/src/store/useStore';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
 import { SEO } from '@/src/components/SEO';
-import { PaymentConfirmModal } from '@/src/components/PaymentConfirmModal';
+
 
 const PRICE_IDS: Record<string, string> = {
   "Losse Scan": "price_1TWzIHRsJS7Vz7uquwItCZSP",
@@ -32,26 +32,18 @@ export const LandingPage: React.FC = () => {
   const openScanLimitModal = useStore(state => state.openScanLimitModal);
   
   const [purchasing, setPurchasing] = useState<string | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
-
-  const handlePurchase = (title: string) => {
+  const handlePurchase = async (title: string, couponCode: string | null = null) => {
     console.log("handlePurchase clicked for:", title);
     if (!isLoggedIn || !user) {
       openAuthModal();
       return;
     }
-    setSelectedPackage(title);
-    setIsConfirmModalOpen(true);
-  };
-
-  const handleConfirmPurchase = async (couponCode: string | null = null) => {
-    if (!selectedPackage || !user) return;
-    setPurchasing(selectedPackage);
+    
+    setPurchasing(title);
     try {
-      const priceId = PRICE_IDS[selectedPackage];
+      const priceId = PRICE_IDS[title];
       if (!priceId) {
-        console.error("Geen priceId gevonden voor:", selectedPackage);
+        console.error("Geen priceId gevonden voor:", title);
         return;
       }
       const response = await fetch('/api/create-checkout-session', {
@@ -64,7 +56,7 @@ export const LandingPage: React.FC = () => {
           userId: user.uid,
           userEmail: user.email,
           code: couponCode,
-          mode: selectedPackage === "Autohandelaar" ? "subscription" : "payment"
+          mode: title === "Autohandelaar" ? "subscription" : "payment"
         })
       });
       const data = await response.json();
@@ -79,7 +71,6 @@ export const LandingPage: React.FC = () => {
       alert("Er is een fout opgetreden bij het verbinden met de betaalservice. Probeer het later opnieuw.");
     } finally {
       setPurchasing(null);
-      setIsConfirmModalOpen(false);
     }
   };
   
@@ -676,13 +667,7 @@ export const LandingPage: React.FC = () => {
 
       <Footer />
 
-      <PaymentConfirmModal 
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        packageName={selectedPackage}
-        onConfirm={handleConfirmPurchase}
-        isProcessing={purchasing !== null}
-      />
+
     </div>
   );
 };
