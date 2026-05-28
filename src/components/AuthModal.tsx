@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Car, Mail, Lock, X, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { Car, Mail, Lock, X, AlertTriangle, CheckCircle, Loader2, Check } from 'lucide-react';
 import { Input } from '@/src/components/ui/input';
 import { Button } from '@/src/components/ui/button';
 import { motion, AnimatePresence } from 'motion/react';
@@ -79,11 +79,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   
   const navigate = useNavigate();
   const { login: setZustandLogin } = useStore();
 
-  const handleSaveUser = async (user: any) => {
+  const handleSaveUser = async (user: any, optIn: boolean = false, isRegistration: boolean = false) => {
     const userRef = doc(db, 'gebruikers', user.uid);
     const userSnap = await getDoc(userRef).catch(err => handleFirestoreError(err, OperationType.GET, `gebruikers/${user.uid}`));
     if (userSnap && !userSnap.exists()) {
@@ -92,6 +93,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         uid: user.uid,
         aanmaakdatum: new Date().toISOString()
       }).catch(err => handleFirestoreError(err, OperationType.WRITE, `gebruikers/${user.uid}`));
+    }
+
+    if (isRegistration) {
+      await setDoc(doc(db, 'marketing_consents', user.uid), {
+        user_id: user.uid,
+        marketing_opt_in: optIn,
+        marketing_opt_in_date: new Date().toISOString(),
+        marketing_opt_in_source: "registration"
+      }).catch(err => handleFirestoreError(err, OperationType.WRITE, `marketing_consents/${user.uid}`));
     }
   };
 
@@ -121,7 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await sendEmailVerification(userCredential.user);
-        await handleSaveUser(userCredential.user);
+        await handleSaveUser(userCredential.user, marketingOptIn, true);
         // Do NOT redirect, show verification message
         setMode('verify_message');
         // Sign out so they represent logged-out state until they verify and login manually
@@ -298,6 +308,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                         </div>
                       </div>
                     )}
+
+                    {mode === 'register' && (
+                      <div 
+                        onClick={() => setMarketingOptIn(!marketingOptIn)}
+                        className={`group flex items-start gap-3.5 p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none mt-2 ${
+                          marketingOptIn 
+                            ? 'bg-accent-green/5 border-accent-green/30 shadow-lg shadow-accent-green/5' 
+                            : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04] hover:border-white/10'
+                        }`}
+                      >
+                        <div className="relative flex items-center justify-center shrink-0 mt-0.5">
+                          <input
+                            id="marketing-opt-in-checkbox"
+                            type="checkbox"
+                            checked={marketingOptIn}
+                            onChange={() => {}} // dummy handler as state is updated by parent click
+                            className="sr-only"
+                          />
+                          <div className={`h-5 w-5 rounded-md border transition-all duration-200 flex items-center justify-center ${
+                            marketingOptIn 
+                              ? 'bg-accent-green border-accent-green shadow-sm shadow-accent-green/20' 
+                              : 'bg-black/40 border-white/20 group-hover:border-white/40'
+                          }`}>
+                            <Check className={`h-3 w-3 text-black stroke-[3.5px] transition-all duration-150 ${
+                              marketingOptIn ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+                            }`} />
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs text-gray-300 leading-normal group-hover:text-gray-200 transition-colors font-medium">
+                            Ja, ik wil af en toe tips, marktinzichten en aanbiedingen over tweedehands auto’s ontvangen per e-mail. <span className="text-gray-500 font-normal">(optioneel)</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     
                     {mode === 'login' && (
                       <div className="flex justify-end pt-0.5">
@@ -353,13 +398,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
                   <p className="text-center text-xs text-gray-400 mt-6 relative z-10">
                     {mode === 'login' && (
-                      <>Nog geen account? <button onClick={() => { setMode('register'); setError(''); }} className="text-accent-green font-medium hover:underline underline-offset-4">Schrijf je in</button></>
+                      <>Nog geen account? <button onClick={() => { setMode('register'); setError(''); setMarketingOptIn(false); }} className="text-accent-green font-medium hover:underline underline-offset-4">Schrijf je in</button></>
                     )}
                     {mode === 'register' && (
-                      <>Heb je al een account? <button onClick={() => { setMode('login'); setError(''); }} className="text-accent-green font-medium hover:underline underline-offset-4">Log in</button></>
+                      <>Heb je al een account? <button onClick={() => { setMode('login'); setError(''); setMarketingOptIn(false); }} className="text-accent-green font-medium hover:underline underline-offset-4">Log in</button></>
                     )}
                     {mode === 'forgot' && (
-                      <button onClick={() => { setMode('login'); setError(''); }} className="text-accent-green font-medium hover:underline underline-offset-4">Terug naar inloggen</button>
+                      <button onClick={() => { setMode('login'); setError(''); setMarketingOptIn(false); }} className="text-accent-green font-medium hover:underline underline-offset-4">Terug naar inloggen</button>
                     )}
                   </p>
                 </>

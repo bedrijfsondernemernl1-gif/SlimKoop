@@ -392,8 +392,12 @@ export const ReportPage: React.FC = () => {
   };
 
   const handleDownloadPDF = () => {
+    if (!isUnlimited) {
+      alert("Fout: PDF exporteren en downloaden is exclusief beschikbaar voor het Autohandelaar-pakket.");
+      return;
+    }
     try {
-      window.location.href = `/api/rapport/${id}/pdf`;
+      window.location.href = `/api/rapport/${id}/pdf?userId=${user?.uid || ''}`;
     } catch(e) {
       console.error(e);
     }
@@ -450,12 +454,16 @@ export const ReportPage: React.FC = () => {
           </button>
           
           <div className="flex flex-wrap gap-3">
-            {showIframeWarning && (
-              <div className="absolute top-16 right-4 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 bg-amber-500 text-black px-4 py-2 rounded-lg text-sm font-bold shadow-xl z-50 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> Open app in nieuw tabblad om te printen (PDF)
-              </div>
+            {isUnlimited && (
+              <>
+                {showIframeWarning && (
+                  <div className="absolute top-16 right-4 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 bg-amber-500 text-black px-4 py-2 rounded-lg text-sm font-bold shadow-xl z-50 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" /> Open app in nieuw tabblad om te printen (PDF)
+                  </div>
+                )}
+                <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
+              </>
             )}
-            <Button onClick={handleDownloadPDF} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl"><Download className="w-4 h-4 mr-2"/> Download PDF</Button>
             <Button onClick={handleShare} variant="outline" className="h-10 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl">
               {shareCopied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2"/>}
               {shareCopied ? "Gekopieerd!" : "Deel rapport"}

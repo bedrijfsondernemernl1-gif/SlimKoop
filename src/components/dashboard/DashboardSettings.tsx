@@ -17,6 +17,7 @@ export const DashboardSettings: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     // Proactively sync subscription when returning to settings tab
@@ -44,6 +45,33 @@ export const DashboardSettings: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [user]);
+
+  const handleCancelSubscription = async () => {
+    if (!user?.uid) return;
+    const confirmCancel = window.confirm("Weet je zeker dat je je Autohandelaar abonnement wilt opzeggen? Je onbeperkte scans en premium toegang vervallen dan per direct.");
+    if (!confirmCancel) return;
+
+    setCancelLoading(true);
+    try {
+      const response = await fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        alert("Je abonnement is succesvol geannuleerd.");
+        window.location.reload();
+      } else {
+        alert(data.error || "Er is een fout opgetreden bij het annuleren van je abonnement.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Er is een fout opgetreden bij het annuleren: " + e.message);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const handlePasswordReset = async () => {
     if (!user?.email) return;
@@ -203,13 +231,35 @@ export const DashboardSettings: React.FC = () => {
                 
                 <div className="mt-4 border-t border-white/10 pt-4 relative z-10">
                   {isPremium ? (
-                    <p className="text-sm text-gray-400">
-                      Voor het wijzigen of annuleren van je actieve abonnement kun je mailen naar{" "}
-                      <a href="mailto:support@occasionscan.nl" className="text-accent-green hover:underline font-medium">
-                        support@occasionscan.nl
-                      </a>
-                      .
-                    </p>
+                    subscriptionPlan === 'Autohandelaar' ? (
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-400">
+                          Je hebt een actief doorlopend mandaat voor automatische maandelijks incasso. Je kunt je abonnement op ieder moment stopzetten via deze knop.
+                        </p>
+                        <Button
+                          disabled={cancelLoading}
+                          onClick={handleCancelSubscription}
+                          className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl w-full h-11 font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          {cancelLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Bezig met verwerken...
+                            </>
+                          ) : (
+                            'Abonnement direct opzeggen'
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400">
+                        Je hebt een eenmalig pakket ({subscriptionPlan}). Voor vragen over je scans of betaling kun je contact opnemen met{" "}
+                        <a href="mailto:support@occasionscan.nl" className="text-accent-green hover:underline font-medium">
+                          support@occasionscan.nl
+                        </a>
+                        .
+                      </p>
+                    )
                   ) : (
                     <Button 
                       className="bg-accent-green hover:bg-accent-green/90 text-black font-semibold rounded-xl w-full h-11"

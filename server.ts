@@ -20,11 +20,38 @@ const adminDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 import { createUserWithEmailAndPassword } from "firebase/auth";
 
 signInWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSuperPassword123!")
-  .then(() => console.log("[SERVER] Logged in as Server Bot for Firestore access."))
+  .then(() => {
+    console.log("[SERVER] Logged in as Server Bot for Firestore access.");
+    
+    // Initialiseer een test-document voor marketing_consents, zodat de collectie direct zichtbaar is in de Firebase Console
+    const testConsentRef = doc(adminDb, "marketing_consents", "dummy_consent_demo");
+    getDoc(testConsentRef).then((snap) => {
+      if (!snap.exists()) {
+        setDoc(testConsentRef, {
+          user_id: "dummy_consent_demo",
+          marketing_opt_in: true,
+          marketing_opt_in_date: new Date().toISOString(),
+          marketing_opt_in_source: "registration"
+        }).then(() => {
+          console.log("[SERVER] Dummy-document aangemaakt in 'marketing_consents' collectie.");
+        }).catch(err => console.error("[SERVER] Fout bij schrijven dummy consent:", err.message));
+      }
+    });
+  })
   .catch((err) => {
     console.error("[SERVER] Failed to login Server Bot, attempting to create...", err.message);
     createUserWithEmailAndPassword(auth, "admin_server_bot@occasionscan.nl", "ServerSuperPassword123!")
-      .then(() => console.log("[SERVER] Created and logged in as Server Bot."))
+      .then(() => {
+        console.log("[SERVER] Created and logged in as Server Bot.");
+        
+        const testConsentRef = doc(adminDb, "marketing_consents", "dummy_consent_demo");
+        setDoc(testConsentRef, {
+          user_id: "dummy_consent_demo",
+          marketing_opt_in: true,
+          marketing_opt_in_date: new Date().toISOString(),
+          marketing_opt_in_source: "registration"
+        }).catch(err => console.error("[SERVER] Fout bij initialiseren dummy consent:", err.message));
+      })
       .catch(createErr => console.error("[SERVER] Could not create Server Bot:", createErr.message));
   });
 
@@ -209,6 +236,10 @@ async function startServer() {
                 const baseUrl = `${protocol}://${host}`;
                 const webhookUrl = isLocalhost ? undefined : `${baseUrl}/api/mollie-webhook`;
 
+                const futureDate = new Date();
+                futureDate.setDate(futureDate.getDate() + 30);
+                const startDateStr = futureDate.toISOString().split("T")[0];
+
                 const sub = await mollie.customerSubscriptions.create({
                   customerId: payment.customerId,
                   amount: {
@@ -216,10 +247,11 @@ async function startServer() {
                     value: '29.00'
                   },
                   interval: '1 month',
+                  startDate: startDateStr,
                   description: 'OccasionScan.nl - Autohandelaar (Maandabonnement)',
                   webhookUrl: webhookUrl,
                 });
-                console.log(`[MOLLIE REDIRECT] Abonnement ${sub.id} aangemaakt voor klant ${payment.customerId}`);
+                console.log(`[MOLLIE REDIRECT] Abonnement ${sub.id} (start_date: ${startDateStr}) aangemaakt voor klant ${payment.customerId}`);
                 await setDoc(userRef, {
                   mollieSubscriptionId: sub.id
                 }, { merge: true });
@@ -295,7 +327,7 @@ async function startServer() {
   });
 
   app.post("/api/create-checkout-session", async (req, res) => {
-    const { priceId, userId, userEmail, code } = req.body;
+    const { priceId, userId, userEmail, code, sepaName, sepaAddress, sepaIban, sepaCountry } = req.body;
 
     if (!priceId || !userId) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -321,6 +353,8 @@ async function startServer() {
         pakket = "Autohandelaar";
       }
 
+      const isSubscription = priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ";
+
       // Check of er een geldige kortingscode is meegegeven
       let appliedCode = "";
       let appliedDiscount = 0;
@@ -343,10 +377,12 @@ async function startServer() {
         if (isValidCode) {
           const isLosseScan = pakket === "Losse Scan";
           const discountPercent = isLosseScan ? 5 : 10;
-          const origVal = parseFloat(amountValue);
-          const discountAmount = Math.round(origVal * discountPercent) / 100;
-          const finalVal = Math.max(0, origVal - discountAmount);
-          amountValue = finalVal.toFixed(2);
+          if (pakket !== "Autohandelaar") {
+            const origVal = parseFloat(amountValue);
+            const discountAmount = Math.round(origVal * discountPercent) / 100;
+            const finalVal = Math.max(0, origVal - discountAmount);
+            amountValue = finalVal.toFixed(2);
+          }
           description += ` (Via code: ${cleanCode} - ${discountPercent}% korting)`;
           appliedCode = cleanCode;
           appliedDiscount = discountPercent;
@@ -403,8 +439,6 @@ async function startServer() {
 
       console.log(`[MOLLIE] Aanmaken betaling voor user: ${userId}. Webhook: ${webhookUrl}`);
 
-      const isSubscription = priceId === "price_1TWzLoRsJS7Vz7uqcB7DF5qQ";
-
       const paymentParams: any = {
         amount: {
           currency: 'EUR',
@@ -424,7 +458,7 @@ async function startServer() {
         }
       };
 
-      if (isSubscription && mollieCustomerId) {
+      if (isSubscription) {
         paymentParams.customerId = mollieCustomerId;
         paymentParams.sequenceType = "first";
       } else if (mollieCustomerId) {
@@ -514,6 +548,10 @@ async function startServer() {
                 const baseUrl = `${protocol}://${host}`;
                 const webhookUrl = isLocalhost ? undefined : `${baseUrl}/api/mollie-webhook`;
 
+                const futureDate = new Date();
+                futureDate.setDate(futureDate.getDate() + 30);
+                const startDateStr = futureDate.toISOString().split("T")[0];
+
                 const sub = await mollie.customerSubscriptions.create({
                   customerId: payment.customerId,
                   amount: {
@@ -521,12 +559,14 @@ async function startServer() {
                     value: '29.00'
                   },
                   interval: '1 month',
+                  startDate: startDateStr,
                   description: 'OccasionScan.nl - Autohandelaar (Maandabonnement)',
                   webhookUrl: webhookUrl,
                 });
-                console.log(`[MOLLIE WEBHOOK] Abonnement ${sub.id} aangemaakt voor klant ${payment.customerId}`);
+                console.log(`[MOLLIE WEBHOOK] Abonnement ${sub.id} (start_date: ${startDateStr}) is succesvol aangemaakt.`);
                 await setDoc(userRef, {
-                  mollieSubscriptionId: sub.id
+                  mollieSubscriptionId: sub.id,
+                  sepaMandateStatus: "valid"
                 }, { merge: true });
               } catch (subErr: any) {
                 console.error("[MOLLIE WEBHOOK] Fout bij aanmaken abonnement via webhook:", subErr);
@@ -535,11 +575,62 @@ async function startServer() {
           }
         }
       }
+ 
+       res.status(200).send("OK");
+     } catch (error: any) {
+       console.error("[MOLLIE WEBHOOK] Fout bij verwerken webhook:", error.message);
+       res.status(200).send(`OK`); 
+     }
+   });
 
-      res.status(200).send("OK");
-    } catch (error: any) {
-      console.error("[MOLLIE WEBHOOK] Fout bij verwerken webhook:", error.message);
-      res.status(200).send(`OK`); 
+  app.post("/api/cancel-subscription", async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is verplicht" });
+    }
+
+    try {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return res.status(404).json({ error: "Gebruiker niet gevonden" });
+      }
+
+      const userData = userSnap.data();
+      const mollieCustomerId = userData.mollieCustomerId;
+      const mollieSubscriptionId = userData.mollieSubscriptionId;
+
+      console.log(`[CANCEL SUBSCRIPTION] Opzegging gestart voor user ${userId}. Customer: ${mollieCustomerId}, Sub: ${mollieSubscriptionId}`);
+
+      if (mollieSubscriptionId && mollieCustomerId) {
+        try {
+          const mollie = getMollieClient();
+          try {
+            await (mollie.customerSubscriptions as any).cancel(mollieSubscriptionId, { customerId: mollieCustomerId });
+          } catch (firstErr) {
+            // fallback signature support
+            await (mollie.customerSubscriptions as any).cancel({ id: mollieSubscriptionId, customerId: mollieCustomerId });
+          }
+          console.log(`[CANCEL SUBSCRIPTION] Mollie abonnement ${mollieSubscriptionId} succesvol geannuleerd.`);
+        } catch (mollieErr: any) {
+          console.warn(`[CANCEL SUBSCRIPTION] Fout bij annuleren bij Mollie (mogelijk al geannuleerd):`, mollieErr.message);
+        }
+      }
+
+      // Reset de status van de gebruiker in Firestore direct
+      await setDoc(userRef, {
+        subscriptionStatus: "free",
+        pakket: "free",
+        permissies: "free",
+        mollieSubscriptionId: null,
+        scansOver: 0,
+        scanLimiet: 0
+      }, { merge: true });
+
+      return res.json({ success: true, message: "Abonnement succesvol geannuleerd." });
+    } catch (err: any) {
+      console.error("[CANCEL SUBSCRIPTION] Interne fout:", err);
+      return res.status(500).json({ error: err.message });
     }
   });
 
@@ -957,6 +1048,34 @@ async function startServer() {
   app.get("/api/rapport/:id/pdf", async (req, res) => {
     try {
       const rapportId = req.params.id;
+      const { userId } = req.query;
+
+      let hasAccess = false;
+      if (userId && typeof userId === "string") {
+        const userRef = doc(adminDb, "gebruikers", userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const uData = userSnap.data();
+          const userEmail = uData.email || "";
+
+          const adminEmails = [
+            "ibrahimdiscord675@gmail.com",
+            "sblzakelijk@gmail.com",
+            "bedrijfsondernemernl1@gmail.com",
+            "admin_server_bot@occasionscan.nl"
+          ];
+          const userIsAdmin = adminEmails.includes(userEmail.toLowerCase());
+
+          if (userIsAdmin || uData.permissies === "autohandelaar") {
+            hasAccess = true;
+          }
+        }
+      }
+
+      if (!hasAccess) {
+        return res.status(403).send("Fout: PDF exporteren en downloaden is exclusief beschikbaar voor gebruikers met het Autohandelaar-pakket.");
+      }
+
       const docRef = doc(adminDb, 'rapporten', rapportId);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) {

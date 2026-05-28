@@ -23,8 +23,8 @@ export const PricingPage: React.FC = () => {
   const [purchasing, setPurchasing] = React.useState<string | null>(null);
 
 
-  const handlePurchase = async (title: string, couponCode: string | null = null) => {
-    console.log("handlePurchase clicked for:", title);
+  const handlePurchase = async (title: string, couponCode: string | null = null, sepaData?: any) => {
+    console.log("handlePurchase clicked for:", title, "sepa:", !!sepaData);
     if (!isLoggedIn || !user) {
       openAuthModal();
       return;
@@ -47,15 +47,16 @@ export const PricingPage: React.FC = () => {
           userId: user.uid,
           userEmail: user.email,
           code: couponCode,
-          mode: title === "Autohandelaar" ? "subscription" : "payment"
+          mode: title === "Autohandelaar" ? "subscription" : "payment",
+          ...sepaData
         })
       });
       const data = await response.json();
-      if (data.url) {
+      if (response.ok && data.url) {
         window.location.href = data.url;
       } else {
-        console.error("Mollie session URL niet ontvangen:", data);
-        alert("Er is een fout opgetreden bij het opstarten van de betaling. Probeer het later opnieuw.");
+        console.error("Mollie session error:", data);
+        alert(data.error || "Er is een fout opgetreden bij het opstarten van de betaling. Probeer het later opnieuw.");
       }
     } catch (error) {
       console.error("Fout tijdens handlePurchase:", error);
@@ -144,7 +145,7 @@ export const PricingPage: React.FC = () => {
              features={[
                { text: "1 volledig premium rapport", included: true },
                { text: "Unieke DealScore & waardebepaling", included: true },
-               { text: "Directe rode vlaggen & risico analyse", included: true },
+               { text: "Positieve punten & enkele aandachtspunten/risico’s van de advertentie", included: true },
                { text: "RDW open-data & kilometerstand check", included: true },
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
@@ -168,7 +169,7 @@ export const PricingPage: React.FC = () => {
                { text: "Directe rode vlaggen & risico analyse", included: true },
                { text: "RDW open-data & kilometerstand check", included: true },
                { text: "Geavanceerde AI Foto-scan", included: true },
-               { text: "Volledig persoonlijk onderhandelingsscript", included: true },
+               { text: "Persoonlijke onderhandelingsscripts (openingsbod, tegenbod, weglopen)", included: true },
                { text: "Rapportgeschiedenis & opslag (30 dagen)", included: true },
              ]}
              btnText={purchasing === "Slimme Koper" ? "Laden..." : "Word een Slimme Koper"}
@@ -182,8 +183,8 @@ export const PricingPage: React.FC = () => {
              title="Autohandelaar" 
              price="€29" 
              period="/ maand"
-             description="Tijdelijk niet beschikbaar. De ultieme tool voor dealers die maximale winst en snelheid eisen."
-             badgeText="TIJDELIJK NIET BESCHIKBAAR"
+             description="De ultieme tool voor dealers en professionals die maximale winst en snelheid eisen."
+             badgeText="MEEST COMPLEET"
              features={[
                { text: "Onbeperkt aantal scans per maand", included: true },
                { text: "Volledige toegang tot alle Slimme Koper functionaliteiten", included: true },
@@ -194,14 +195,13 @@ export const PricingPage: React.FC = () => {
                { text: "Persoonlijke onderhandelingsscripts (openingsbod, tegenbod, weglopen)", included: true },
                { text: "Snelle premium e-mailondersteuning bij vragen", included: true },
                { text: "Eenvoudig rapporten exporteren naar PDF of printen", included: true },
-               { text: "Altijd als eerste toegang tot nieuwe AI-updates", included: true },
              ]}
-             btnText="Tijdelijk niet beschikbaar"
+             btnText={purchasing === "Autohandelaar" ? "Laden..." : "Word Autohandelaar"}
              isDealer={true}
              featured={false}
-             disabled={true}
+             disabled={false}
              buttonStyle="dealer-premium"
-             onClick={() => {}}
+             onClick={() => handlePurchase("Autohandelaar")}
           />
         </div>
 

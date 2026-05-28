@@ -33,6 +33,31 @@
       },
       "required": ["email", "uid", "aanmaakdatum"]
     },
+    "MarketingConsent": {
+      "title": "MarketingConsent",
+      "description": "User marketing consent choices for GDPR compliance",
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user"
+        },
+        "marketing_opt_in": {
+          "type": "boolean",
+          "description": "True if user accepted marketing e-mails"
+        },
+        "marketing_opt_in_date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when consent was recorded"
+        },
+        "marketing_opt_in_source": {
+          "type": "string",
+          "description": "Consent source, typically 'registration'"
+        }
+      },
+      "required": ["user_id", "marketing_opt_in", "marketing_opt_in_date", "marketing_opt_in_source"]
+    },
     "Analyse": {
       "title": "Analyse",
       "description": "Car analysis report",
@@ -116,6 +141,12 @@
         "$ref": "#/entities/Rapport"
       },
       "description": "Stores scraped reports"
+    },
+    "/marketing_consents/{userId}": {
+      "schema": {
+        "$ref": "#/entities/MarketingConsent"
+      },
+      "description": "Stores user marketing opt-in details under user ID"
     }
   }
 }

@@ -75,6 +75,12 @@ service cloud.firestore {
       allow read, write: if true; // Server side uses admin or isServerAdmin, but client might check
     }
 
+    // 7. Marketing Consents
+    match /marketing_consents/{userId} {
+      allow get, create, update, delete: if isSignedIn() && (userId == request.auth.uid || isAdmin() || isServerAdmin());
+      allow list: if isAdmin() || isServerAdmin();
+    }
+
     // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
