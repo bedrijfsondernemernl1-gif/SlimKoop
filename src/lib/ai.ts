@@ -283,17 +283,68 @@ Vergelijking (prijs|km|jaar): ${vergelijkingCSV}`;
 
         const origineelBod = result.openingsBod;
 
-        // Programmatische bewaker: Het openingsbod niet te ver onder de vraagprijs (minimaal 80%, maximaal 95%)
-        if (vraagprijs > 0 && typeof result.openingsBod === 'number' && result.openingsBod > 0) {
-          const minBod = Math.round(vraagprijs * 0.80);
-          const maxBod = Math.round(vraagprijs * 0.95);
-          if (result.openingsBod < minBod) {
-            result.openingsBod = minBod;
-          } else if (result.openingsBod > maxBod) {
-            result.openingsBod = maxBod;
-          }
-        } else if (vraagprijs > 0) {
-          result.openingsBod = Math.round(vraagprijs * 0.90);
+        // --- OPENINGSBOD BEREKENING ---
+        // Standaard: 90-95% van vraagprijs (we kiezen 92% van de vraagprijs).
+        // Alleen lager (80-85%, we kiezen 83%) bij uitzonderingen zoals verlopen APK, onlogische tellerstand, zichtbare schade of bekende dure reparaties.
+        let openingsBodUitzondering = false;
+        
+        // 1. Controle op verlopen APK
+        if (rdwData && rdwData.apkVervaldatum) {
+          try {
+            const apkDate = new Date(rdwData.apkVervaldatum);
+            if (!isNaN(apkDate.getTime()) && apkDate.getTime() < currentDate.getTime()) {
+              openingsBodUitzondering = true;
+            }
+          } catch (e) {}
+        }
+        
+        // 2. Controle op onlogische tellerstand
+        if (rdwData && String(rdwData.tellerstandoordeel || "").toLowerCase().includes("onlogisch")) {
+          openingsBodUitzondering = true;
+        }
+        if (Number(listingData.kilometerstand) <= 0) {
+          openingsBodUitzondering = true; // Ontbrekende of 0-stand geldt als uitzondering/risicofactor
+        }
+
+        // 3. Controle op zichtbare schade (in beschrijving of titel)
+        const lowerDescText = (listingData.beschrijving || "").toLowerCase();
+        const lowerTitleText = (listingData.titel || "").toLowerCase();
+        const schadeSleutelwoorden = [
+          "schade", "deuk", "krassen", "krasjes", "lakbeschadiging", "ongeval", 
+          "deukje", "beschadigd", "kras", "blikschade", "gebruikerssporen", "beschadiging"
+        ];
+        const heeftSchadeSleutelwoord = schadeSleutelwoorden.some(term => {
+          return lowerDescText.includes(term) || lowerTitleText.includes(term);
+        });
+        if (heeftSchadeSleutelwoord) {
+          openingsBodUitzondering = true;
+        }
+
+        // 4. Controle op bekende dure reparaties
+        const dureReparatieSleutelwoorden = [
+          "mechatronic", "dsg", "distributieketting", "koppeling vervangen", "turbo", 
+          "roetfilter", "versnellingsbak defect", "motorstoring", "kettingspanner", 
+          "ketting opgerekt", "motor vervangen", "dakraam lekt", "reparatie nodig", "dure reparatie"
+        ];
+        const heeftDureReparatieSleutelwoord = dureReparatieSleutelwoorden.some(term => {
+          return lowerDescText.includes(term) || lowerTitleText.includes(term);
+        });
+        if (heeftDureReparatieSleutelwoord) {
+          openingsBodUitzondering = true;
+        }
+
+        // 5. Check of er een hoge ernst rode vlag aanwezig is in het resultaat
+        const heeftHogeRodeVlag = Array.isArray(result.rodeVlaggen) && result.rodeVlaggen.some((v: any) => v.ernst === 'hoog');
+        if (heeftHogeRodeVlag) {
+          openingsBodUitzondering = true;
+        }
+
+        // Pas bod percentage toe based on presence of exceptions
+        const bodPercentage = openingsBodUitzondering ? 0.83 : 0.92;
+        if (vraagprijs > 0) {
+          result.openingsBod = Math.round(vraagprijs * bodPercentage);
+        } else {
+          result.openingsBod = 0;
         }
 
         if (origineelBod && origineelBod !== result.openingsBod && result.onderhandelingsScript) {
@@ -355,14 +406,104 @@ Vergelijking (prijs|km|jaar): ${vergelijkingCSV}`;
           result.aandachtspunten = result.aandachtspunten.map((p: any) => translateAndShorten(p, true)).filter(Boolean);
         }
 
-        // Programmatische bewaker: DealScore binnen 0-100 en begrensd bij zware rode vlaggen
-        if (typeof result.dealScore === 'number') {
-          result.dealScore = Math.max(0, Math.min(100, Math.round(result.dealScore)));
-          const heeftHogeRodeVlag = Array.isArray(result.rodeVlaggen) && result.rodeVlaggen.some((v: any) => v.ernst === 'hoog');
-          if (heeftHogeRodeVlag && result.dealScore > 65) {
-            result.dealScore = 65;
+        // --- DEALSCORE BEREKENING ---
+        // Dynamische, robuuste weging met een startpunt van 70.
+        let berekendeScore = 70;
+
+        // 1. Prijs vs Markt (grootste factor - gunstige prijs t.o.v. de markt verhoogt score; hogere prijs verlaagt score)
+        let prijsVerschilPercentage = 0;
+        if (vraagprijs > 0 && Array.isArray(vergelijkbareAutos) && vergelijkbareAutos.length > 0) {
+          const geldigePrijzen = vergelijkbareAutos
+            .map(v => Number(v.prijs || v.price || 0))
+            .filter(p => !isNaN(p) && p > 0);
+          if (geldigePrijzen.length > 0) {
+            const gemiddeldeMarktPrijs = geldigePrijzen.reduce((sum, item) => sum + item, 0) / geldigePrijzen.length;
+            prijsVerschilPercentage = ((vraagprijs - gemiddeldeMarktPrijs) / gemiddeldeMarktPrijs) * 100;
           }
         }
+
+        if (prijsVerschilPercentage < -5) {
+          // Prijsvoordeel t.o.v. de markt (+10 tot +20)
+          const bonus = Math.min(20, Math.max(10, Math.round(Math.abs(prijsVerschilPercentage) * 1.5)));
+          berekendeScore += bonus;
+        } else if (prijsVerschilPercentage > 5) {
+          // Prijsnadeel t.o.v. de markt (-10 tot -20)
+          const aftrek = Math.min(20, Math.max(10, Math.round(prijsVerschilPercentage * 1.5)));
+          berekendeScore -= aftrek;
+        }
+
+        // 2. Rode Vlaggen (middelmatige vlaggen verlagen score met 5-10, hoge/ernstige vlaggen verlagen score met 15-20)
+        let rodeVlagAftrek = 0;
+        const rodeVlaggenLijst = Array.isArray(result.rodeVlaggen) ? result.rodeVlaggen : [];
+        rodeVlaggenLijst.forEach((v: any) => {
+          if (v.ernst === 'hoog') {
+            rodeVlagAftrek += 18; // 18 punten aftrek bij hoge ernst
+          } else if (v.ernst === 'middel') {
+            rodeVlagAftrek += 8;  // 8 punten aftrek bij middel ernst
+          } else {
+            rodeVlagAftrek += 3;  // 3 punten bij lage ernst
+          }
+        });
+        berekendeScore -= rodeVlagAftrek;
+
+        // 3. Advertentie Kwaliteit (duidelijke beschrijving, goed taalgebruik geeft bonus of penalisatie)
+        const beschrijvingTekst = (listingData.beschrijving || "").trim();
+        if (beschrijvingTekst.length > 800) {
+          berekendeScore += 5; // Uitstekende, gedetailleerde advertentietekst (+5)
+        } else if (beschrijvingTekst.length < 150) {
+          berekendeScore -= 8; // Heel magere advertentietekst (-8)
+        }
+
+        // 4. Kilometerstand & Leeftijd (extreem hoge km-stand of onlogische stand verlaagt score met 10-15; zeer gunstige kilometerstand geeft bonus tot +10)
+        const listingJaar = Number(listingData.bouwjaar) || 0;
+        const listingKm = Number(listingData.kilometerstand) || 0;
+        if (listingJaar > 0 && listingKm > 0) {
+          const jarenInGebruik = Math.max(1, 2026 - listingJaar);
+          const kmPerJaarGemiddeld = listingKm / jarenInGebruik;
+          if (kmPerJaarGemiddeld < 8000) {
+            berekendeScore += 8; // Zeer gunstige kilometerstand (+8)
+          } else if (kmPerJaarGemiddeld > 25000) {
+            berekendeScore -= 12; // Extreem hoge km-stand t.o.v. bouwjaar (-12)
+          } else if (kmPerJaarGemiddeld > 18000) {
+            berekendeScore -= 5; // Iets hogere km-stand (-5)
+          }
+        } else if (listingKm === 0) {
+          berekendeScore -= 10; // Geen kilometerstand vermeld
+        }
+
+        // 5. APK vervaldatum invloed
+        if (rdwData && rdwData.apkVervaldatum) {
+          try {
+            const apkDate = new Date(rdwData.apkVervaldatum);
+            if (!isNaN(apkDate.getTime())) {
+              const diffMs = apkDate.getTime() - currentDate.getTime();
+              const diffDays = diffMs / (1000 * 60 * 60 * 24);
+              if (diffDays < 0) {
+                berekendeScore -= 15; // Verlopen APK
+              } else if (diffDays < 60) {
+                berekendeScore -= 8;  // Korte APK < 2 maanden
+              }
+            }
+          } catch (e) {}
+        }
+
+        // We combineren de LLM score (voor subjectieve/menselijke nuance) met onze programmatische score
+        let uiteindelijkeScore = berekendeScore;
+        const llmScore = Number(result.dealScore);
+        if (!isNaN(llmScore) && llmScore > 0) {
+          // Mix 40% AI score met 60% wiskundig berekende score voor stabiliteit en realisme
+          uiteindelijkeScore = Math.round((llmScore * 0.4) + (berekendeScore * 0.6));
+        }
+
+        // Begrens de score tussen 15 en 98. Mag nooit 0 zijn als er data geanalyseerd is.
+        uiteindelijkeScore = Math.max(15, Math.min(98, uiteindelijkeScore));
+
+        // Harde topgrens/plafond bij aanwezigheid van zware rode vlaggen (maximaal 65)
+        if (openingsBodUitzondering && heeftHogeRodeVlag && uiteindelijkeScore > 65) {
+          uiteindelijkeScore = 65;
+        }
+
+        result.dealScore = uiteindelijkeScore;
 
         return result;
       } catch (parseError) {
