@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, useAnimation, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Download, Bookmark, Share2, AlertTriangle, CheckCircle, Search, AlertCircle, FileText, Check, Copy, MessageCircle, BarChart3, Camera, ShieldAlert, BadgeCheck, Lock, XCircle, Car, TrendingDown, Clock, MousePointerClick, ShieldCheck, ExternalLink, Loader2 } from 'lucide-react';
+import { ChevronLeft, Download, Bookmark, Share2, AlertTriangle, CheckCircle, Search, AlertCircle, FileText, Check, Copy, MessageCircle, BarChart3, Camera, ShieldAlert, BadgeCheck, Lock, XCircle, Car, TrendingDown, Clock, MousePointerClick, ShieldCheck, ExternalLink, Loader2, Wrench, ClipboardCheck, ListChecks } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { AuthModal } from '@/src/components/AuthModal';
@@ -12,7 +12,9 @@ import { doc, onSnapshot } from 'firebase/firestore';
 const TABS = [
   { id: 'overzicht', label: 'Overzicht', minTier: 'free' },
   { id: 'prijs', label: 'Prijs', minTier: 'losse_scan' },
+  { id: 'reparatie', label: 'Reparatiekosten', minTier: 'losse_scan' },
   { id: 'vlaggen', label: 'Risico\'s', minTier: 'losse_scan' },
+  { id: 'checklist', label: 'Proefrit', minTier: 'slimme_koper' },
   { id: 'foto', label: 'Foto Analyse', minTier: 'slimme_koper' },
   { id: 'script', label: 'Onderhandelen', minTier: 'slimme_koper' }
 ] as const;
@@ -37,6 +39,9 @@ export const ReportPage: React.FC = () => {
   const [showIframeWarning, setShowIframeWarning] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeScenario, setActiveScenario] = useState<'openingsbod' | 'tegenbod' | 'weglopen'>('openingsbod');
+  const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
+  const [selectedRepairs, setSelectedRepairs] = useState<Record<number, boolean>>({0: true, 1: true, 2: true, 3: true, 4: true});
+  const [activeActionStep, setActiveActionStep] = useState<number | null>(1);
   const controls = useAnimation();
 
   const [clientRdw, setClientRdw] = useState<any>(null);
@@ -225,7 +230,12 @@ export const ReportPage: React.FC = () => {
     ontbrekendeFotos: reportData?.ontbrekendeFotos || [],
     onderhandelingsScript: reportData?.onderhandelingsScript || "",
     onderhandelingsTips: reportData?.onderhandelingsTips || [],
-    openingsBod: reportData?.openingsBod || 0
+    openingsBod: reportData?.openingsBod || 0,
+    reparatierisicos: reportData?.reparatierisicos || [],
+    proefritChecklist: reportData?.proefritChecklist || [],
+    actieplan: reportData?.actieplan || [],
+    merk: reportData?.merk || reportData?.autoNaam?.split(" ")[0] || "Auto",
+    model: reportData?.model || reportData?.autoNaam?.split(" ").slice(1).join(" ") || ""
   };
 
   if (['verwerking', 'scraping', 'vergelijken', 'analyseren', 'afronden', 'ai_analyseren'].includes(reportData?.status)) {
@@ -632,25 +642,27 @@ export const ReportPage: React.FC = () => {
                   )}
                 </div>
                 <div className={`flex justify-between items-center p-4 rounded-xl mt-4 border ${!hasPaidAccess ? 'grayscale opacity-50 bg-accent-green/10 border-accent-green/20' : (
-                  (data.eerlijkePrijs - data.vraagprijs) > 500 
+                  (data.vraagprijs - data.eerlijkePrijs) <= 0 
                     ? 'bg-accent-green/10 border-accent-green/20' 
-                    : (data.eerlijkePrijs - data.vraagprijs) >= 0 
-                      ? 'bg-yellow-500/10 border-yellow-500/20' 
-                      : 'bg-red-500/10 border-red-500/20'
+                    : 'bg-red-500/10 border-red-500/20'
                 )}`}>
-                  <span className="text-gray-200 font-bold uppercase text-xs tracking-wider">Directe Winst</span>
+                  <span className="text-gray-200 font-bold uppercase text-xs tracking-wider">Prijsverschil</span>
                   {hasPaidAccess ? (
-                    <span className={`font-black text-xl ${
-                      (data.eerlijkePrijs - data.vraagprijs) > 500 
+                    <span className={`font-black text-xl text-right ${
+                      (data.vraagprijs - data.eerlijkePrijs) <= 0 
                         ? 'text-accent-green' 
-                        : (data.eerlijkePrijs - data.vraagprijs) >= 0 
-                          ? 'text-yellow-500' 
-                          : 'text-red-500'
+                        : 'text-red-500'
                     }`}>
-                      {(data.eerlijkePrijs - data.vraagprijs) >= 0 ? '+ ' : ''}€ {(data.eerlijkePrijs - data.vraagprijs).toLocaleString('nl-NL')}
+                      {(data.vraagprijs - data.eerlijkePrijs) < 0 ? (
+                        `- €${Math.abs(data.vraagprijs - data.eerlijkePrijs).toLocaleString('nl-NL')}`
+                      ) : (data.vraagprijs - data.eerlijkePrijs) > 0 ? (
+                        `+ €${(data.vraagprijs - data.eerlijkePrijs).toLocaleString('nl-NL')}`
+                      ) : (
+                        `€ 0`
+                      )}
                     </span>
                   ) : (
-                    <span className="font-black text-gray-500 text-xl blur-sm select-none">+ € x.xxx</span>
+                    <span className="font-black text-gray-500 text-xl blur-sm select-none">- € x.xxx</span>
                   )}
                 </div>
                 {!hasPaidAccess && (
@@ -805,6 +817,87 @@ export const ReportPage: React.FC = () => {
                   </Card>
                 </div>
 
+                {/* VOLGENDE STAPPEN ACTIEPLAN */}
+                <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl mt-6">
+                  <div className="mb-6">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2.5 mb-1 animate-pulse">
+                      <ListChecks className="w-5 h-5 text-accent-green" /> Volgende Stappen Actieplan
+                    </h3>
+                    <p className="text-gray-400 text-xs md:text-sm">
+                      Volg dit concrete, interactieve stappenplan om gegarandeerd de veiligste en financieel meest voordelige aankoopbeslissing te nemen.
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    {/* Vertical Line for timeline */}
+                    <div className="absolute left-[23px] top-4 bottom-4 w-0.5 bg-white/5 hidden md:block"></div>
+
+                    <div className="space-y-4">
+                      {((data.actieplan && data.actieplan.length > 0)
+                        ? data.actieplan
+                        : [
+                            {
+                              stap: 1,
+                              titel: "Neem contact op & Vraag historische bestanden",
+                              omschrijving: "Bel of stuur een bericht naar de verkoper. Vraag specifiek of het onderhoudsboekje (of digitale historie) volledig ingevuld aanwezig is en of er eerdere schades bekend zijn."
+                            },
+                            {
+                              stap: 2,
+                              titel: "Boek een fysieke bezichtiging met koude start",
+                              omschrijving: "Plan een afspraak overdag bij droog weer. Geef aan dat je de auto graag met een koude motor wilt starten om eventuele rammelgeluiden in de gaten te houden."
+                            },
+                            {
+                              stap: 3,
+                              titel: "Neem onze interactieve Proefrit Checklist mee",
+                              omschrijving: "Open de 'Proefrit' tab op je mobiele telefoon tijdens de inspectie. Loop alle 4 de onderdelen zorgvuldig langs en vink ze één voor één af."
+                            },
+                            {
+                              stap: 4,
+                              titel: "Doe een stevig maar reëel openingsbod",
+                              omschrijving: "Heeft de auto de test doorstaan? Gebruik ons 'Onderhandelen' script om direct de juiste markt- en herstelargumenten op tafel te leggen en sleep de scherpste deal binnen!"
+                            }
+                          ]
+                      ).map((step: any, idx: number) => {
+                        const stepNum = step.stap || (idx + 1);
+                        const isCurrent = activeActionStep === stepNum;
+                        return (
+                          <div 
+                            key={idx}
+                            onClick={() => setActiveActionStep(isCurrent ? null : stepNum)}
+                            className={`relative p-4 md:ml-12 rounded-2xl border transition-all cursor-pointer ${
+                              isCurrent 
+                                ? 'border-accent-green/30 bg-accent-green/[0.01]' 
+                                : 'border-white/5 bg-[#131B2A]/20 hover:border-white/10'
+                            }`}
+                          >
+                            {/* Circle Icon left on absolute on desktop */}
+                            <div className={`md:absolute md:left-[-59px] md:top-1/2 md:-translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs z-10 mx-auto mb-2 md:mb-0 transition-all ${
+                              isCurrent 
+                                ? 'bg-accent-green text-black scale-105 shadow shadow-accent-green/15' 
+                                : 'bg-[#131B2A] border border-white/15 text-gray-400'
+                            }`}>
+                              {stepNum}
+                            </div>
+
+                            <div className="flex justify-between items-center gap-4">
+                              <h4 className={`text-sm md:text-base font-bold ${isCurrent ? 'text-accent-green' : 'text-white'}`}>
+                                {step.titel}
+                              </h4>
+                              <span className="text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap">
+                                Stap {stepNum}
+                              </span>
+                            </div>
+
+                            <div className={`mt-2 text-xs md:text-sm text-gray-300 leading-relaxed md:pr-10 ${isCurrent ? 'block' : 'hidden md:block'}`}>
+                              {step.omschrijving}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
+
                 {/* Removed Seller Info block because it is now under the Advertentie Analyse tab */}
               </motion.div>
             ) : (
@@ -817,8 +910,8 @@ export const ReportPage: React.FC = () => {
                 className="relative h-full"
               >
                 <div className={
-                  ((['prijs', 'vlaggen'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
-                   (['foto', 'script'].indexOf(activeTab) !== -1 && !hasFullAccess))
+                  ((['prijs', 'vlaggen', 'reparatie'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
+                   (['foto', 'script', 'checklist'].indexOf(activeTab) !== -1 && !hasFullAccess))
                      ? "blur-xl select-none pointer-events-none transition-all duration-300"
                      : ""
                 }>
@@ -974,6 +1067,136 @@ export const ReportPage: React.FC = () => {
                     );
                   })()}
 
+                  {/* TAB 2.5: REPARATIEKOSTEN */}
+                  {activeTab === 'reparatie' && (() => {
+                    const displayReparaties = (data.reparatierisicos || []).filter((rep: any) => 
+                      rep.urgentie === 'hoog' || 
+                      rep.urgentie === 'medium' || 
+                      rep.urgentie === 'midden'
+                    );
+
+                    if (displayReparaties.length === 0) {
+                      return (
+                        <div className="space-y-6 animate-fade-in">
+                          <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                            <div className="text-center py-12 max-w-lg mx-auto">
+                              <div className="w-16 h-16 rounded-full bg-accent-green/10 flex items-center justify-center border border-accent-green/20 mx-auto mb-6">
+                                <ShieldCheck className="w-8 h-8 text-accent-green animate-bounce" />
+                              </div>
+                              <h3 className="text-2xl font-bold text-white mb-3">
+                                Geen acute herstelschades gedetecteerd
+                              </h3>
+                              <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                                Op basis van onze AI-scan van de advertentietekst, kilometerstand en historische gegevens zijn er voor deze {data.merk || 'auto'} {data.model || ''} geen actuele schades, defecten of direct noodzakelijke reparaties gevonden die dringende urgentie vereisen. De auto verkeert op papier in een gezonde en cosmetisch goede staat zonder onverwachte verborgen gebreken.
+                              </p>
+                              <div className="bg-[#131B2A]/60 border border-white/5 rounded-2xl p-4 text-left flex gap-3 text-xs text-gray-400">
+                                <AlertCircle className="w-4 h-4 text-accent-green shrink-0 mt-0.5" />
+                                <span>
+                                  <strong>Let op:</strong> Regulier preventief onderhoud (zoals een periodieke kleine/grote beurt of bandenwissel) is natuurlijk altijd wegens natuurlijk gebruik aan te bevelen volgens het schema van de fabrikant, maar er zijn op dit moment geen verborgen of urgente kostenposten geconstateerd.
+                                </span>
+                              </div>
+                            </div>
+                          </Card>
+                        </div>
+                      );
+                    }
+
+                    const parseRange = (costStr: string) => {
+                      const nums = costStr.replace(/[^0-9-]/g, '').split('-').map(Number);
+                      return {
+                        min: nums[0] || 0,
+                        max: nums[1] || nums[0] || 0
+                      };
+                    };
+
+                    let totalMin = 0;
+                    let totalMax = 0;
+
+                    displayReparaties.forEach((rep: any, idx: number) => {
+                      if (selectedRepairs[idx] !== false) {
+                        const r = parseRange(rep.geschatteKosten);
+                        totalMin += r.min;
+                        totalMax += r.max;
+                      }
+                    });
+
+                    return (
+                      <div className="space-y-6">
+                        <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-white/5">
+                            <div>
+                              <h3 className="text-2xl font-bold text-white flex items-center gap-2 mb-2">
+                                <Wrench className="w-6 h-6 text-accent-green" /> Actuele Schade- & Reparatiekosten
+                              </h3>
+                              <p className="text-gray-400 text-sm">
+                                Geïdentificeerde dringende herstelschades of urgente mechanische controlepunten voor deze {data.merk || 'auto'} {data.model || ''} gebaseerd op de AI-inspectie.
+                              </p>
+                            </div>
+                            
+                            <div className="bg-black/40 border border-white/10 rounded-2xl p-5 shrink-0 text-center lg:text-right min-w-[220px]">
+                              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Geselecteerd Budget</p>
+                              <p className="text-2xl font-extrabold text-accent-green">
+                                € {totalMin.toLocaleString('nl-NL')} - € {totalMax.toLocaleString('nl-NL')}
+                              </p>
+                              <p className="text-[10px] text-gray-500 mt-1">Vink posten uit om uw budget te berekenen</p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-4">
+                            {displayReparaties.map((rep: any, idx: number) => {
+                              const isChecked = selectedRepairs[idx] !== false;
+                              return (
+                                <div 
+                                  key={idx} 
+                                  onClick={() => setSelectedRepairs(prev => ({...prev, [idx]: !isChecked}))}
+                                  className={`p-5 rounded-2xl border transition-all cursor-pointer select-none flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                                    isChecked 
+                                      ? 'border-accent-green/20 bg-accent-green/[0.02] hover:bg-accent-green/[0.04]' 
+                                      : 'border-white/5 bg-[#131B2A]/30 opacity-60 hover:opacity-80'
+                                  }`}
+                                >
+                                  <div className="flex gap-4 items-start">
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                                      isChecked ? 'border-accent-green bg-accent-green text-black' : 'border-gray-500'
+                                    }`}>
+                                      {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2.5 flex-wrap">
+                                        <span className="font-bold text-white text-base">{rep.onderdeel}</span>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                          rep.urgentie === 'hoog'
+                                            ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                        }`}>
+                                          Urgentie: {rep.urgentie || 'medium'}
+                                        </span>
+                                      </div>
+                                      <p className="text-gray-400 text-sm mt-1.5 leading-relaxed">{rep.uitleg}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right shrink-0 md:pl-4">
+                                    <span className="text-lg font-extrabold text-white font-mono bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                                      {rep.geschatteKosten}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="bg-[#131B2A] border border-white/5 rounded-2xl p-5 flex gap-4 items-start mt-6">
+                            <AlertCircle className="w-5 h-5 text-accent-green shrink-0 mt-0.5" />
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                              <strong>Disclaimer:</strong> Deze reparatieramingen zijn een indicatie gebaseerd op de advertentietekst en historiegegevens. Het betreft enkel urgente of opvallende schades en mechanische risico's.
+                            </p>
+                          </div>
+                        </Card>
+                      </div>
+                    );
+                  })()}
+
                   {/* TAB 3: RISICO'S */}
                   {activeTab === 'vlaggen' && (
                     <div className="space-y-6">
@@ -1033,6 +1256,121 @@ export const ReportPage: React.FC = () => {
                       </Card>
                     </div>
                   )}
+
+                  {/* TAB 3.5: PROEFRIT CHECKLIST */}
+                  {activeTab === 'checklist' && (() => {
+                    const displayChecklist = (data.proefritChecklist && data.proefritChecklist.length > 0)
+                      ? data.proefritChecklist
+                      : [
+                          {
+                            stap: "1. Exterieur, Lak & Eventuele Schade",
+                            instructie: "Loop rustig om de auto heen bij helder daglicht (nooit in de regen of in het donker). Controleer alle carrosseriedelen op kleurverschillen en check naden tussen panelen.",
+                            aandachtspunt: "Verschillen in paneelnaden of kleur duiden vaak op eerdere (slecht herstelde) schade. Gebruik uw vingers om langs de randen te voelen."
+                          },
+                          {
+                            stap: "2. Motorruimte & Koude Start",
+                            instructie: "Vraag de verkoper vooraf om de auto koud te laten. Voel aan het motorblok of deze echt koud is. Start de motor met de motorkap open.",
+                            aandachtspunt: "Let op ratelende, tikkende of schurende geluiden in de eerste 3 seconden (typisch voor een opgerekte distributieketting). Check op verse vloeistoflekkages."
+                          },
+                          {
+                            stap: "3. Schakelgedrag & Koppeling (Proefrit)",
+                            instructie: "Rijd in alle versnellingen. Accelereer stevig door vanaf lage toeren in een hoge versnelling om koppelingssliptest te doen.",
+                            aandachtspunt: "Let bij een automaat (zoals DSG/S-Tronic) op schokken bij achteruitzetten of optrekken. De overgangen moeten boterzacht zijn."
+                          },
+                          {
+                            stap: "4. Uitlijning, Banden & Onderstel",
+                            instructie: "Laat op een rustige, rechte weg bij 50 km/h het stuur heel eventjes los. Rijd bewust over een drempel of klinkerweg.",
+                            aandachtspunt: "De auto moet kaarsrecht doorrijden. Bonkende, krakende of tikkende geluiden bij drempels duiden op versleten draagarmrubbers of schokdemperkoppen."
+                          }
+                        ];
+
+                    const checkedCount = Object.values(checkedSteps).filter(Boolean).length;
+                    const totalSteps = displayChecklist.length;
+                    const progressPercentage = Math.round((checkedCount / totalSteps) * 100);
+
+                    return (
+                      <div className="space-y-6">
+                        <Card className="bg-[#0A111F] border-white/5 rounded-3xl p-6 xl:p-8 shadow-xl">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-b-white/5">
+                            <div>
+                              <h3 className="text-2xl font-bold text-white flex items-center gap-2.5 mb-2">
+                                <ClipboardCheck className="w-6 h-6 text-accent-green" /> Gepersonaliseerde Proefrit Checklist
+                              </h3>
+                              <p className="text-gray-400 text-sm">
+                                Neem deze interactieve checklist mee tijdens je bezichtiging om verborgen gebreken uit te sluiten als een ware expert.
+                              </p>
+                            </div>
+
+                            <div className="bg-[#131B2A] border border-white/5 rounded-2xl p-4 shrink-0 min-w-[200px]">
+                              <div className="flex justify-between items-center text-xs font-bold uppercase mb-2">
+                                <span className="text-gray-400">Voortgang</span>
+                                <span className="text-accent-green font-mono">{checkedCount} / {totalSteps} vinkjes</span>
+                              </div>
+                              <div className="w-full bg-black/50 h-2.5 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-accent-green h-full rounded-full transition-all duration-300"
+                                  style={{ width: `${progressPercentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-6">
+                            {displayChecklist.map((step: any, idx: number) => {
+                              const isChecked = !!checkedSteps[idx];
+                              return (
+                                <div 
+                                  key={idx}
+                                  onClick={() => setCheckedSteps(prev => ({...prev, [idx]: !isChecked}))}
+                                  className={`p-6 rounded-2xl border transition-all cursor-pointer ${
+                                    isChecked 
+                                      ? 'border-accent-green/30 bg-accent-green/[0.01] hover:bg-accent-green/[0.02]' 
+                                      : 'border-white/5 bg-[#131B2A]/20 hover:border-white/10 hover:bg-[#131B2A]/40'
+                                  }`}
+                                >
+                                  <div className="flex gap-4 items-start">
+                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                                      isChecked ? 'border-accent-green bg-accent-green text-black scale-105 shadow-md shadow-accent-green/15' : 'border-gray-500'
+                                    }`}>
+                                      {isChecked && <Check className="w-4 h-4 stroke-[3]" />}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <h4 className={`text-lg font-bold transition-colors ${isChecked ? 'text-accent-green line-through' : 'text-white'}`}>
+                                        {step.stap}
+                                      </h4>
+                                      <p className="text-sm text-gray-300 leading-relaxed">
+                                        <strong className="text-white">Instructie:</strong> {step.instructie}
+                                      </p>
+                                      <div className="bg-black/40 border border-white/5 p-4 rounded-xl flex gap-3 text-sm mt-3">
+                                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                        <p className="text-gray-400 text-xs md:text-sm leading-relaxed">
+                                          <strong className="text-amber-400">Expert let-op punt:</strong> {step.aandachtspunt}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {progressPercentage === 100 && (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="bg-accent-green/10 border border-accent-green/30 rounded-2xl p-6 text-center mt-6"
+                            >
+                              <CheckCircle className="w-8 h-8 text-accent-green mx-auto mb-3" />
+                              <h4 className="font-bold text-white text-lg mb-1">Geweldig voorbereid!</h4>
+                              <p className="text-sm text-gray-300 max-w-md mx-auto">
+                                Je hebt alle proefrit checks succesvol doorlopen. Open nu de <strong>Onderhandelen</strong> tab om de verkoper te confronteren en de beste prijs te krijgen.
+                              </p>
+                            </motion.div>
+                          )}
+                        </Card>
+                      </div>
+                    );
+                  })()}
 
                   {/* TAB 4: FOTO ANALYSE */}
                   {activeTab === 'foto' && (() => {
@@ -1269,8 +1607,8 @@ export const ReportPage: React.FC = () => {
                 </div>
 
                 {/* PAYWALL OVERLAY */}
-                {((['prijs', 'vlaggen'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
-                    (['foto', 'script'].indexOf(activeTab) !== -1 && !hasFullAccess)) && (
+                {((['prijs', 'vlaggen', 'reparatie'].indexOf(activeTab) !== -1 && !hasPaidAccess) || 
+                    (['foto', 'script', 'checklist'].indexOf(activeTab) !== -1 && !hasFullAccess)) && (
                   <div className="absolute inset-x-0 bottom-0 top-0 z-50 flex items-center justify-center backdrop-blur-md rounded-3xl overflow-hidden pointer-events-auto">
                     <div className="absolute inset-0 bg-[#050B14]/80 pointer-events-none"></div>
                     <Card className="bg-[#0A111F] border-accent-green/30 rounded-3xl p-8 shadow-2xl max-w-md w-[calc(100%-2rem)] text-center relative z-10 mx-auto">
@@ -1279,9 +1617,9 @@ export const ReportPage: React.FC = () => {
                       </div>
                       <h3 className="text-2xl font-bold text-white mb-4">Ontgrendel deze sectie</h3>
                       <p className="text-gray-400 mb-8">
-                        {['foto', 'script'].indexOf(activeTab) !== -1
-                           ? "Upgrade naar Slimme Koper voor AI Foto-analyse en Onderhandelingsscript."
-                           : "Krijg direct toegang tot Prijsanalyse en alle Risico's met een losse scan of premium abonnement."}
+                        {['foto', 'script', 'checklist'].indexOf(activeTab) !== -1
+                           ? "Upgrade naar Slimme Koper voor de uitgebreide proefrit checklist, AI foto-analyse en het complete onderhandelingsscript."
+                           : "Krijg direct toegang tot de prijsanalyse, indicatieve reparatiekosten en risico-analyses met een losse scan of premium abonnement."}
                       </p>
                       <Button 
                         className="w-full bg-accent-green hover:bg-accent-green/80 text-black font-bold h-12 rounded-xl mb-4"

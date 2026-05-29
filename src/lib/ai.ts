@@ -38,6 +38,22 @@ export interface TextAnalysisResult {
   openingsBod: number;
   onderhandelingsTips: string[];
   samenvatting: string[];
+  proefritChecklist?: Array<{
+    stap: string;
+    instructie: string;
+    aandachtspunt: string;
+  }>;
+  reparatierisicos?: Array<{
+    onderdeel: string;
+    geschatteKosten: string;
+    uitleg: string;
+    urgentie: "laag" | "medium" | "hoog";
+  }>;
+  actieplan?: Array<{
+    stap: number;
+    titel: string;
+    omschrijving: string;
+  }>;
 }
 
 export interface PhotoAnalysisResult {
@@ -213,19 +229,25 @@ JSON response template:
   }, 
   "openingsBod": number, 
   "onderhandelingsTips": string[], 
-  "samenvatting": string[]
+  "samenvatting": string[],
+  "proefritChecklist": [{"stap": "Titel van check", "instructie": "Hoe te controleren", "aandachtspunt": "Specifiek let-op punt voor dit model/merk"}],
+  "reparatierisicos": [{"onderdeel": "Onderdeel/Reparatie", "geschatteKosten": "€ Prijsrange", "uitleg": "Waarom dit een risico/beurt is", "urgentie": "laag"|"medium"|"hoog"}],
+  "actieplan": [{"stap": 1, "titel": "Stap titel", "omschrijving": "Wat te doen"}]
 }
 
 STRICTE LENGTE- EN INHOUDSEISEN:
 1. positievePunten: exact/max 4 korte bullets. Elke bullet MOET ABSOLUUT uiterst kort zijn en uit MAXIMAAL 1-2 korte, simpele zinnen bestaan (totaal maximaal 25-30 woorden per bullet). Verdeel ze over bovengenoemde 5 gebieden voor maximale diversiteit!
 2. aandachtspunten: exact/max 4 korte bullets. Elke bullet MOET ABSOLUUT uiterst kort zijn en uit MAXIMAAL 1-2 korte, simpele zinnen bestaan (totaal maximaal 25-30 woorden per bullet). Verdeel ze over bovengenoemde 5 gebieden voor maximale diversiteit!
 3. rodeVlaggen: max 3 stuks. Korte titel + MAX 1-2 KORTE ZINNEN feitelijke en simpele uitleg inclusief een concrete actie voor de koper.
-4. onderhandelingsScript: een object met exact drie scenarios (openingsbod, tegenbod, weglopen).
+4. onderhandelingsScript: een object with exact drie scenarios (openingsbod, tegenbod, weglopen).
    - Het openingsbod mag rond de 80-85% van de vraagprijs liggen bij uitzonderingen zoals zichtbare schade of duur naderend onderhoud. Zonder zware gebreken rond de 90%.
    - DE BERICHTEN MOETEN UITGEBREID, POLITE, MAAR PERSUASIVE EN REALISTISCH ZIJN. Exact 4 tot 5 zinnen per scenario! Dit is lang genoeg om overtuigend en inhoudelijk sterk te zijn (bijvoorbeeld door specifieke marktargumenten of cosmetische/onderhoudskosten te noemen), maar kort en overzichtelijk genoeg dat de verkoper het graag doorleest. Nooit te overweldigend lang.
    - Zorg dat het openingsBod-getal exact consistent hierin terugkomt.
 5. onderhandelingsTips: max 4 bullets. Elke bullet MOET uiterst kort, bondig en to-the-point zijn (maximaal 1-2 zinnen / 10-15 words per bullet) als pure, simpele bullet-point tips voor tijdens de bezichtiging of online onderhandeling. Geen lange paragrafen!
 6. samenvatting: exact/max 3 bullets (staat auto, marktwaarde analyse, eindadvies).
+7. proefritChecklist: exact 4 gepersonaliseerde stappen, specifiek afgestemd op deze specifieke auto (het merk, model, brandstof, en geconstateerde aandachtspunten uit advertentie- of RDW-gegevens).
+8. reparatierisicos: exact 3 tot 4 indicatieve onderhoud- of reparatieposten die te verwachten zijn, gebaseerd op leeftijd, kilometerstand en geconstateerde aandachtspunten, met een realistische geschatteKosten range (bijv. "€ 150 - € 300" of "€ 800 - € 1.200") en een logische urgentie ("laag", "medium" of "hoog").
+9. actieplan: exact 4 heldere, motiverende volgende stappen voor een perfecte en veilige aankoopervaring. Op volgorde van stap 1 t/m 4.
 
 DEALSCORE LOGICA:
 De DealScore (0-100) is een weging over het hele spectrum gebaseerd op een startpunt van 70.

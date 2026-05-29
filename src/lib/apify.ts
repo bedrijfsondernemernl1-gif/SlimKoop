@@ -708,7 +708,183 @@ function parseKernvariant(variant: string, titel: string, model: string, merk: s
   return { kern: "", isGenericModelReplacement: false };
 }
 
-export async function scrapeVergelijkbaar(merk: string, model: string, jaar: number, variant: string = "", titel: string = ""): Promise<VergelijkbaarResult[]> {
+function isBrandMatch(itemTitle: string, brand: string): boolean {
+  const titleLower = itemTitle.toLowerCase();
+  const brandLower = brand.toLowerCase();
+  if (titleLower.includes(brandLower)) return true;
+  
+  if (brandLower === 'mercedes' || brandLower === 'mercedes-benz' || brandLower === 'mercedesbenz') {
+    return titleLower.includes('mercedes') || titleLower.includes('benz') || titleLower.includes('m-b');
+  }
+  if (brandLower === 'volkswagen' || brandLower === 'vw') {
+    return titleLower.includes('volkswagen') || titleLower.includes('vw');
+  }
+  if (brandLower === 'alfa-romeo' || brandLower === 'alfa') {
+    return titleLower.includes('alfa') || titleLower.includes('romeo');
+  }
+  if (brandLower === 'land-rover' || brandLower === 'landrover') {
+    return titleLower.includes('land') || titleLower.includes('rover');
+  }
+  
+  const brandWords = brandLower.split(/[\s-]+/).filter(w => w.length > 2);
+  if (brandWords.length > 0 && brandWords.some(w => titleLower.includes(w))) {
+    return true;
+  }
+  return false;
+}
+
+function isModelMatch(itemTitle: string, model: string): boolean {
+  const titleLower = itemTitle.toLowerCase();
+  const modelLower = model.toLowerCase();
+  
+  if (titleLower.includes(modelLower)) return true;
+  
+  const normTitle = titleLower.replace(/[^a-z0-9]/g, '');
+  const normModel = modelLower.replace(/[^a-z0-9]/g, '');
+  if (normTitle.includes(normModel)) return true;
+  
+  const modelWords = modelLower.split(/[\s-]+/).filter(w => w.length > 0 && !['serie', 'klasse', 'class'].includes(w));
+  if (modelWords.length > 0) {
+    if (modelWords.every(w => titleLower.includes(w))) return true;
+  }
+  return false;
+}
+
+function extractMotorisationKeywords(variant: string, titel: string): string[] {
+  const combined = `${variant} ${titel}`.toLowerCase();
+  const keywords: string[] = [];
+  
+  const fuelKeywords = ['phev', 'g-tron', 'e-tron', 'hybrid', 'mhev', 'gti', 'gtd', 'gte', 'gpi', 'amg', 'tdi', 'tsi', 'tfsi', 'dci', 'cdti', 'hdi', 'ecoboost', 'tce', 'puretech', 'e-tech', 'electric', 'ev', 'elektrisch', 'cng', 'lpg', 'fsi', 'vtec'];
+  fuelKeywords.forEach(kw => {
+    if (combined.includes(kw)) {
+      keywords.push(kw);
+    }
+  });
+
+  const engineMatches = combined.match(/\b\d\.\d\b/g);
+  if (engineMatches) {
+    engineMatches.forEach(m => keywords.push(m));
+  }
+
+  const powerMatches = combined.match(/\b\d{2,3}\s*(?:pk|hp|bhp)\b/gi);
+  if (powerMatches) {
+    powerMatches.forEach(m => {
+      const num = m.match(/\d+/);
+      if (num) {
+        keywords.push(`${num[0]}pk`);
+      }
+    });
+  }
+
+  if (combined.includes('automaat') || combined.includes('automatic') || combined.includes('dct') || combined.includes('dsg')) {
+    keywords.push('automaat');
+  } else if (combined.includes('handgeschakeld') || combined.includes('manual') || combined.includes('manueel') || combined.includes('6-bak') || combined.includes('5-bak')) {
+    keywords.push('handgeschakeld');
+  }
+
+  return keywords;
+}
+
+function calculateRelevanceScore(
+  candTitel: string,
+  candKm: number,
+  candJaar: number,
+  mainMerk: string,
+  mainModel: string,
+  mainJaar: number,
+  mainKm: number,
+  mainKeywords: string[]
+): number {
+  let score = 100;
+
+  const titleLower = candTitel.toLowerCase();
+
+  // 1. Brand match
+  if (!isBrandMatch(candTitel, mainMerk)) {
+    score -= 40;
+  }
+
+  // 2. Model match
+  if (!isModelMatch(candTitel, mainModel)) {
+    score -= 30;
+  }
+
+  // 3. Year closeness penalty (the larger the diff, the larger the penalty)
+  const yearDiff = Math.abs(candJaar - mainJaar);
+  if (yearDiff > 0) {
+    score -= yearDiff * 15; // -15 for 1 year off, -30 for 2 years off
+  }
+
+  // 4. Mileage closeness penalty
+  if (mainKm > 0 && candKm > 0) {
+    const kmDiff = Math.abs(candKm - mainKm);
+    const percentageDiff = kmDiff / mainKm;
+    
+    if (percentageDiff > 0.4) {
+      score -= 30; // Large deviation
+    } else if (percentageDiff > 0.2) {
+      score -= 15; // Moderate deviation
+    } else {
+      score += 15; // Highly similar mileage
+    }
+  }
+
+  // 5. Keyword Matches (Motorization type, transmission, trims)
+  let matchingKeywordsCount = 0;
+  let mismatchingEngineDisplacement = false;
+  let mismatchingTransmission = false;
+
+  mainKeywords.forEach(kw => {
+    if (/\d\.\d/.test(kw)) {
+      const candEngineMatches: string[] = titleLower.match(/\b\d\.\d\b/g) || [];
+      if (candEngineMatches.length > 0 && !candEngineMatches.includes(kw)) {
+        mismatchingEngineDisplacement = true;
+      } else if (candEngineMatches.includes(kw)) {
+        matchingKeywordsCount++;
+      }
+    } else if (kw === 'automaat') {
+      const isCandAutomaat = (titleLower.includes('automaat') || titleLower.includes('automatic') || titleLower.includes('dct') || titleLower.includes('dsg'));
+      const isCandManual = (titleLower.includes('handgeschakeld') || titleLower.includes('manual') || titleLower.includes('manueel') || titleLower.includes('bak'));
+      if (isCandManual && !isCandAutomaat) {
+        mismatchingTransmission = true;
+      } else if (isCandAutomaat) {
+        matchingKeywordsCount++;
+      }
+    } else if (kw === 'handgeschakeld') {
+      const isCandAutomaat = (titleLower.includes('automaat') || titleLower.includes('automatic') || titleLower.includes('dct') || titleLower.includes('dsg'));
+      const isCandManual = (titleLower.includes('handgeschakeld') || titleLower.includes('manual') || titleLower.includes('manueel') || titleLower.includes('bak'));
+      if (isCandAutomaat && !isCandManual) {
+        mismatchingTransmission = true;
+      } else if (isCandManual) {
+        matchingKeywordsCount++;
+      }
+    } else {
+      if (titleLower.includes(kw)) {
+        matchingKeywordsCount++;
+      }
+    }
+  });
+
+  score += matchingKeywordsCount * 8;
+
+  if (mismatchingEngineDisplacement) {
+    score -= 25; // Heavy wrong displacement penalty
+  }
+  if (mismatchingTransmission) {
+    score -= 20; // Heavy wrong transmission penalty
+  }
+
+  return score;
+}
+
+export async function scrapeVergelijkbaar(
+  merk: string,
+  model: string,
+  jaar: number,
+  variant: string = "",
+  titel: string = "",
+  kilometerstand?: number
+): Promise<VergelijkbaarResult[]> {
   if (!merk || !model) {
     console.log("[SCRAPER] Geen merk of model voor vergelijkbaar zoeken");
     return [];
@@ -775,7 +951,15 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
     const yearFrom = jaar > 1900 ? jaar - 2 : '';
     const yearTo = jaar > 1900 ? jaar + 2 : '';
     
-    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/q/${queryTerm}/#constructionYearFrom:${yearFrom}|constructionYearTo:${yearTo}`;
+    // Add dynamic mileage filters to modern SPA hash parameters if we have mileage data
+    let mileageFilter = "";
+    if (typeof kilometerstand === 'number' && kilometerstand > 1000) {
+      const mileageFrom = Math.max(0, kilometerstand - 30000);
+      const mileageTo = kilometerstand + 30000;
+      mileageFilter = `|mileageFrom:${mileageFrom}|mileageTo:${mileageTo}`;
+    }
+    
+    const searchUrl = `https://www.marktplaats.nl/l/auto-s/${merkSlug}/q/${queryTerm}/#constructionYearFrom:${yearFrom}|constructionYearTo:${yearTo}${mileageFilter}`;
     
     console.log(`[SCRAPER] Vergelijkbaar zoeken via URL: ${searchUrl}`);
 
@@ -786,12 +970,6 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
 
     const datasetClient = client.dataset(run.defaultDatasetId!);
     const { items } = await datasetClient.listItems();
-
-    const modelWords = model.toLowerCase()
-      .replace(/-/g, ' ')
-      .split(/\s+/)
-      .map(w => w.trim())
-      .filter(w => w.length > 1);
 
     const vergelijkbaarAll: VergelijkbaarResult[] = items
       .filter((item: any) => {
@@ -838,18 +1016,56 @@ export async function scrapeVergelijkbaar(merk: string, model: string, jaar: num
         };
       });
 
-    let vergelijkbaar = vergelijkbaarAll.filter(v => v.jaar === jaar);
-    if (vergelijkbaar.length < 10) {
-      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1 && !vergelijkbaar.some(existing => existing.url === v.url));
-      vergelijkbaar = [...vergelijkbaar, ...additional];
+    // Extract main vehicle parameters
+    const mainKeywords = extractMotorisationKeywords(variant, titel);
+    console.log(`[SCRAPER] Hoofdauto trefwoorden voor vergelijking:`, mainKeywords);
+
+    // Stricter construction year filtering
+    let candidates = vergelijkbaarAll.filter(v => v.jaar > 0 && Math.abs(v.jaar - jaar) <= 2);
+    
+    const withinOneYear = candidates.filter(v => Math.abs(v.jaar - jaar) <= 1);
+    let yearFilteredCandidates = candidates;
+    if (withinOneYear.length >= 4) {
+      console.log(`[SCRAPER] Strikte bouwjaar filtering: we hebben genoeg resultaten binnen ±1 jaar (${withinOneYear.length}).`);
+      yearFilteredCandidates = withinOneYear;
+    } else {
+      console.log(`[SCRAPER] Mildere bouwjaar filtering: we staan tot ±2 jaar toe (${candidates.length} resultaten).`);
     }
-    if (vergelijkbaar.length < 10) {
-      const additional2 = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) > 1 && !vergelijkbaar.some(existing => existing.url === v.url));
-      vergelijkbaar = [...vergelijkbaar, ...additional2];
+
+    // Rank and filter candidates based on overall relevance score
+    const scoredCandidates = yearFilteredCandidates.map(c => {
+      const score = calculateRelevanceScore(
+        c.titel,
+        c.km,
+        c.jaar,
+        merk,
+        model,
+        jaar,
+        kilometerstand || 0,
+        mainKeywords
+      );
+      return { item: c, score };
+    });
+
+    console.log(`[SCRAPER] Gescoorde resultaten:`, scoredCandidates.map(sc => `${sc.item.titel} (Jaar: ${sc.item.jaar}, Km: ${sc.item.km} -> Score: ${sc.score})`).slice(0, 5));
+
+    // Keep those with high relevance score of at least 40, sorted in descending order
+    const highRelevanceCandidates = scoredCandidates
+      .filter(sc => sc.score >= 40)
+      .sort((a, b) => b.score - a.score)
+      .map(sc => sc.item);
+
+    // Fallback if high relevance list too short
+    let vergelijkbaar = highRelevanceCandidates;
+    if (vergelijkbaar.length < 3) {
+      console.log(`[SCRAPER] Te weinig uiterst relevante resultaten (${vergelijkbaar.length}). Fallback naar alle gesorteerde kandidaten.`);
+      vergelijkbaar = scoredCandidates
+        .sort((a, b) => b.score - a.score)
+        .map(sc => sc.item);
     }
 
     const sliced = vergelijkbaar.slice(0, 10);
-    console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden`);
+    console.log(`[SCRAPER] Uiteindleijk ${sliced.length} vergelijkbare auto's geselecteerd na slimme kwaliteitschecks`);
     return sliced;
   } catch (error) {
     console.error("Fout tijdens scrapeVergelijkbaar:", error);

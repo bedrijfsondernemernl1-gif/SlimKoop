@@ -145,11 +145,12 @@ export const PricingPage: React.FC = () => {
              features={[
                { text: "1 volledig premium rapport", included: true },
                { text: "Unieke DealScore & waardebepaling", included: true },
-               { text: "Positieve punten & enkele aandachtspunten/risico’s van de advertentie", included: true },
+               { text: "Indicatieve reparatiekosten tabel", included: true },
+               { text: "Volgende stappen actieplan", included: true },
                { text: "RDW open-data & kilometerstand check", included: true },
+               { text: "Gepersonaliseerde proefrit checklist", included: false },
                { text: "Geavanceerde AI Foto-scan", included: false },
                { text: "Persoonlijk onderhandelingsscript", included: false },
-               { text: "Rapportgeschiedenis & PDF-export", included: false },
              ]}
              btnText={purchasing === "Losse Scan" ? "Laden..." : "Activeer direct 1 scan"}
              buttonStyle="outline"
@@ -166,11 +167,11 @@ export const PricingPage: React.FC = () => {
              features={[
                { text: "3 volledige rapporten", included: true },
                { text: "Unieke DealScore & waardebepaling", included: true },
-               { text: "Directe rode vlaggen & risico analyse", included: true },
-               { text: "RDW open-data & kilometerstand check", included: true },
+               { text: "Gepersonaliseerde proefrit checklist", included: true },
+               { text: "Indicatieve reparatiekosten tabel", included: true },
+               { text: "Volgende stappen actieplan", included: true },
                { text: "Geavanceerde AI Foto-scan", included: true },
                { text: "Persoonlijke onderhandelingsscripts (openingsbod, tegenbod, weglopen)", included: true },
-               { text: "Rapportgeschiedenis & opslag (30 dagen)", included: true },
              ]}
              btnText={purchasing === "Slimme Koper" ? "Laden..." : "Word een Slimme Koper"}
              featured={false}
@@ -188,7 +189,7 @@ export const PricingPage: React.FC = () => {
              features={[
                { text: "Onbeperkt aantal scans per maand", included: true },
                { text: "Volledige toegang tot alle Slimme Koper functionaliteiten", included: true },
-               { text: "Ideaal voor intensief wekelijks gebruik (geen limieten)", included: true },
+               { text: "Inclusief proefrit checklist & reparatiekosten tabel", included: true },
                { text: "Eindeloze rapporthistorie & PDF-export archivering", included: true },
                { text: "Diepgaande RDW-check voorraad-integratie & APK-historie", included: true },
                { text: "Exclusieve AI Foto-scan op verborgen schades", included: true },
@@ -214,7 +215,7 @@ export const PricingPage: React.FC = () => {
           <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-accent-green" />
-            Geen abonnement voor losse scans
+            Onbeperkt rapporten en alle functies met vast abonnement
           </div>
           <div className="hidden md:block w-1.5 h-1.5 rounded-full bg-white/20"></div>
           <div className="flex items-center gap-2">

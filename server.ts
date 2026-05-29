@@ -690,7 +690,7 @@ async function startServer() {
         if (listing && tier !== 'free') vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
       } else {
         listing = await scrapeMarktplaats(url);
-        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '');
+        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '', listing.kilometerstand);
       }
 
       if (!listing) {
@@ -1178,7 +1178,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     } else {
       listing = await scrapeMarktplaats(url);
       if (listing && reportTier !== 'free') {
-        vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '');
+        vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '', listing.kilometerstand);
       }
     }
 
@@ -1308,6 +1308,9 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
         openingsBod: analyse.openingsBod || 0,
         onderhandelingsTips: analyse.onderhandelingsTips || [],
         samenvatting: analyse.samenvatting || [],
+        proefritChecklist: analyse.proefritChecklist || [],
+        reparatierisicos: analyse.reparatierisicos || [],
+        actieplan: analyse.actieplan || [],
         vergelijkbareAutos: vergelijkbareAutos,
         rdwData: rdw,
         fotoAnalyse: fotos.fotos || [],
