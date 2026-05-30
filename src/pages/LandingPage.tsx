@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock, RotateCcw, Loader2 } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, Shield, Zap, Car, CheckCircle2, ArrowRight, Link as LinkIcon, Cpu, ShieldCheck, FileText, ChevronDown, AlertCircle, Lock, RotateCcw, Loader2, Gift } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Footer } from '@/src/components/Footer';
@@ -32,6 +32,60 @@ export const LandingPage: React.FC = () => {
   const openScanLimitModal = useStore(state => state.openScanLimitModal);
   
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Coupon / Affiliate input states
+  const [promoCode, setPromoCode] = useState('');
+  const [isValidPromo, setIsValidPromo] = useState<boolean | null>(null);
+  const [isCheckingPromo, setIsCheckingPromo] = useState(false);
+  const [promoText, setPromoText] = useState('');
+
+  // Extract from query parameter code or coupon or affiliate
+  useEffect(() => {
+    const codeParam = searchParams.get('code') || searchParams.get('coupon') || searchParams.get('affiliate');
+    if (codeParam) {
+      const cleaned = codeParam.toUpperCase().trim();
+      setPromoCode(cleaned);
+      validateCouponCode(cleaned);
+    }
+  }, [searchParams]);
+
+  const validateCouponCode = async (code: string) => {
+    if (!code) {
+      setIsValidPromo(null);
+      setPromoText('');
+      return;
+    }
+    setIsCheckingPromo(true);
+    setPromoText('');
+    try {
+      const response = await fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code,
+          packageName: 'Slimme Koper' // default validation package
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.valid) {
+        setIsValidPromo(true);
+        setPromoText(`✓ Code actief! Je ontvangt ${data.discountPercent}% partnerkorting op je aankoop.`);
+      } else {
+        setIsValidPromo(false);
+        setPromoText(data.error || '✗ Ongeldige of verlopen kortingscode.');
+      }
+    } catch (err) {
+      console.error("Fout bij controleren promo:", err);
+      setIsValidPromo(false);
+      setPromoText('✗ Fout bij couponcontrole.');
+    } finally {
+      setIsCheckingPromo(false);
+    }
+  };
+
   const handlePurchase = async (title: string, couponCode: string | null = null, sepaData?: any) => {
     console.log("handlePurchase clicked for:", title, "sepa:", !!sepaData);
     if (!isLoggedIn || !user) {
@@ -46,6 +100,9 @@ export const LandingPage: React.FC = () => {
         console.error("Geen priceId gevonden voor:", title);
         return;
       }
+
+      const codeToApply = couponCode || (isValidPromo ? promoCode : null);
+
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -55,7 +112,7 @@ export const LandingPage: React.FC = () => {
           priceId,
           userId: user.uid,
           userEmail: user.email,
-          code: couponCode,
+          code: codeToApply,
           mode: title === "Autohandelaar" ? "subscription" : "payment",
           ...sepaData
         })
@@ -497,6 +554,48 @@ export const LandingPage: React.FC = () => {
         >
           <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Kies de zekerheid die <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green to-emerald-400">bij je past</span></h2>
         </motion.div>
+
+        {/* Coupon input field for influencer discount codes */}
+        <div className="max-w-md mx-auto mb-16 p-4 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-xl relative z-20">
+          <div className="flex gap-2">
+            <div className="relative flex-1 group">
+              <div className="absolute -inset-0.5 bg-accent-green/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
+              <div className="relative flex items-center bg-black/40 border border-white/10 rounded-xl overflow-hidden focus-within:border-accent-green/30">
+                <Gift className="absolute left-3.5 h-4 w-4 text-gray-500 group-focus-within:text-accent-green transition-colors" />
+                <Input 
+                  type="text" 
+                  placeholder="HEB JE EEN PARTNERCODE?" 
+                  value={promoCode}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    setPromoCode(val);
+                    if (!val) {
+                      setIsValidPromo(null);
+                      setPromoText('');
+                    }
+                  }}
+                  className="pl-10 pr-4 h-10 w-full bg-transparent border-0 text-white placeholder:text-gray-600 focus-visible:ring-0 focus-visible:ring-offset-0 font-bold tracking-wide uppercase text-xs"
+                />
+              </div>
+            </div>
+            <Button 
+              onClick={() => validateCouponCode(promoCode)}
+              disabled={isCheckingPromo}
+              className="h-10 px-5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold shrink-0"
+            >
+              {isCheckingPromo ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : 'Toepassen'}
+            </Button>
+          </div>
+          {promoText && (
+            <motion.p 
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`text-xs mt-2 text-center font-medium ${isValidPromo ? 'text-accent-green' : 'text-red-400'}`}
+            >
+              {promoText}
+            </motion.p>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16 items-center">
           {/* Plan 1: Losse Scan */}

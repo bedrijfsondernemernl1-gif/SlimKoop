@@ -92,7 +92,7 @@ export const DashboardSettings: React.FC = () => {
     // Check if user has an active subscription
     // Users with an active monthly subscription (Autohandelaar or Particulier) must cancel first
     // Admins are excluded from this check
-    const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com'];
+    const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin@occasionscan.nl'];
     const isAdmin = adminEmails.includes((user.email || '').toLowerCase());
     
     if (isPremium && subscriptionPlan !== 'Losse Scan' && !isAdmin) {

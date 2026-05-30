@@ -36,14 +36,16 @@ service cloud.firestore {
         request.auth.token.email == 'ibrahimdiscord675@gmail.com' || 
         request.auth.token.email == 'sblzakelijk@gmail.com' || 
         request.auth.token.email == 'bedrijfsondernemernl1@gmail.com' ||
-        request.auth.token.email == 'admin_server_bot@occasionscan.nl'
+        request.auth.token.email == 'admin_server_bot@occasionscan.nl' ||
+        request.auth.token.email == 'admin@occasionscan.nl'
       );
     }
 
     function isServerAdmin() {
       return request.auth != null && (
         request.auth.uid == '8fUk6gV6ZuUVQHvsRu5WY8YRWYF2' || 
-        request.auth.token.email == 'admin_server_bot@occasionscan.nl'
+        request.auth.token.email == 'admin_server_bot@occasionscan.nl' ||
+        request.auth.token.email == 'admin@occasionscan.nl'
       );
     }
 
@@ -79,6 +81,24 @@ service cloud.firestore {
     match /marketing_consents/{userId} {
       allow get, create, update, delete: if isSignedIn() && (userId == request.auth.uid || isAdmin() || isServerAdmin());
       allow list: if isAdmin() || isServerAdmin();
+    }
+
+    // 8. Affiliate Referrals
+    match /affiliate_referrals/{referralId} {
+      allow get, list: if isSignedIn() && (resource.data.affiliateId == request.auth.uid || isServerAdmin());
+      allow write: if isServerAdmin();
+    }
+
+    // 9. Kortingscodes
+    match /kortingscodes/{codeId} {
+      allow read: if true;
+      allow write, delete: if isSignedIn() && (request.auth.token.email == 'admin@occasionscan.nl' || isServerAdmin());
+    }
+
+    // 10. Coupon Usages
+    match /coupon_usages/{usageId} {
+      allow read: if isSignedIn() && (request.auth.token.email == 'admin@occasionscan.nl' || isServerAdmin());
+      allow write: if isServerAdmin();
     }
 
     // 0. Global Safety Net

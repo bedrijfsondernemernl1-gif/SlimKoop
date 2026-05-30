@@ -785,6 +785,162 @@ function extractMotorisationKeywords(variant: string, titel: string): string[] {
   return keywords;
 }
 
+export function getMileageRange(kilometerstand: number): { mileageFrom: number; mileageTo: number } {
+  // If the kilometerstand is very low, make sure we have a reasonable minimum range (e.g. at least 20,000 km)
+  // Otherwise, allow ±25% deviation, capped at ±30,000 km
+  const dev = Math.min(Math.max(kilometerstand * 0.25, 20000), 30000);
+  const mileageFrom = Math.max(0, Math.round(kilometerstand - dev));
+  const mileageTo = Math.round(kilometerstand + dev);
+  return { mileageFrom, mileageTo };
+}
+
+export function isStrictComparableMatch(
+  original: { merk: string; model: string; variant: string; titel: string; km: number; jaar: number },
+  candidate: { titel: string; km: number; jaar: number }
+): boolean {
+  const origTitelClean = original.titel.toLowerCase();
+  const origVariantClean = original.variant.toLowerCase();
+  const candTitelClean = candidate.titel.toLowerCase();
+
+  // 1. Brand match
+  if (!isBrandMatch(candidate.titel, original.merk)) {
+    return false;
+  }
+
+  // 2. Model match
+  if (!isModelMatch(candidate.titel, original.model)) {
+    return false;
+  }
+
+  // 3. Year constraint: within ±1 year of original
+  const yearDiff = Math.abs(candidate.jaar - original.jaar);
+  if (yearDiff > 1) {
+    return false;
+  }
+
+  // 4. Mileage constraint: check if within the smart dynamic mileage range
+  const origKm = original.km || 0;
+  const candKm = candidate.km || 0;
+  if (origKm > 0) {
+    const range = getMileageRange(origKm);
+    if (candKm < range.mileageFrom || candKm > range.mileageTo) {
+      return false;
+    }
+  }
+
+  // 5. Body style mutually exclusive check (smart matching instead of simple string inclusion mismatch)
+  const bodyGroups = {
+    station: ['avant', 'touring', 'combi', 'kombi', 'estate', 'variant', 'shooting brake'],
+    cabrio: ['cabriolet', 'cabrio', 'roadster', 'spyder'],
+    coupe: ['coupé', 'coupe', 'targa'],
+    sedan: ['sedan', 'saloon', 'limousine'],
+    suv: ['suv', 'offroad', 'allroad'],
+    hatchback: ['hatchback'],
+    mpv: ['mpv']
+  };
+
+  let origGroup: string | null = null;
+  let candGroup: string | null = null;
+
+  for (const [groupName, terms] of Object.entries(bodyGroups)) {
+    if (terms.some(t => origTitelClean.includes(t) || origVariantClean.includes(t))) {
+      origGroup = groupName;
+    }
+    if (terms.some(t => candTitelClean.includes(t))) {
+      candGroup = groupName;
+    }
+  }
+
+  // Only mismatch if BOTH specified a group explicitly, and they are DIFFERENT!
+  if (origGroup && candGroup && origGroup !== candGroup) {
+    return false;
+  }
+
+  // Special handling for Porsche "Sport Turismo" and "st" (frequently used as abbreviation for Sport Turismo)
+  const brandLower = original.merk.toLowerCase();
+  if (brandLower.includes('porsche')) {
+    const origHasTurismo = origTitelClean.includes('sport turismo') || origTitelClean.includes('turismo') || origTitelClean.includes(' st ') || origVariantClean.includes('sport turismo') || origVariantClean.includes('turismo');
+    const candHasTurismo = candTitelClean.includes('sport turismo') || candTitelClean.includes('turismo') || candTitelClean.includes(' st ');
+    if (origHasTurismo !== candHasTurismo) {
+      return false;
+    }
+  }
+
+  // 6. Normalization and strict checks for performance trims and spelling variations
+  const oHasHybrid = origTitelClean.includes('hybrid') || origTitelClean.includes('hybride') || origTitelClean.includes('phev') || origVariantClean.includes('hybrid') || origVariantClean.includes('hybride') || origVariantClean.includes('phev');
+  const cHasHybrid = candTitelClean.includes('hybrid') || candTitelClean.includes('hybride') || candTitelClean.includes('phev');
+  if (oHasHybrid !== cHasHybrid) return false;
+
+  const oHasMSport = origTitelClean.includes('m sport') || origTitelClean.includes('msport') || origTitelClean.includes('m-sport') || origVariantClean.includes('m sport') || origVariantClean.includes('msport') || origVariantClean.includes('m-sport');
+  const cHasMSport = candTitelClean.includes('m sport') || candTitelClean.includes('msport') || candTitelClean.includes('m-sport');
+  if (oHasMSport !== cHasMSport) return false;
+
+  const oHasSLine = origTitelClean.includes('s line') || origTitelClean.includes('sline') || origTitelClean.includes('s-line') || origVariantClean.includes('s line') || origVariantClean.includes('sline') || origVariantClean.includes('s-line');
+  const cHasSLine = candTitelClean.includes('s line') || candTitelClean.includes('sline') || candTitelClean.includes('s-line');
+  if (oHasSLine !== cHasSLine) return false;
+
+  const oHasRLine = origTitelClean.includes('r line') || origTitelClean.includes('rline') || origTitelClean.includes('r-line') || origVariantClean.includes('r line') || origVariantClean.includes('rline') || origVariantClean.includes('r-line');
+  const cHasRLine = candTitelClean.includes('r line') || candTitelClean.includes('rline') || candTitelClean.includes('r-line');
+  if (oHasRLine !== cHasRLine) return false;
+
+  // Other strict trims
+  const simpleTrims = ['gti', 'gtd', 'gte', 'gts', '4s', 'amg', 'cupra'];
+  for (const t of simpleTrims) {
+    const oMatch = origTitelClean.includes(t) || origVariantClean.includes(t);
+    const cMatch = candTitelClean.includes(t);
+    if (oMatch !== cMatch) return false;
+  }
+
+  // Turbo S / Turbo handling
+  const oTurboS = origTitelClean.includes('turbo s') || origVariantClean.includes('turbo s');
+  const cTurboS = candTitelClean.includes('turbo s');
+  if (oTurboS !== cTurboS) return false;
+
+  const oTurbo = (origTitelClean.includes('turbo') || origVariantClean.includes('turbo')) && !oTurboS;
+  const cTurbo = candTitelClean.includes('turbo') && !cTurboS;
+  if (oTurbo !== cTurbo) return false;
+
+  // Spaced trims/letters
+  const spacedTrims = [' r ', ' rs ', ' fr '];
+  for (const st of spacedTrims) {
+    const oMatch = origTitelClean.includes(st) || origVariantClean.includes(st);
+    const cMatch = candTitelClean.includes(st);
+    if (oMatch !== cMatch) return false;
+  }
+
+  // 7. Strict Displacement & Motorisation matching (e.g. "2.9", "4.0", "3.0", "2.0")
+  const displacementRegex = /\b\d\.\d\b/g;
+  const origDisplacements = (origTitelClean.match(displacementRegex) || origVariantClean.match(displacementRegex) || []) as string[];
+  if (origDisplacements.length > 0) {
+    const candDisplacements = (candTitelClean.match(displacementRegex) || []) as string[];
+    if (candDisplacements.length > 0) {
+      const isAnyMatch = origDisplacements.some(d => candDisplacements.includes(d));
+      if (!isAnyMatch) {
+        return false;
+      }
+    }
+  }
+
+  // 8. Strict drivetrain axles / standard " 4 " layout
+  const hasOrig4 = /\b4\b/.test(origTitelClean) || /\b4\b/.test(origVariantClean);
+  const hasCand4 = /\b4\b/.test(candTitelClean);
+  if (hasOrig4 !== hasCand4) {
+    return false;
+  }
+
+  const hasOrig2 = /\b2\b/.test(origTitelClean) || /\b2\b/.test(origVariantClean);
+  const hasCand2 = /\b2\b/.test(candTitelClean);
+  if (hasOrig2 !== hasCand2) {
+    const isOrigAwd = origTitelClean.includes('quattro') || origTitelClean.includes('4motion') || origTitelClean.includes('xdrive') || origTitelClean.includes('4matic') || origTitelClean.includes('awd') || origVariantClean.includes('quattro') || origVariantClean.includes('4motion') || origVariantClean.includes('xdrive') || origVariantClean.includes('4matic') || origVariantClean.includes('awd');
+    const isCandAwd = candTitelClean.includes('quattro') || candTitelClean.includes('4motion') || candTitelClean.includes('xdrive') || candTitelClean.includes('4matic') || candTitelClean.includes('awd');
+    if (isOrigAwd !== isCandAwd) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function calculateRelevanceScore(
   candTitel: string,
   candKm: number,
@@ -1020,20 +1176,29 @@ export async function scrapeVergelijkbaar(
     const mainKeywords = extractMotorisationKeywords(variant, titel);
     console.log(`[SCRAPER] Hoofdauto trefwoorden voor vergelijking:`, mainKeywords);
 
-    // Stricter construction year filtering
-    let candidates = vergelijkbaarAll.filter(v => v.jaar > 0 && Math.abs(v.jaar - jaar) <= 2);
-    
-    const withinOneYear = candidates.filter(v => Math.abs(v.jaar - jaar) <= 1);
-    let yearFilteredCandidates = candidates;
-    if (withinOneYear.length >= 4) {
-      console.log(`[SCRAPER] Strikte bouwjaar filtering: we hebben genoeg resultaten binnen ±1 jaar (${withinOneYear.length}).`);
-      yearFilteredCandidates = withinOneYear;
-    } else {
-      console.log(`[SCRAPER] Mildere bouwjaar filtering: we staan tot ±2 jaar toe (${candidates.length} resultaten).`);
-    }
+    // Clean candidates: strictly filter out any whose km is outside of the exact mileage range!
+    const filteredByMileage = vergelijkbaarAll.filter(c => {
+      if (kilometerstand && kilometerstand > 0) {
+        const r = getMileageRange(kilometerstand);
+        return c.km >= r.mileageFrom && c.km <= r.mileageTo;
+      }
+      return true;
+    });
 
-    // Rank and filter candidates based on overall relevance score
-    const scoredCandidates = yearFilteredCandidates.map(c => {
+    // Separate strict matching vs partial matching
+    const strictMatchedCandidates = filteredByMileage.filter(c => 
+      isStrictComparableMatch(
+        { merk, model, variant, titel, km: kilometerstand || 0, jaar },
+        c
+      )
+    );
+
+    const nonStrictMatchedCandidates = filteredByMileage.filter(c => !strictMatchedCandidates.some(sm => sm.url === c.url));
+
+    console.log(`[SCRAPER] Marktplaats gefilterd van ${filteredByMileage.length} naar ${strictMatchedCandidates.length} strict matches`);
+
+    // Score strict candidates
+    const scoredStrict = strictMatchedCandidates.map(c => {
       const score = calculateRelevanceScore(
         c.titel,
         c.km,
@@ -1047,25 +1212,34 @@ export async function scrapeVergelijkbaar(
       return { item: c, score };
     });
 
-    console.log(`[SCRAPER] Gescoorde resultaten:`, scoredCandidates.map(sc => `${sc.item.titel} (Jaar: ${sc.item.jaar}, Km: ${sc.item.km} -> Score: ${sc.score})`).slice(0, 5));
+    // Score non-strict candidates
+    const scoredNonStrict = nonStrictMatchedCandidates.map(c => {
+      const score = calculateRelevanceScore(
+        c.titel,
+        c.km,
+        c.jaar,
+        merk,
+        model,
+        jaar,
+        kilometerstand || 0,
+        mainKeywords
+      );
+      return { item: c, score };
+    });
 
-    // Keep those with high relevance score of at least 40, sorted in descending order
-    const highRelevanceCandidates = scoredCandidates
-      .filter(sc => sc.score >= 40)
-      .sort((a, b) => b.score - a.score)
-      .map(sc => sc.item);
+    // Sort both descending
+    const sortedStrict = scoredStrict.sort((a, b) => b.score - a.score).map(sc => sc.item);
+    const sortedNonStrict = scoredNonStrict.sort((a, b) => b.score - a.score).map(sc => sc.item);
 
-    // Fallback if high relevance list too short
-    let vergelijkbaar = highRelevanceCandidates;
-    if (vergelijkbaar.length < 3) {
-      console.log(`[SCRAPER] Te weinig uiterst relevante resultaten (${vergelijkbaar.length}). Fallback naar alle gesorteerde kandidaten.`);
-      vergelijkbaar = scoredCandidates
-        .sort((a, b) => b.score - a.score)
-        .map(sc => sc.item);
+    // Combine prioritizing strict candidates first, then fill up to 10
+    let vergelijkbaar = [...sortedStrict];
+    if (vergelijkbaar.length < 10) {
+      const needed = 10 - vergelijkbaar.length;
+      vergelijkbaar = [...vergelijkbaar, ...sortedNonStrict.slice(0, needed)];
     }
 
     const sliced = vergelijkbaar.slice(0, 10);
-    console.log(`[SCRAPER] Uiteindleijk ${sliced.length} vergelijkbare auto's geselecteerd na slimme kwaliteitschecks`);
+    console.log(`[SCRAPER] Uiteindelijk ${sliced.length} vergelijkbare auto's geselecteerd via Marktplaats`);
     return sliced;
   } catch (error) {
     console.error("Fout tijdens scrapeVergelijkbaar:", error);
@@ -1289,7 +1463,47 @@ export async function scrapeAutoScout24(url: string): Promise<MarktplaatsData | 
   }
 }
 
-export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string, jaar: number): Promise<VergelijkbaarResult[]> {
+export function getCleanSpecificQuery(merk: string, model: string, titel: string): string {
+  const brandLower = merk.toLowerCase();
+  let query = titel;
+  
+  // De-duplicate brand name at start
+  if (query.toLowerCase().startsWith(brandLower)) {
+    query = query.substring(brandLower.length).trim();
+  }
+  
+  // Strip trailing noisy details (anything from pipe, dash, asterisks, brackets, parentheses)
+  const cutpoints = ['|', '-', '/', '(', '[', '*', ' soh', ';', ':', 'led', 'pdls', 'bose', 'pano', 's-line', 's line'];
+  let lowestIndex = query.length;
+  for (const cp of cutpoints) {
+    const idx = query.toLowerCase().indexOf(cp);
+    if (idx !== -1 && idx < lowestIndex) {
+      lowestIndex = idx;
+    }
+  }
+  query = query.substring(0, lowestIndex).trim();
+
+  // Also clean commas
+  const commaIdx = query.indexOf(',');
+  if (commaIdx !== -1) {
+    query = query.substring(0, commaIdx).trim();
+  }
+  
+  // If the query is empty or too short, fallback to "${model}"
+  if (!query || query.length < 3) {
+    query = `${model}`.trim();
+  }
+  return query;
+}
+
+export async function scrapeAutoScout24Vergelijkbaar(
+  merk: string,
+  model: string,
+  jaar: number,
+  variant: string = "",
+  titel: string = "",
+  kilometerstand?: number
+): Promise<VergelijkbaarResult[]> {
   if (!merk || !model) {
     console.log("[SCRAPER] Geen merk of model voor vergelijkbaar zoeken op AutoScout");
     return [];
@@ -1312,20 +1526,64 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       }
     }
 
-    console.log(`[SCRAPER] AutoScout24 vergelijkbaar zoeken (jB2a4gY2hmOvmvbSk) voor make: ${makeSlug}, model: ${modelSlug}`);
+    let mileageFrom: number | undefined = undefined;
+    let mileageTo: number | undefined = undefined;
 
-    const run = await client.actor(actorId).call({
+    if (kilometerstand && kilometerstand > 0) {
+      const range = getMileageRange(kilometerstand);
+      mileageFrom = range.mileageFrom;
+      mileageTo = range.mileageTo;
+    }
+
+    const yearFrom = jaar > 1900 ? jaar - 1 : undefined;
+    const yearTo = jaar > 1900 ? jaar + 1 : undefined;
+
+    const runOptions: any = {
       make: makeSlug,
       model: modelSlug,
-      country: "NL,D",
-      yearFrom: jaar > 1900 ? jaar - 2 : undefined,
-      yearTo: jaar > 1900 ? jaar + 2 : undefined,
+      country: "NL", // DUTCH ONLY. No Germany "NL,D"
+      yearFrom,
+      yearTo,
+      mileageFrom,
+      mileageTo,
       maxResults: 10,
       sort: "standard"
-    });
+    };
 
-    const datasetClient = client.dataset(run.defaultDatasetId!);
-    const { items } = await datasetClient.listItems();
+    // Parse the kernvariant for high specificity search query e.g. "Volvo V60 b3"
+    const { kern } = parseKernvariant(variant, titel, model, merk);
+    let queryElements: string[] = [merk];
+    if (model) {
+      queryElements.push(model);
+    }
+    if (kern) {
+      kern.split('+').forEach(p => {
+        if (!queryElements.includes(p)) {
+          queryElements.push(p);
+        }
+      });
+    }
+    const specificQuery = queryElements.join(' ');
+    
+    if (specificQuery && specificQuery.length > 0) {
+      runOptions.query = specificQuery;
+    }
+
+    console.log(`[SCRAPER] AutoScout24 vergelijkbaar zoeken (jB2a4gY2hmOvmvbSk) met opties:`, JSON.stringify(runOptions));
+
+    let run = await client.actor(actorId).call(runOptions);
+    let datasetClient = client.dataset(run.defaultDatasetId!);
+    let { items } = await datasetClient.listItems();
+
+    // Fallback: If no results are returned using the highly specific query, try without query
+    if (items.length === 0 && runOptions.query) {
+      console.log(`[SCRAPER] 0 resultaten met specifieke query "${specificQuery}". Fallback naar zoeken zonder query...`);
+      delete runOptions.query;
+      run = await client.actor(actorId).call(runOptions);
+      datasetClient = client.dataset(run.defaultDatasetId!);
+      const res = await datasetClient.listItems();
+      items = res.items;
+    }
 
     const vergelijkbaarAll: VergelijkbaarResult[] = items.map((item: any) => {
       // Parse km/milage/mileage robustly
@@ -1390,18 +1648,72 @@ export async function scrapeAutoScout24Vergelijkbaar(merk: string, model: string
       };
     });
 
-    let vergelijkbaar = vergelijkbaarAll.filter(v => v.jaar === jaar);
+    // Clean candidates: strictly filter out any whose km is outside of the exact mileage range!
+    const filteredByMileage = vergelijkbaarAll.filter(c => {
+      if (kilometerstand && kilometerstand > 0) {
+        const r = getMileageRange(kilometerstand);
+        return c.km >= r.mileageFrom && c.km <= r.mileageTo;
+      }
+      return true;
+    });
+
+    // Separate strict matching vs partial matching
+    const strictMatchedCandidates = filteredByMileage.filter(c => 
+      isStrictComparableMatch(
+        { merk, model, variant, titel, km: kilometerstand || 0, jaar },
+        c
+      )
+    );
+
+    const nonStrictMatchedCandidates = filteredByMileage.filter(c => !strictMatchedCandidates.some(sm => sm.url === c.url));
+
+    console.log(`[SCRAPER] AutoScout24 gefilterd van ${filteredByMileage.length} naar ${strictMatchedCandidates.length} strict matches`);
+
+    const mainKeywords = extractMotorisationKeywords(variant, titel);
+    
+    // Score strict candidates
+    const scoredStrict = strictMatchedCandidates.map(c => {
+      const score = calculateRelevanceScore(
+        c.titel,
+        c.km,
+        c.jaar,
+        merk,
+        model,
+        jaar,
+        kilometerstand || 0,
+        mainKeywords
+      );
+      return { item: c, score };
+    });
+
+    // Score non-strict candidates
+    const scoredNonStrict = nonStrictMatchedCandidates.map(c => {
+      const score = calculateRelevanceScore(
+        c.titel,
+        c.km,
+        c.jaar,
+        merk,
+        model,
+        jaar,
+        kilometerstand || 0,
+        mainKeywords
+      );
+      return { item: c, score };
+    });
+
+    // Sort both descending
+    const sortedStrict = scoredStrict.sort((a, b) => b.score - a.score).map(sc => sc.item);
+    const sortedNonStrict = scoredNonStrict.sort((a, b) => b.score - a.score).map(sc => sc.item);
+
+    // Combine prioritizing strict candidates first, then fill up to 10
+    let vergelijkbaar = [...sortedStrict];
     if (vergelijkbaar.length < 10) {
-      const additional = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) <= 1 && !vergelijkbaar.some(existing => existing.url === v.url));
-      vergelijkbaar = [...vergelijkbaar, ...additional];
-    }
-    if (vergelijkbaar.length < 10) {
-      const additional2 = vergelijkbaarAll.filter(v => v.jaar !== jaar && Math.abs(v.jaar - jaar) > 1 && !vergelijkbaar.some(existing => existing.url === v.url));
-      vergelijkbaar = [...vergelijkbaar, ...additional2];
+      const needed = 10 - vergelijkbaar.length;
+      vergelijkbaar = [...vergelijkbaar, ...sortedNonStrict.slice(0, needed)];
     }
 
     const sliced = vergelijkbaar.slice(0, 10);
-    console.log(`[SCRAPER] ${sliced.length} vergelijkbare auto's gevonden via AutoScout24 (jB2a4gY2hmOvmvbSk)`);
+    console.log(`[SCRAPER] Uiteindelijk ${sliced.length} vergelijkbare auto's geselecteerd via AutoScout24`);
     return sliced;
   } catch (error) {
     console.error("Fout tijdens scrapeAutoScout24Vergelijkbaar:", error);

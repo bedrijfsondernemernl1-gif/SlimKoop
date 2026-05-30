@@ -272,6 +272,140 @@ async function startServer() {
     }
   });
 
+  app.post("/api/affiliate/register", async (req, res) => {
+    const { userId, customCode } = req.body;
+    if (!userId || !customCode) {
+      return res.status(400).json({ success: false, error: "Gebruiker en kortingscode zijn verplicht." });
+    }
+
+    const cleanCode = customCode.toUpperCase().replace(/[^A-Z0-9]/g, "").trim();
+    if (cleanCode.length < 3 || cleanCode.length > 15) {
+      return res.status(400).json({ success: false, error: "De deelkortingscode moet tussen de 3 en 15 tekens lang zijn." });
+    }
+
+    try {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return res.status(404).json({ success: false, error: "Gebruiker niet gevonden." });
+      }
+
+      // Controleer gereserveerde codes
+      const reservedCodes = ["TEST10", "PROMO10", "COUPON10", "START10", "MICRO20", "FREEGLASS", "RDWCHECK"];
+      if (reservedCodes.includes(cleanCode)) {
+        return res.status(400).json({ success: false, error: "Deze kortingscode is gereserveerd. Kies een andere." });
+      }
+
+      // Controleer of de code al bestaat
+      const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        return res.status(400).json({ success: false, error: "Deze kortingscode is al in gebruik door iemand anders. Kies een unieke code." });
+      }
+
+      // Partner opslaan in database
+      await setDoc(userRef, {
+        isAffiliate: true,
+        affiliateCode: cleanCode,
+        affiliateStats: {
+          totalSales: 0,
+          totalCommission: 0,
+          unpaidCommission: 0,
+          paidCommission: 0
+        }
+      }, { merge: true });
+
+      // Kortingscode toevoegen aan globale kortingstabel
+      const codeRef = doc(collection(adminDb, "kortingscodes"));
+      await setDoc(codeRef, {
+        code: cleanCode,
+        actief: true,
+        affiliateId: userId,
+        influencerEmail: userSnap.data()?.email || "",
+        commissionRate: 15, // 15% standard commission
+        createdAt: serverTimestamp()
+      });
+
+      console.log(`[AFFILIATE] Gebruiker ${userId} succesvol aangemeld met code ${cleanCode}`);
+      return res.json({ success: true, code: cleanCode });
+    } catch (err: any) {
+      console.error("[SERVER] Fout bij registreren partner:", err);
+      return res.status(500).json({ success: false, error: "Interne serverfout bij partnerregistratie: " + (err.message || err.toString()) });
+    }
+  });
+
+  app.post("/api/affiliate/update-code", async (req, res) => {
+    const { userId, customCode } = req.body;
+    if (!userId || !customCode) {
+      return res.status(400).json({ success: false, error: "Gebruiker en kortingscode zijn verplicht." });
+    }
+
+    const cleanCode = customCode.toUpperCase().replace(/[^A-Z0-9]/g, "").trim();
+    if (cleanCode.length < 3 || cleanCode.length > 15) {
+      return res.status(400).json({ success: false, error: "De kortingscode moet tussen de 3 en 15 tekens lang zijn." });
+    }
+
+    try {
+      const userRef = doc(adminDb, "gebruikers", userId);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        return res.status(404).json({ success: false, error: "Gebruiker niet gevonden." });
+      }
+
+      const userData = userSnap.data() || {};
+      if (!userData.isAffiliate) {
+        return res.status(403).json({ success: false, error: "Gebruiker is geen partner." });
+      }
+
+      const currentCode = userData.affiliateCode;
+      if (currentCode === cleanCode) {
+        return res.json({ success: true, code: cleanCode });
+      }
+
+      // Controleer gereserveerde codes
+      const reservedCodes = ["TEST10", "PROMO10", "COUPON10", "START10", "MICRO20", "FREEGLASS"];
+      if (reservedCodes.includes(cleanCode)) {
+        return res.status(400).json({ success: false, error: "Deze kortingscode is gereserveerd. Kies een unieke code." });
+      }
+
+      // Controleer of de code al bestaat
+      const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        return res.status(400).json({ success: false, error: "Deze kortingscode is al in gebruik. Kies een andere." });
+      }
+
+      // Deactiveer de oude code
+      if (currentCode) {
+        const oldQuery = query(collection(adminDb, "kortingscodes"), where("code", "==", currentCode));
+        const oldSnap = await getDocs(oldQuery);
+        for (const oldDoc of oldSnap.docs) {
+          await updateDoc(doc(adminDb, "kortingscodes", oldDoc.id), { actief: false });
+        }
+      }
+
+      // Werk de partnercode bij bij de gebruiker
+      await updateDoc(userRef, { affiliateCode: cleanCode });
+
+      // Maak de nieuwe code aan
+      const codeRef = doc(collection(adminDb, "kortingscodes"));
+      await setDoc(codeRef, {
+        code: cleanCode,
+        actief: true,
+        affiliateId: userId,
+        influencerEmail: userData.email || "",
+        commissionRate: 15,
+        createdAt: serverTimestamp()
+      });
+
+      console.log(`[AFFILIATE] Partner ${userId} heeft code gewijzigd van ${currentCode} naar ${cleanCode}`);
+      return res.json({ success: true, code: cleanCode });
+    } catch (err: any) {
+      console.error("[SERVER] Fout bij wijzigen partnercode:", err);
+      return res.status(500).json({ success: false, error: "Interne serverfout bij wijzigen partnercode" });
+    }
+  });
+
   const BUILT_IN_CODES = ["TEST10", "PROMO10", "COUPON10", "START10", "MICRO20"];
 
   app.post("/api/validate-coupon", async (req, res) => {
@@ -284,31 +418,34 @@ async function startServer() {
 
     try {
       let isValid = false;
+      let discountPercent = 10;
+
       if (BUILT_IN_CODES.includes(cleanCode)) {
         isValid = true;
+        discountPercent = cleanCode === "MICRO20" ? 20 : 10;
       } else {
         const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const docData = querySnapshot.docs[0].data();
-          if (docData.actief === true || docData.actief === undefined) {
+          if (docData.actief === true) {
             isValid = true;
+            discountPercent = docData.kortingPercentage !== undefined ? docData.kortingPercentage : 10;
           }
         }
       }
 
       if (!isValid) {
-        return res.json({ valid: false, error: "Ongeldige of verlopen kortingscode" });
+        return res.json({ valid: false, error: "Ongeldige, verlopen of gedeactiveerde kortingscode." });
       }
-
-      const isLosseScan = packageName === "Losse Scan";
-      const discountPercent = isLosseScan ? 5 : 10;
       
       let originalPrice = 9.99;
       if (packageName === "Slimme Koper") originalPrice = 19.99;
       else if (packageName === "Autohandelaar") originalPrice = 29.00;
 
-      const discountAmount = Math.round(originalPrice * discountPercent) / 100;
+      // Autohandelaar has no discount applied directly on first checkout (it's a recurring subscription)
+      const isSub = packageName === "Autohandelaar";
+      const discountAmount = isSub ? 0 : (Math.round(originalPrice * discountPercent) / 100);
       const finalPrice = Math.max(0, originalPrice - discountAmount);
 
       return res.json({
@@ -361,22 +498,24 @@ async function startServer() {
       if (code) {
         const cleanCode = code.toUpperCase().trim();
         let isValidCode = false;
+        let discountPercent = 10;
+
         if (BUILT_IN_CODES.includes(cleanCode)) {
           isValidCode = true;
+          discountPercent = cleanCode === "MICRO20" ? 20 : 10;
         } else {
           const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
             const docData = querySnapshot.docs[0].data();
-            if (docData.actief === true || docData.actief === undefined) {
+            if (docData.actief === true) {
               isValidCode = true;
+              discountPercent = docData.kortingPercentage !== undefined ? docData.kortingPercentage : 10;
             }
           }
         }
 
         if (isValidCode) {
-          const isLosseScan = pakket === "Losse Scan";
-          const discountPercent = isLosseScan ? 5 : 10;
           if (pakket !== "Autohandelaar") {
             const origVal = parseFloat(amountValue);
             const discountAmount = Math.round(origVal * discountPercent) / 100;
@@ -534,6 +673,58 @@ async function startServer() {
 
           console.log(`[MOLLIE WEBHOOK] User ${userId} succesvol geüpgraded via webhook`);
 
+          // COUPON SYSTEM: Check of er een kortingscode is gebruikt en update de analytics
+          const kortingscode = payment.metadata?.kortingscode;
+          if (kortingscode) {
+            const cleanCode = kortingscode.toUpperCase().trim();
+            console.log(`[COUPON WEBHOOK] Analytics registreren voor code: ${cleanCode}`);
+            try {
+              const q = query(collection(adminDb, "kortingscodes"), where("code", "==", cleanCode));
+              const querySnapshot = await getDocs(q);
+              if (!querySnapshot.empty) {
+                const couponDoc = querySnapshot.docs[0];
+                const couponRef = doc(adminDb, "kortingscodes", couponDoc.id);
+
+                const amountPaid = parseFloat(payment.amount?.value || "0");
+                const discountPercent = parseFloat(payment.metadata?.kortingspercentage || "0");
+
+                // Bereken exacte kortingswaarde in euro's
+                let discountAmount = 0;
+                if (discountPercent > 0 && discountPercent < 100) {
+                  const originalPrice = amountPaid / (1 - discountPercent / 100);
+                  discountAmount = Math.round((originalPrice - amountPaid) * 100) / 100;
+                }
+
+                // 1. Sla de coupon transactie op in coupon_usages
+                const usageRef = doc(collection(adminDb, "coupon_usages"));
+                await setDoc(usageRef, {
+                  code: cleanCode,
+                  buyerId: userId,
+                  buyerEmail: payment.metadata?.email || "onbekend",
+                  pakket: pakket || "Pakket",
+                  amountPaid,
+                  discountPercent,
+                  discountAmount,
+                  paymentId: id,
+                  createdAt: serverTimestamp()
+                });
+
+                // 2. Update real-time statistieken op de kortingscode
+                await updateDoc(couponRef, {
+                  aantalGebruikt: increment(1),
+                  aantalVerkopen: increment(1),
+                  totaleOmzet: increment(amountPaid),
+                  totaleKorting: increment(discountAmount),
+                  laatstGebruikt: serverTimestamp()
+                });
+
+                console.log(`[COUPON WEBHOOK] Succesvol €${amountPaid} omzet en €${discountAmount} korting geregistreerd onder coupon ${cleanCode}`);
+              }
+            } catch (couponErr) {
+              console.error("[SERVER] Fout bij verwerken coupon stats update: ", couponErr);
+            }
+          }
+
           // Als het een eerste betaling van een abonnement is, maak dan nu het daadwerkelijke maandabonnement aan
           if (permissies === "autohandelaar" && payment.sequenceType === "first" && payment.customerId) {
             const uSnap = await getDoc(userRef);
@@ -687,7 +878,7 @@ async function startServer() {
 
       if (url.includes('autoscout24')) {
         listing = await scrapeAutoScout24(url);
-        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+        if (listing && tier !== 'free') vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '', listing.kilometerstand);
       } else {
         listing = await scrapeMarktplaats(url);
         if (listing && tier !== 'free') vergelijkbaarPromise = scrapeVergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '', listing.kilometerstand);
@@ -799,7 +990,7 @@ async function startServer() {
       const userDoc = await getDoc(userRef);
       if (userDoc.exists) {
         const data = userDoc.data() as any;
-        const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+        const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl', 'admin@occasionscan.nl'];
         isAdmin = adminEmails.includes((data.email || '').toLowerCase());
         
         if (isAdmin) {
@@ -966,7 +1157,7 @@ async function startServer() {
       const reportTier = rawData.tier || 'free';
       const userEmail = (req.query.email as string) || ''; 
 
-      const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+      const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl', 'admin@occasionscan.nl'];
       const isAdmin = adminEmails.includes(userEmail.toLowerCase());
 
       // Access logic is STRICTLY based on the current user's active tier (not the tier of the generated report itself)
@@ -1062,7 +1253,8 @@ async function startServer() {
             "ibrahimdiscord675@gmail.com",
             "sblzakelijk@gmail.com",
             "bedrijfsondernemernl1@gmail.com",
-            "admin_server_bot@occasionscan.nl"
+            "admin_server_bot@occasionscan.nl",
+            "admin@occasionscan.nl"
           ];
           const userIsAdmin = adminEmails.includes(userEmail.toLowerCase());
 
@@ -1143,7 +1335,7 @@ async function markeerAlsFout(rapportId: string, errorMsg: string, userId: strin
       const userDoc = await getDoc(userRef);
       if (userDoc.exists) {
         const uData = userDoc.data() as any;
-        const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+        const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl', 'admin@occasionscan.nl'];
         const userIsAdmin = adminEmails.includes((uData.email || '').toLowerCase());
         
         if (!userIsAdmin) {
@@ -1173,7 +1365,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
     if (url.includes('autoscout24')) {
       listing = await scrapeAutoScout24(url);
       if (listing && reportTier !== 'free') {
-        vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar);
+        vergelijkbaarPromise = scrapeAutoScout24Vergelijkbaar(listing.merk, listing.model, listing.bouwjaar, listing.variant || '', listing.titel || '', listing.kilometerstand);
       }
     } else {
       listing = await scrapeMarktplaats(url);
@@ -1275,7 +1467,7 @@ async function voerAnalyseUit(rapportId: string, url: string, userId: string, re
         const userDoc = await getDoc(userRef);
         if (userDoc.exists) {
           const uData = userDoc.data() as any;
-          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl'];
+          const adminEmails = ['ibrahimdiscord675@gmail.com', 'sblzakelijk@gmail.com', 'bedrijfsondernemernl1@gmail.com', 'admin_server_bot@occasionscan.nl', 'admin@occasionscan.nl'];
           const userIsAdmin = adminEmails.includes((uData.email || '').toLowerCase());
           
           if (!userIsAdmin) {

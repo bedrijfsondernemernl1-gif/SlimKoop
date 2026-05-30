@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings, AlertCircle, Loader2, Home, LogOut } from 'lucide-react';
+import { LayoutDashboard as LayoutDashboardIcon, Heart, History, Settings, AlertCircle, Loader2, Home, LogOut, Award } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { useStore } from '@/src/store/useStore';
 import { doc, setDoc } from 'firebase/firestore';
@@ -9,6 +9,7 @@ import { DashboardOverview } from '@/src/components/dashboard/DashboardOverview'
 import { DashboardGarage } from '@/src/components/dashboard/DashboardGarage';
 import { DashboardHistory } from '@/src/components/dashboard/DashboardHistory';
 import { DashboardSettings } from '@/src/components/dashboard/DashboardSettings';
+import { DashboardCoupons } from '@/src/components/dashboard/DashboardCoupons';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export const Dashboard: React.FC = () => {
   const permissies = useStore(state => state.permissies);
   const scansOver = useStore(state => state.scansOver);
   const logout = useStore(state => state.logout);
+  const user = useStore(state => state.user);
   
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -76,6 +78,9 @@ export const Dashboard: React.FC = () => {
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboardIcon, path: '/dashboard' },
     { id: 'garage', label: 'Mijn Garage', icon: Heart, path: '/dashboard/garage' },
     { id: 'history', label: 'Geschiedenis', icon: History, path: '/dashboard/history' },
+    ...(user?.email?.toLowerCase() === 'admin@occasionscan.nl' ? [
+      { id: 'kortingscodes', label: 'Coupons (Admin)', icon: Award, path: '/dashboard/kortingscodes' }
+    ] : []),
     { id: 'settings', label: 'Instellingen', icon: Settings, path: '/dashboard/settings' },
   ];
 
@@ -174,6 +179,9 @@ export const Dashboard: React.FC = () => {
             <Route path="/" element={<DashboardOverview />} />
             <Route path="garage" element={<DashboardGarage />} />
             <Route path="history" element={<DashboardHistory />} />
+            {user?.email?.toLowerCase() === 'admin@occasionscan.nl' && (
+              <Route path="kortingscodes" element={<DashboardCoupons />} />
+            )}
             <Route path="settings" element={<DashboardSettings />} />
           </Routes>
         </div>
